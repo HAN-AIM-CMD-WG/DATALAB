@@ -1,0 +1,8 @@
+reachy_mini>=1.5.1
+openai>=2.0.0
+python-dotenv>=1.0.0
+SpeechRecognition>=3.10.0
+PyAudio>=0.2.14
+numpy>=2.0.0
+scipy>=1.10.0
+opencv-python>=4.8.0

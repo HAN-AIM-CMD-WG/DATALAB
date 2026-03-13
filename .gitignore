@@ -1,0 +1,22 @@
+# Environment
+.env
+venv/
+__pycache__/
+
+# Binaries
+piper/
+# Note: face_detection_yunet.onnx is tracked (small, required)
+# Piper model files are large and should not be tracked
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs & temp
+*.log
+*.wav
+*.jpg
