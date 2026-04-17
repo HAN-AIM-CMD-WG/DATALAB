@@ -33,12 +33,17 @@ AnonymizationMode = Literal["redact", "pseudonymize"]
 class PseudonymMapping:
     """Stabiele mapping van originele string → pseudoniem, per entiteitstype.
 
-    De mapping is case-insensitief voor lookup maar bewaart de oorspronkelijke
-    casing in de lookup-keys zodat een frontend varianten kan markeren.
+    Lookup gebeurt case-insensitief (``Jan`` en ``jan`` delen één pseudoniem),
+    maar we rapporteren de *oorspronkelijke* schrijfwijze van het eerst geziene
+    voorkomen terug in ``as_public_dict``. Zo kan de frontend bijvoorbeeld
+    ``6811 AA`` tonen en niet ``6811 aa``.
     """
 
     counters: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    # (entity_type, text.casefold()) → pseudonym-token
     mapping: dict[tuple[str, str], str] = field(default_factory=dict)
+    # pseudonym-token → eerste geziene originele schrijfwijze
+    _originals: dict[str, str] = field(default_factory=dict)
 
     def pseudonym_for(self, entity_type: str, text: str) -> str:
         key = (entity_type, text.casefold())
@@ -47,15 +52,23 @@ class PseudonymMapping:
         self.counters[entity_type] += 1
         token = f"{entity_type}_{self.counters[entity_type]}"
         self.mapping[key] = token
+        self._originals[token] = text
         return token
 
     def as_public_dict(self) -> list[dict[str, str]]:
-        """Serializable weergave voor de API-response."""
+        """Serializable weergave voor de API-response.
 
-        return [
-            {"entity_type": etype, "original": original, "pseudonym": pseudo}
-            for (etype, original), pseudo in self.mapping.items()
-        ]
+        Rapporteert per pseudoniem het originele tekstfragment met de
+        oorspronkelijke casing.
+        """
+
+        result: list[dict[str, str]] = []
+        for (etype, _casefolded), pseudonym in self.mapping.items():
+            original = self._originals.get(pseudonym, _casefolded)
+            result.append(
+                {"entity_type": etype, "original": original, "pseudonym": pseudonym}
+            )
+        return result
 
 
 @dataclass

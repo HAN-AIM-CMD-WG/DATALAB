@@ -30,6 +30,17 @@ class TestPseudonymize:
         assert "PERSON_1" in out.text
         assert "LOCATION_1" in out.text
 
+    def test_mapping_reports_original_casing(self) -> None:
+        """De API-mapping moet de originele schrijfwijze behouden, niet de
+        case-folded lookup-key."""
+
+        text = "Postcode 6811 AA hier."
+        results = [_result("NL_POSTCODE", 9, 16)]
+        out = anonymize_with_mode(text, results, mode="pseudonymize")
+        assert out.mapping is not None
+        entry = next(m for m in out.mapping if m["pseudonym"] == "NL_POSTCODE_1")
+        assert entry["original"] == "6811 AA"
+
     def test_overlap_highest_score_wins(self) -> None:
         text = "Jan de Vries"
         # Twee overlappende detecties: "Jan" (lage score) en "Jan de Vries" (hoge score).
