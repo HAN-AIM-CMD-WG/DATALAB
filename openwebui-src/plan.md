@@ -1,5 +1,15 @@
 # Plan: Private LLM Omgeving voor HAN Docenten op SURF ResearchCloud
 
+## Huidige status (maart 2026)
+
+**Workspace draait op:** https://aimdatalabllm.han-general-src.src.surf-hosted.nl/
+
+**Actieve modellen:**
+- **Qwen3.5:27B** — gepulld en werkend (primair chatmodel)
+- **nomic-embed-text** — gepulld en werkend (embedding voor RAG)
+
+---
+
 ## Context
 
 HAN wil een veilige, private LLM-omgeving opzetten voor 5-20 docenten die willen experimenteren met (geanonimiseerde) studentdata. De use cases zijn primair tekstanalyse (samenvatten, classificeren) en tekstgeneratie (feedback, toetsvragen), later mogelijk ook code-assistentie. Er is al toegang tot SURF ResearchCloud (SRC). We gebruiken de UU Open WebUI repo als referentie/basis.
@@ -40,55 +50,64 @@ collections:
     version: v2.3.0  # Pin op een specifieke release-tag voor reproduceerbaarheid
 ```
 
-### 3. Welke modellen? (onderzoek maart 2026)
+### 3. Modellen
 
-**Aanpak: 1 groot model tegelijk + 1 klein embedding model (CPU) voor RAG.**
-Ollama wisselt automatisch — selecteer een ander model in Open WebUI en het vorige wordt unloaded.
+#### Besluit: 1 primair model + 1 embedding model (GPU)
 
-#### Modelonderzoek: alle kandidaten op een rij
+We draaien **een enkel primair model** op de GPU. Meerdere gebruikers die wisselen tussen modellen veroorzaakt VRAM-problemen (laden/unladen), dus we houden het simpel.
 
-We hebben de volledige Ollama library (https://ollama.com/search) doorlopen. Dit zijn de modellen die passen op een A10 (24 GB VRAM) en relevant zijn voor jullie use case (RAG, Nederlands, onderwijs, nakijken, toetsen):
+#### Primair model: Qwen3.5:27B
 
-| Model | Params | VRAM (Q4) | Context | NL support | Pulls | Sterkte |
-|-------|--------|-----------|---------|-----------|-------|---------|
-| **Qwen3.5:27B** | 27B | ~17 GB | 256K | 201 talen ✓ | 3.1M | Nieuwst, allround best, multimodal |
-| **GLM-4.7-Flash** | 30B MoE | ~19 GB | 198K | Meertalig (26+ talen) | 861K | **1.3% hallucinatie bij RAG**, sterk gestructureerde output |
-| **Qwen3:30B** | 30B MoE | ~16 GB | 256K | 100+ talen ✓ | 24.8M | Bewezen stabiel, enorme community |
-| **DeepSeek-R1:14B** | 14B | ~9 GB | 128K | Matig | 80.8M | Top redeneren (93.9% MATH-500) |
-| **Gemma3:27B** | 27B | ~17 GB | 128K | 140+ talen ✓ | 34.1M | Google, multimodal, efficiënt |
-| **Mistral-Small:24B** | 24B | ~14 GB | 32K | NL bevestigd ✓ | 2.6M | Gestructureerde output, JSON, function calling |
-| **Cogito:14B** | 14B | ~9 GB | 128K | 30+ talen | 1.7M | Extended thinking, redeneren |
-| **Fietje-2B** | 2.7B | ~3.8 GB | 32K | Beste NL ✓✓ | Klein | Verslaat 7B modellen op NL benchmarks |
+| Eigenschap | Waarde |
+|------------|--------|
+| Parameters | 27B |
+| VRAM (Q4) | ~17 GB |
+| Context window | 256K |
+| Talen | 201 |
+| Multimodal/vision | Ja |
+| Ollama pulls | 3.1M |
+| Status | **Gepulld en werkend** |
 
-**Niet geschikt:** Phi-4 (te Engels-georiënteerd), Llama 3.3 (alleen 70B op Ollama), Devstral (code-only).
+Qwen3.5:27B is het allround beste model dat past op een A10. Het combineert uitstekende meertalige prestaties (inclusief Nederlands), een enorm context window, en vision-mogelijkheden (foto's van toetsen, grafieken, diagrammen analyseren).
+
+#### Embedding model: nomic-embed-text (GPU)
+
+| Eigenschap | Waarde |
+|------------|--------|
+| Dimensies | 768 |
+| VRAM | ~0.5 GB |
+| Draait op | GPU (naast Qwen3.5:27B) |
+| Status | **Gepulld en werkend** |
+
+Draait op de GPU naast Qwen3.5:27B. Totaal VRAM-gebruik: ~17.5 GB van 24 GB beschikbaar — ruim voldoende.
+
+#### Alternatieve modellen (later testen)
+
+Deze modellen worden niet standaard aangeboden, maar kunnen later getest worden voor specifieke taken:
+
+| Model | Params | VRAM (Q4) | Context | Use case |
+|-------|--------|-----------|---------|----------|
+| **GLM-4.7-Flash** | 30B MoE | ~19 GB | 198K | Nakijken/beoordelen — slechts 1.3% hallucinatie bij RAG, sterke gestructureerde output |
+| **DeepSeek-R1:14B** | 14B | ~9 GB | 128K | Diep redeneren/analyseren — sterkste logisch redeneren (93.9% MATH-500) |
+
+**Testprocedure:** Pull het model, test met de standaard testset (zie model-evaluatieprotocol), en vergelijk met Qwen3.5:27B. Alleen als alternatief aanbieden als het significant beter presteert op de specifieke taak.
+
+#### VRAM budget op A10 (24 GB)
+
+```
+Huidige configuratie:
+  Qwen3.5:27B (GPU):       ~17.0 GB
+  nomic-embed-text (GPU):   ~0.5 GB
+  OS + overhead:            ~ 2.0 GB
+  Vrij:                     ~ 4.5 GB  ✓
+```
 
 #### Nederlandse taal benchmarks
 
 Op basis van de Open Dutch LLM Leaderboard en ScandEval:
-- **Fietje-2B** presteert het best per parameter op Nederlands (getraind op 28B NL tokens)
 - **Qwen-familie** scoort het hoogst op multilingual MMLU inclusief Nederlands
 - **DeepSeek-R1** is minder geoptimaliseerd voor NL maar compenseert met redeneervermogen
 - **GLM-4.7-Flash** heeft geen specifieke NL benchmarks maar de lage hallucinatiegraad maakt het aantrekkelijk voor onderwijs
-
-#### Aanbeveling: wissel per taak
-
-| Taak | Model | Waarom |
-|------|-------|--------|
-| **Dagelijks** (RAG, vragen, materiaal maken) | **Qwen3.5:27B** | Allround best, 256K context, multimodal |
-| **Nakijken/beoordelen** (rubric-based) | **GLM-4.7-Flash** | Laagste hallucinatiegraad (1.3%), sterke Markdown output |
-| **Diep redeneren/analyseren** | **DeepSeek-R1:14B** | Sterkste logisch redeneren, snel (slechts 9 GB) |
-| **Snel NL-specifiek** (korte taken) | **Fietje-2B** | Snelst, beste NL, kan naast groot model draaien |
-
-**Start met Qwen3.5:27B.** Test daarna GLM-4.7-Flash voor nakijktaken — de 1.3% hallucinatiegraad is bijzonder relevant als je studentwerk beoordeelt.
-
-#### Embedding model (voor RAG — draait op CPU)
-
-| Model | Dims | Draait op | Ollama |
-|-------|------|-----------|--------|
-| **Nomic Embed Text v2** (aanbevolen) | 768 | CPU | `nomic-embed-text` |
-| **Qwen3 Embedding** (alternatief) | — | CPU | Beschikbaar via Ollama |
-
-Draait prima op CPU: embedding is eenmalig (bij upload), het model is klein (~270M params), en een query embedden duurt milliseconden.
 
 #### Image generation (optioneel)
 
@@ -102,33 +121,11 @@ Open WebUI ondersteunt image gen via ComfyUI of AUTOMATIC1111:
 | **SDXL** | ~8 GB | Zeer goed, groot ecosystem | Via ComfyUI |
 | **SD 3.5 Large** | ~10 GB | Beste tekst-in-beeld | Via ComfyUI |
 
-**Let op VRAM:** Qwen3.5:27B (~17 GB) + image gen model (~8 GB) = 25 GB → past niet tegelijk op A10 (24 GB). Oplossingen:
+**Let op VRAM:** Qwen3.5:27B (~17 GB) + nomic-embed-text (~0.5 GB) + image gen model (~8 GB) = 25.5 GB → past niet tegelijk op A10 (24 GB). Oplossingen:
 1. **Sequentieel wisselen** (aanbevolen): Ollama/ComfyUI unloadt het LLM, genereert beeld, herlaadt LLM. ~5-10 sec extra per wissel.
-2. **Kleiner LLM:** Gebruik Qwen3.5:9B (~6.6 GB) + FLUX.2 Klein (~8 GB) = ~14 GB → past wél concurrent. Maar lagere LLM-kwaliteit.
-3. **Geen image gen nodig?** Dan hoef je hier niets mee — Qwen3.5:27B is prima standalone.
+2. **Geen image gen nodig?** Dan hoef je hier niets mee — Qwen3.5:27B is prima standalone.
 
 **Configuratie:** Admin Panel → Settings → Images → ComfyUI engine selecteren, base URL instellen.
-
-#### VRAM budget op A10 (24 GB)
-
-```
-Optie A: Alleen LLM (aanbevolen start)
-  Qwen3.5:27B (GPU):  ~17 GB
-  Embedding (CPU):      0 GB
-  OS + overhead:       ~ 2 GB
-  Vrij:                ~ 5 GB  ✓
-
-Optie B: LLM + image gen (sequentieel wisselen)
-  Qwen3.5:27B OF FLUX.2 Klein — nooit tegelijk
-  Werkt automatisch via Ollama/ComfyUI memory management
-
-Optie C: Klein LLM + image gen (concurrent)
-  Qwen3.5:9B (GPU):   ~ 6.6 GB
-  FLUX.2 Klein (GPU):  ~ 8 GB
-  Embedding (CPU):      0 GB
-  OS + overhead:       ~ 2 GB
-  Vrij:                ~ 7.4 GB  ✓
-```
 
 ### 3b. RAG voor onderwijs
 
@@ -150,11 +147,28 @@ Open WebUI heeft ingebouwde RAG-support:
 | **Onderwijsmateriaal maken** | Upload bronmateriaal → vraag "Maak een samenvatting voor 2e-jaars studenten" |
 | **Feedback genereren** | Upload beoordelingscriteria → vraag "Geef formatieve feedback op dit werkstuk" |
 
+**Aanbevolen RAG-instellingen:**
+
+| Instelling | Waarde | Toelichting |
+|------------|--------|-------------|
+| **Embedding Model** | `nomic-embed-text` | Gepulld en werkend op GPU |
+| **Chunk Size** | 1500 | Grotere chunks behouden meer context per fragment |
+| **Chunk Overlap** | 200 | Voorkomt dat relevante info op chunkgrenzen verloren gaat |
+| **Top K** | 5 | Aantal opgehaalde chunks per query |
+| **Reranking Model** | `BAAI/bge-reranker-v2-m3` | Cross-encoder reranker voor betere relevantie-ranking |
+| **Hybrid Search** | Enabled | Combineert BM25 keyword search + semantische vector search |
+| **PDF OCR** | Enabled | Herkent tekst in gescande PDF's (relevant voor gescande toetsen/werkstukken) |
+
 **Configuratie in Open WebUI:**
 1. Admin Panel → Settings → Documents → Embedding model instellen op `nomic-embed-text`
-2. Workspace → Knowledge → nieuwe Knowledge Base aanmaken per vak
-3. Documenten uploaden (PDF, DOCX, etc.)
-4. In chat: `#KennisBase-naam` om te verwijzen naar specifiek materiaal
+2. Admin Panel → Settings → Documents → Chunk Size: 1500, Chunk Overlap: 200
+3. Admin Panel → Settings → Documents → Top K: 5
+4. Admin Panel → Settings → Documents → Reranking Model: `BAAI/bge-reranker-v2-m3`
+5. Admin Panel → Settings → Documents → Hybrid Search: inschakelen
+6. Admin Panel → Settings → Documents → PDF OCR: inschakelen
+7. Workspace → Knowledge → nieuwe Knowledge Base aanmaken per vak
+8. Documenten uploaden (PDF, DOCX, etc.)
+9. In chat: `#KennisBase-naam` om te verwijzen naar specifiek materiaal
 
 **Model-evaluatieprotocol:** Stel een standaard testset samen van ~20 Nederlandse onderwijscases (samenvatten, feedback genereren, toetsvragen). Beoordeel het model op:
 - Kwaliteit antwoorden (1-5 schaal)
@@ -166,22 +180,20 @@ Een nieuw model mag pas breed beschikbaar worden gesteld als het ≥3.5 scoort o
 
 ### 4. Welke server capaciteit?
 
-**Aanbevolen SRC configuratie voor 5-20 gebruikers met mix van 7B modellen:**
+**Huidige SRC configuratie (A10 flavor):**
 
-| Resource | Minimum | Aanbevolen |
-|----------|---------|------------|
-| **GPU** | 1x A10 (24 GB VRAM) | 1x A10 (24 GB VRAM) |
-| **CPU** | 8 cores | 11+ cores (standaard bij A10 flavor) |
-| **RAM** | 32 GB | 88 GB (standaard bij A10 flavor) |
-| **Disk** | 50 GB | 100 GB+ (modellen ~5 GB per stuk) |
+| Resource | Waarde |
+|----------|--------|
+| **GPU** | 1x A10 (24 GB VRAM) |
+| **CPU** | 11 cores (Intel Xeon Gold 6342 @ 2.80GHz) |
+| **RAM** | 88 GB |
+| **Disk** | 1450 GB ephemeral storage |
 
 **Waarom A10?**
-- 24 GB VRAM = ruim genoeg voor meerdere 7B modellen tegelijk
+- 24 GB VRAM = voldoende voor Qwen3.5:27B (~17 GB) + nomic-embed-text (~0.5 GB) + overhead
 - Beschikbaar op SRC (HPC Cloud, Azure, Oracle)
 - Goede prijs/kwaliteit verhouding
 - Als je later 70B modellen wilt: upgrade naar A100 (80 GB)
-
-**Let op:** Ollama laadt modellen on-demand in VRAM. Met 24 GB kun je ~3-4 Q4-gekwantiseerde 7B modellen tegelijk serveren.
 
 **Kostenbewaking:**
 - Stel een maandbudget vast voor GPU-uren en opslag
@@ -207,7 +219,7 @@ Een nieuw model mag pas breed beschikbaar worden gesteld als het ≥3.5 scoort o
 Docenten kunnen het LLM model ook direct gebruiken om documenten te anonimiseren:
 - Upload document via RAG of plak tekst in de chat
 - Prompt: *"Anonimiseer alle persoonsgegevens in deze tekst. Vervang namen door [PERSOON-1], adressen door [ADRES-1], studentnummers door [STUDENTNR-1], etc. Behoud de rest van de tekst ongewijzigd."*
-- Qwen3-14B is hier goed in en begrijpt context (bijv. dat "Van den Berg" een naam is, niet een locatie)
+- Qwen3.5:27B is hier goed in en begrijpt context (bijv. dat "Van den Berg" een naam is, niet een locatie)
 - **Niet 100% waterdicht** — altijd menselijk controleren, daarom als aanvulling op DEDUCE, niet als vervanging
 
 #### Anonimisatie-flow voor docenten
@@ -306,7 +318,7 @@ Stel een korte (1 A4) usage policy op:
 | Metric | Target |
 |--------|--------|
 | **Beschikbaarheid** | 95% tijdens kantooruren (ma-vr 8-18u) |
-| **Responstijd** | <30 sec voor 7B model bij ≤10 gelijktijdige users |
+| **Responstijd** | <30 sec voor Qwen3.5:27B bij ≤10 gelijktijdige users |
 | **Hersteltijd bij storing** | <4 uur (workspace herstarten/opnieuw deployen) |
 | **Escalatiepad** | Technisch beheerder → SURF servicedesk → Security contact (bij data-incident) |
 
@@ -320,42 +332,38 @@ Stel een korte (1 A4) usage policy op:
 - [ ] Usage policy schrijven (1 A4)
 - [ ] Maandbudget vaststellen voor SRC GPU-uren
 - [ ] **Developer-rol aanvragen** bij CO-admin van je SRAM Collaboration (nodig voor eigen component registratie in Fase 3)
-- [ ] Git repo is al aangemaakt: https://github.com/HAN-AIM-CMD-WG/src-component-openwebui (done)
+- [x] Git repo is al aangemaakt: https://github.com/HAN-AIM-CMD-WG/src-component-openwebui
 
-### Fase 1: Quick start via UU catalog item (week 2-3)
-> Je hebt nog geen Developer-rol nodig. Start direct via het bestaande UU catalog item.
+### Fase 1: Quick start via UU catalog item (week 2-3) — VOLTOOID
+> Workspace draait op: https://aimdatalabllm.han-general-src.src.surf-hosted.nl/
 
-**Stap 1: Workspace starten via UU catalog item**
-- Log in op [SURF ResearchCloud](https://portal.live.surfresearchcloud.nl/)
-- Zoek het Open WebUI catalog item van Utrecht University
-- Selecteer **A10 - 1 GPU** flavor:
-  - 11 cores (Intel Xeon Gold 6342 @ 2.80GHz)
-  - 88 GB RAM
-  - 1x NVIDIA A10 (24 GB VRAM)
-  - 1450 GB ephemeral storage
-- Stel parameter `model` in op `qwen3:14b`
-- Stel parameter `expose_api` in op `false`
-- Klik Submit → workspace draait binnen ~10-15 min
+**Stap 1: Workspace starten via UU catalog item** — DONE
+- A10 flavor: 11 cores, 88 GB RAM, 1x NVIDIA A10 (24 GB VRAM), 1450 GB storage
 
-**Stap 2: Modellen toevoegen**
-SSH naar de workspace en pull het chat model + embedding model:
+**Stap 2: Modellen pullen** — DONE
 ```bash
-# Chat model (27B, ~17 GB VRAM, 201 talen, multimodal, 256K context)
+# Primair chatmodel (27B, ~17 GB VRAM, 201 talen, multimodal/vision, 256K context)
 /opt/ollama/bin/ollama pull qwen3.5:27b
 
-# Embedding model voor RAG
+# Embedding model voor RAG (~0.5 GB VRAM, draait naast Qwen op GPU)
 /opt/ollama/bin/ollama pull nomic-embed-text
 ```
 
 **Stap 3: RAG configureren**
-- Open WebUI → Admin Panel → Settings → Documents
-- Stel Embedding Model in op `nomic-embed-text`
-- Maak een eerste Knowledge Base aan (Workspace → Knowledge)
+- Open WebUI → Admin Panel → Settings → Documents:
+  - Embedding Model: `nomic-embed-text`
+  - Chunk Size: 1500
+  - Chunk Overlap: 200
+  - Top K: 5
+  - Reranking Model: `BAAI/bge-reranker-v2-m3`
+  - Hybrid Search: inschakelen
+  - PDF OCR: inschakelen
+- Workspace → Knowledge → eerste Knowledge Base aanmaken
 - Upload testdocumenten (lesmateriaal, rubrics)
 
-**Stap 3: Security-hardening doorlopen** (zie checklist hierboven)
+**Stap 4: Security-hardening doorlopen** (zie checklist hierboven)
 
-**Stap 4: Anonimisatie-pipeline inrichten**
+**Stap 5: Anonimisatie-pipeline inrichten**
 - Installeer DEDUCE als Open WebUI pipeline/filter (standaard actief)
 - Test met voorbeeldteksten met fictieve studentdata
 - Configureer waarschuwingsmelding bij PII-detectie
@@ -363,10 +371,15 @@ SSH naar de workspace en pull het chat model + embedding model:
 ### Fase 2: Pilot (week 4-7) — 3-5 docenten
 **Acceptatiecriteria:**
 - [ ] SRAM-login werkt voor alle pilotgebruikers
-- [ ] Minimaal 2 modellen bruikbaar voor Nederlandse prompts
+- [ ] Qwen3.5:27B bruikbaar voor Nederlandse prompts (primair model)
 - [ ] Anonimisatiefilter detecteert testcases correct
 - [ ] 5 gelijktijdige sessies met acceptabele responstijd (<30 sec)
 - [ ] Usage policy gelezen en ondertekend door pilotgebruikers
+- [ ] RAG werkt met nomic-embed-text en aanbevolen instellingen
+
+**Optioneel testen in deze fase:**
+- GLM-4.7-Flash voor nakijktaken (lage hallucinatie)
+- DeepSeek-R1:14B voor redeneer-taken
 
 **Exit-criteria voor volgende fase:**
 - Geen kritieke privacy-incidenten
@@ -397,26 +410,27 @@ SSH naar de workspace en pull het chat model + embedding model:
 ### Fase 4: Controlled rollout (week 8-12) — 10 docenten
 **Exit-criteria:**
 - 10 gelijktijdige sessies met acceptabele responstijd
-- Model-evaluatieprotocol uitgevoerd op alle aangeboden modellen
+- Model-evaluatieprotocol uitgevoerd op Qwen3.5:27B + eventuele alternatieven
 - Back-up en restore succesvol getest
 - Kostenoverzicht eerste maand past binnen budget
 
 ### Fase 5: Breed gebruik (week 13+) — 20+ docenten
 - Eventueel opschalen naar 2x A10 of A100
-- Extra modellen toevoegen op basis van evaluatie
+- Evalueren of alternatieven (GLM-4.7-Flash, DeepSeek-R1:14B) als extra modellen aangeboden worden
 - Evalueren of A10 nog voldoet of upgrade nodig is
 
 ---
 
 ## Verificatie / Testen
 
-1. **Deployment check:** Na `ansible-playbook` → browse naar workspace URL, SRAM login moet werken
-2. **Model check:** In Open WebUI → selecteer een model → stel een vraag in het Nederlands
-3. **Anonimisatie check:** Voer tekst in met fictieve namen/BSN → DEDUCE moet waarschuwen/filteren
-4. **Multi-user check:** Laat 5+ collega's tegelijk inloggen en queries draaien
-5. **Performance check:** Monitor GPU gebruik via `nvidia-smi` op de workspace
-6. **Security check:** Controleer HTTPS, SRAM-auth, SSH key-only, fail2ban actief
-7. **Restore check:** Test workspace-herstel vanuit backup (1x per kwartaal)
+1. **Deployment check:** Browse naar https://aimdatalabllm.han-general-src.src.surf-hosted.nl/ → SRAM login moet werken
+2. **Model check:** In Open WebUI → selecteer Qwen3.5:27B → stel een vraag in het Nederlands
+3. **RAG check:** Upload testdocument → stel vragen over de inhoud → controleer citaties
+4. **Anonimisatie check:** Voer tekst in met fictieve namen/BSN → DEDUCE moet waarschuwen/filteren
+5. **Multi-user check:** Laat 5+ collega's tegelijk inloggen en queries draaien
+6. **Performance check:** Monitor GPU gebruik via `nvidia-smi` op de workspace
+7. **Security check:** Controleer HTTPS, SRAM-auth, SSH key-only, fail2ban actief
+8. **Restore check:** Test workspace-herstel vanuit backup (1x per kwartaal)
 
 ---
 
