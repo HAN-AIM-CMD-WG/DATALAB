@@ -42,9 +42,25 @@ export interface EngineApi {
   url(): Promise<string>;
 }
 
+export type ModelProfile = 'basis' | 'plus' | 'max';
+
+export interface AppSettings {
+  schemaVersion: 1;
+  onboardingCompletedAt: string | null;
+  acceptedResponsibility: boolean;
+  modelProfile: ModelProfile;
+}
+
+export interface SettingsApi {
+  get(): Promise<AppSettings>;
+  set(patch: Partial<AppSettings>): Promise<AppSettings>;
+  reset(): Promise<AppSettings>;
+}
+
 export interface AnonimiseerApi {
   version: VersionInfo;
   engine: EngineApi;
+  settings: SettingsApi;
 }
 
 declare global {
