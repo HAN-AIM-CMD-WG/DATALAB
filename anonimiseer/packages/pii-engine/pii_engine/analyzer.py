@@ -15,6 +15,7 @@ from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngine, NlpEngineProvider
 
 from pii_engine.config import Settings, get_settings
+from pii_engine.runtime import effective_settings
 from pii_engine.recognizers import (
     BsnRecognizer,
     NlPhoneRecognizer,
@@ -72,10 +73,12 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
 
     Args:
         settings: Optioneel overschrijven van de gecachede settings (handig
-            voor tests).
+            voor tests). Als ``None``, gebruiken we de runtime-overrides
+            bovenop ``Settings`` zodat keuzes uit de Model Manager
+            doorwerken zonder engine-restart.
     """
 
-    settings = settings or get_settings()
+    settings = settings or effective_settings()
 
     registry = RecognizerRegistry(supported_languages=["nl"])
     if settings.enable_presidio_builtins:
