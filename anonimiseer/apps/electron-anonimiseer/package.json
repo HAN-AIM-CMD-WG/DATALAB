@@ -1,54 +1,68 @@
 {
-  "type": "module",
-  "name": "a5-pii-anonymizer",
-  "version": "0.0.1",
-  "main": "main.js",
-  "description": "A short description of your app",
+  "name": "anonimiseer-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Anonimiseer desktop-app — lokale PII-anonimisering voor Nederlandse documenten",
+  "main": "out/main/index.js",
+  "author": "DataLab",
+  "license": "MIT",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "electron .",
-    "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux"
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "exceljs": "^4.3.0",
-    "@xenova/transformers": "2.17.2",
-    "mammoth": "^1.5.2",
-    "docx": "^8.4.0",
-    "pdf-parse": "^1.1.1",
-    "pdf-lib": "^1.17.1"
+    "@radix-ui/react-slot": "^1.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
-    "electron": "^34.2.0",
-    "electron-builder": "^23.6.0"
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
   },
   "build": {
-    "productName": "A5 PII Anonymizer",
-    "appId": "com.a5.piiAnonymizer",
-    "mac": {
-      "icon": "assets/icon",
-      "category": "public.app-category.utilities"
-    },
-    "win": {
-      "icon": "assets/icon"
-    },
+    "appId": "org.datalab.anonimiseer",
+    "productName": "Anonimiseer",
     "directories": {
-      "buildResources": "assets"
+      "output": "release"
     },
     "files": [
-      "**/*",
-      {
-        "from": "assets",
-        "to": "assets",
-        "filter": [
-          "icon.png"
-        ]
-      }
-    ]
+      "out/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Office"
+    }
   }
 }

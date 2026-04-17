@@ -1,79 +1,109 @@
-# A5 PII Anonymizer
+# Anonimiseer desktop-app
 
-### Built-In LLM Desktop App Preview:
-<img src="./assets/preview.gif" alt="Chrome Extension Demo Gif" style="display: block; width: 100%; max-width: none;" />
+> Electron-app voor niet-technische collega's om lokaal DOCX, PDF en XLSX
+> te anonimiseren. Roept de gedeelde
+> [`packages/pii-engine`](../../packages/pii-engine) sidecar aan voor alle
+> detectie — geen enkel model of document verlaat de machine.
 
-This repository provides an **Electron** desktop application for **locally anonymizing documents** before sending them to advanced Large Language Models (LLMs). By stripping out personal or identifiable information using a **context-aware** model, you can safely train or query external LLMs (e.g., OpenAI’s o3 model) with minimal privacy risk.
+## Status
 
-## Motivation
+Fase 3.1 — **Scaffolding + veilige Electron-shell**. De wizard-stappen
+(Bestand kiezen → Instellingen → Controleren → Opslaan) staan op de roadmap
+maar zijn nog niet geïmplementeerd. Wat werkt:
 
-- **PII Removal**: Traditional RegEx-based anonymization often fails on nuanced data. With an ONNX-based model, you gain context-aware detection for **names, addresses, phone numbers, etc.**
-- **Safe LLM Usage**: Many companies need to keep real customer or employee data **internal** but still want to leverage powerful external LLMs. This tool helps them do so by anonymizing data **on their end** first.
-- **Flexible**: Supports `.txt`, `.docx`, `.xls(x)`, `.csv`, `.pdf`, and more. Converts text, merges tokens, and replaces them with consistent pseudonyms.
+- Electron + Vite + React + TypeScript + Tailwind stack, secure-by-default.
+- Live engine-status indicator (pollt `http://127.0.0.1:8765/health`).
+- Disclaimer-banner en footer met verantwoordelijkheids-boodschap.
+- Strict CSP op de renderer (alleen eigen assets + 127.0.0.1:8765).
 
-## Key Features
+Voor de daadwerkelijke detectie-demo gebruik voorlopig de
+[playground in de engine](http://127.0.0.1:8765/playground).
 
-1. **Electron App**: Cross-platform desktop UI built on HTML/CSS/JS.  
-2. **Daily Limit**: **100** documents per day for the free tier (by default). You can raise or remove it if you prefer—this is open source.  
-3. **Context-Aware**: Relies on a local ONNX model downloaded separately (due to GitHub’s file-size constraints).  
-4. **Mapping** (Pro Mode): If you enable Pro, the app can produce a JSON file mapping each original entity (e.g., “John Smith”) to its anonymized token (e.g., “NAME_1”).  
-5. **MIT License**: Free to modify and distribute. We welcome contributions.
+## Waarom geen A5-upstream
 
-## Getting Started
+A5 is gearchiveerd onder
+[`apps/electron-anonimiseer-a5-reference/`](../electron-anonimiseer-a5-reference/ARCHIVE_NOTE.md).
+Samengevat: ~6 van de 7 runtime-componenten moesten vervangen worden plus
+onveilige Electron defaults. Zie [`docs/a5-baseline.md`](../../docs/a5-baseline.md)
+voor de volledige gap-analyse.
 
-1. **Clone or Download** this repository.  
-    - Model available here: [https://huggingface.co/iiiorg/piiranha-v1-detect-personal-information/tree/main](https://huggingface.co/iiiorg/piiranha-v1-detect-personal-information/tree/main)
-   - Download the ONNX model (`.onnx` files) from our external link (not included here due to size constraints).  
-   - Place it under `./models/protectai/lakshyakh93-deberta_finetuned_pii-onnx/` or as directed in `fileProcessor.js`.  
-3. **Install Dependencies**:  
-   ```bash
-   npm install
-   ```  
-4. **Run (Dev Mode)**:  
-   ```bash
-   npm run dev
-   ```  
-   Or if you prefer:  
-   ```bash
-   npx electron .
-   ```  
-5. **Build / Package** (macOS example):  
-   ```bash
-   npm run build:mac
+## Beveiligingsuitgangspunten
 
+- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
+- Alle main ↔ renderer communicatie via een gecontroleerde
+  `contextBridge`-API in [`src/preload/index.ts`](src/preload/index.ts).
+- Renderer mag alleen connecten naar `http://127.0.0.1:8765` (de lokale
+  pii-engine); externe hosts worden door de CSP geweigerd.
+- Externe links openen in de OS-browser via `shell.openExternal`, nooit
+  in een Electron-venster.
 
-### Basic Usage
+## Stack
 
-- **Drop or Select Files**: The main UI allows you to drag-and-drop or pick multiple files/folders.  
-- **Output Directory**: Choose where the anonymized files should be placed.  
-- **Anonymize**: Click “Anonymize Files” to run.  
-- **Mapping (Pro)**: If you have a Pro key, the app will create an additional `-map.json` file capturing each replaced entity.  
+| Tool | Waarvoor |
+|---|---|
+| Electron 33 | desktop shell |
+| electron-vite | dev-server, HMR, TS-build voor main/preload/renderer |
+| React 18 + TS | UI |
+| Tailwind CSS v3 + shadcn-design-tokens | styling |
+| lucide-react | iconen |
+| electron-builder | installer builds (komt in 3.8) |
 
-## How It Works
+## Lokaal draaien
 
-- **Electron**:  
-  - **`main.js`**: Spawns the main window, handles file selection, passes tasks to `FileProcessor`.  
-  - **`renderer.js`**: Manages the UI (index.html), user interactions, daily usage counters, and “Pro” logic.  
-- **`fileProcessor.js`**:  
-  - Loads the local ONNX model (via `@xenova/transformers`).  
-  - Identifies personal data by context (names, addresses, etc.).  
-  - Replaces them with tokens (`NAME_1`, `PHONE_NUMBER_3`, etc.).  
-  - If Pro, writes a JSON mapping for re-identification.  
-- **Local Model**:  
-  - We rely on a context-aware token classification model. This is significantly more effective than simple RegEx for real-world PII.
+```bash
+cd anonimiseer/apps/electron-anonimiseer
+npm install
+npm run dev
+```
 
-## Limitations & Notes
+Zorg dat de pii-engine op `127.0.0.1:8765` draait — anders zie je
+rechtsboven "Engine niet bereikbaar":
 
-- **Daily 100-File Limit**: By default, the free version only processes 100 documents per day. This is purely enforced in the UI. Since it’s open source, you can remove or change it as needed.  
-- **No Guarantee**: Even context-aware models can miss certain edge cases. Always manually review if 100% privacy is critical.  
-- **Cross-Platform**:  
-  - macOS builds are tested on both M-series (ARM) and Intel.  
-  - Windows and Linux builds are also available.
+```bash
+cd anonimiseer/packages/pii-engine
+source .venv/bin/activate
+PII_ENGINE_ENABLE_BSN=true PII_ENGINE_ENABLE_SONAR=true pii-engine
+```
 
-## Contributing
+## Projectstructuur
 
-We use the **MIT License**, so feel free to open pull requests, modify the code, or adapt it for your needs. If you make improvements or fix bugs, please share them back!
+```
+apps/electron-anonimiseer/
+├── electron.vite.config.ts      Build-config voor main/preload/renderer
+├── tailwind.config.ts
+├── tsconfig.*.json
+├── package.json
+└── src/
+    ├── main/                    Node-proces (BrowserWindow, app lifecycle)
+    │   └── index.ts
+    ├── preload/                 contextBridge-API: smalle oppervlakte
+    │   └── index.ts
+    ├── shared/                  TypeScript-types die main + renderer delen
+    │   └── api.ts
+    └── renderer/                React-app (UI)
+        ├── index.html           CSP hier
+        └── src/
+            ├── App.tsx
+            ├── main.tsx
+            ├── styles.css
+            ├── components/
+            │   ├── DisclaimerBanner.tsx
+            │   └── EngineStatus.tsx
+            └── lib/
+                └── utils.ts     cn() helper voor Tailwind
+```
 
----
+## Roadmap
 
-**Thanks for checking out the A5 PII Anonymizer.** We hope this helps you safely leverage powerful LLMs with real data while keeping personal information private.
+Volgende blokken (in volgorde):
+
+- **3.2 Engine-bridge** — sidecar spawnen in het main-proces i.p.v.
+  via een extern terminal-venster, met graceful shutdown.
+- **3.3 Onboarding** — first-run 3-stappen flow (welkom/privacy →
+  modelprofiel → klaar).
+- **3.4 Wizard 4-stappen** — Bestand kiezen → Instellingen → Controleren → Opslaan.
+- **3.5 Document-parsing** — DOCX/PDF/XLSX met layout-behoud.
+- **3.6 Accountability** — first-run-akkoord, banner stap 3, checkbox
+  stap 4, watermerk, audit-log.
+- **3.7 Model Manager** — 1-klik downloads vanuit HF en Ollama.
+- **3.8 Build + distributie** — electron-builder via GitHub Actions.
