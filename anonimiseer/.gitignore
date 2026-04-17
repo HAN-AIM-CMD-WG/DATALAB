@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Electron
+node_modules/
+dist/
+out/
+.cache/
+
+# Models (grote binaries, altijd 1-klik downloadbaar)
+packages/pii-engine/models/
+.pii-engine-cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Env
+.env
+.env.local

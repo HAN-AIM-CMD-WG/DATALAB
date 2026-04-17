@@ -1,0 +1,2 @@
+ken jij een automatisch proces van anonimiseren of pseudonimiseren dat we vaker gebruiken? Bij voorkeur een manier of model die lokaal kan draaien icm ollama. Zou mooi zijn als je meerdere opensource oplossingen kan vinden om regelmatig te kunnen gebruiken en in onderwijs/collega's van hoger onderwijs in kunnen zetten als soort tool die we beschikbaar maken op een server met een GPU. Kom met een practische guide en oplossingen die we direct kunnen inzetten..
+
