@@ -1,13 +1,18 @@
 import { ShieldCheck, FileCheck2, EyeOff } from 'lucide-react';
 import { EngineStatus } from './components/EngineStatus';
+import { EngineOfflinePanel } from './components/EngineOfflinePanel';
 import { DisclaimerBanner } from './components/DisclaimerBanner';
+import { useEngineHealth } from './hooks/useEngineHealth';
 
 export function App(): JSX.Element {
+  const health = useEngineHealth();
+
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header state={health} />
       <DisclaimerBanner />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
+        {health.status === 'down' && <EngineOfflinePanel health={health} />}
         <Placeholder />
       </main>
       <Footer />
@@ -15,7 +20,11 @@ export function App(): JSX.Element {
   );
 }
 
-function Header(): JSX.Element {
+function Header({
+  state,
+}: {
+  state: ReturnType<typeof useEngineHealth>;
+}): JSX.Element {
   return (
     <header className="border-b border-border/60 bg-card/60 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
@@ -30,7 +39,7 @@ function Header(): JSX.Element {
             </p>
           </div>
         </div>
-        <EngineStatus />
+        <EngineStatus state={state} />
       </div>
     </header>
   );
