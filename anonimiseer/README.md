@@ -1,6 +1,6 @@
 # Anonimiseer
 
-Laagdrempelige tooling voor HAN-collega's om documenten (DOCX, PDF, XLSX, TXT) en chat-prompts te anonimiseren of pseudonimiseren voordat ze gedeeld worden met externe AI-diensten.
+Laagdrempelige tooling om documenten (DOCX, PDF, XLSX, TXT) en chat-prompts te anonimiseren of pseudonimiseren voordat ze gedeeld worden met externe AI-diensten.
 
 Status: **in ontwikkeling** (Fase 0).
 

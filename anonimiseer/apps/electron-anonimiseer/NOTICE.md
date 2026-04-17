@@ -32,4 +32,4 @@ Deze fork zal substantieel afwijken van de upstream. Globaal plan:
 2. Vervangen: ingebouwde `@xenova/transformers`-engine en Engelstalige entiteiten-taxonomie → calls naar de lokale `pii-engine` Python-sidecar van dit project.
 3. Toevoegen: Nederlandstalige UI, wizard-flow, onboarding, Model Manager, disclaimer-systeem, audit-log.
 
-De bulk van de uiteindelijke codebase zal eigen werk zijn van HAN AIM CMD; de A5-attributie blijft staan voor de initieel hergebruikte delen.
+De bulk van de uiteindelijke codebase zal eigen werk zijn van DataLab; de A5-attributie blijft staan voor de initieel hergebruikte delen.

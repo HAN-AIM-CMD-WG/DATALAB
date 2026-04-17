@@ -144,7 +144,7 @@ class TestDisclaimer:
             }
             out = flt.inlet(body)
             assert out["messages"][0]["role"] == "system"
-            assert "HAN Anonimiseer" in out["messages"][0]["content"]
+            assert "[Anonimiseer]" in out["messages"][0]["content"]
 
     def test_disclaimer_not_duplicated_across_turns(self, mock_engine) -> None:
         with mock_engine:
@@ -152,7 +152,7 @@ class TestDisclaimer:
             body = {
                 "chat_id": "c",
                 "messages": [
-                    {"role": "system", "content": "[HAN Anonimiseer] previous turn"},
+                    {"role": "system", "content": "[Anonimiseer] previous turn"},
                     {"role": "user", "content": "follow-up"},
                 ],
             }
@@ -213,7 +213,7 @@ class TestFailClosed:
             }
             out = flt.inlet(body)
             content = out["messages"][0]["content"]
-            assert "HAN Anonimiseer" in content
+            assert "[Anonimiseer]" in content
             assert "NIET naar de AI" in content
 
     def test_fail_open_passes_through(self, mock_engine) -> None:

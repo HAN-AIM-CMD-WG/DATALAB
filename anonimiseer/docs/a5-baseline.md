@@ -20,7 +20,7 @@
 | Document writing terug-pad | `fileProcessor.js` (docx Packer, pdf-lib create) | **Vervangen**: huidige aanpak vernietigt layout (zie gap 4 hieronder). We gaan over op find-and-replace in-place of layout-preserving redactie. |
 | PII-detectie | `fileProcessor.js` → Transformers.js + ONNX DeBERTa | **Volledig vervangen**: calls naar onze `pii-engine` sidecar over `127.0.0.1`. Model zelf (`models/protectai/`) wordt uit de bundle verwijderd. |
 | Pseudonym mapping + fuzzy regex | `fileProcessor.js` bovenkant | **Vervangen**: mapping wordt server-side in de engine bijgehouden en AES-versleuteld opgeslagen. |
-| Pro/dailyCount/`MASTERTESTKEY` logica | `renderer.js` onderkant | **Verwijderen** — niet relevant voor HAN-interne tool. |
+| Pro/dailyCount/`MASTERTESTKEY` logica | `renderer.js` onderkant | **Verwijderen** — niet relevant voor een interne tool. |
 
 ## Gap-analyse: waarom A5 out-of-the-box niet voldoet voor NL-documenten
 
@@ -47,7 +47,7 @@ Geen regex/patronen voor:
 - NL telefoonformaten (`06-12345678`, `+31 6 1234 5678`, `0345-123456`).
 - NL postcode (`6811 AA`).
 - IBAN met mod-97 validatie (Presidio heeft dit out-of-the-box wel, A5 gebruikt het niet).
-- Studentnummer-patronen (HAN: 8 cijfers, andere instellingen: eigen format).
+- Studentnummer-patronen (`S` + 7 cijfers bij sommige instellingen, andere gebruiken eigen formats).
 
 **Oplossing (Fase 1)**: `PatternRecognizer` per entiteit met NL-contextwoorden voor `score_context_improvement`.
 

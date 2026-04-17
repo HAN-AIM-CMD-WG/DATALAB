@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anonimiseer — PII Playground</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --border: #e3e6eb;
+      --text: #1c1f26;
+      --muted: #6a7280;
+      --accent: #ef4f2f;
+      --accent-dark: #b23a22;
+      --warn-bg: #fff4e5;
+      --warn-border: #ffc266;
+      --warn-text: #7a4a00;
+      --danger: #d83a3a;
+      --ok: #1e7d3a;
+      --code-bg: #0f1724;
+      --code-text: #e4e8ef;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    header .meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    header .meta .ok { color: var(--ok); font-weight: 600; }
+    header .meta .warn { color: var(--danger); font-weight: 600; }
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 28px 64px;
+    }
+    .warning {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      color: var(--warn-text);
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .warning strong { color: #5a3500; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .controls label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .controls select, .controls input[type=number] {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 13px;
+      background: white;
+      color: var(--text);
+    }
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      resize: vertical;
+      background: #fafbfc;
+    }
+    textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+      background: white;
+    }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .examples button {
+      background: #eef1f5;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .examples button:hover { background: #e0e4ea; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      align-items: center;
+    }
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.primary:hover { background: var(--accent-dark); }
+    button.primary:disabled { background: #bfbfbf; cursor: not-allowed; }
+    button.secondary {
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .status {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status.error { color: var(--danger); }
+
+    .output-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .output-tabs button {
+      background: none;
+      border: none;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .output-tabs button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+    .output-pane { display: none; }
+    .output-pane.active { display: block; }
+
+    .text-output {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fafbfc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      min-height: 220px;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+    .highlight {
+      background: #fff3cd;
+      border-radius: 3px;
+      padding: 1px 3px;
+      border: 1px solid #ffe288;
+      font-weight: 500;
+    }
+    .highlight[data-type="PERSON"] { background: #d5e8ff; border-color: #7fb0ea; }
+    .highlight[data-type="LOCATION"] { background: #e4f7d8; border-color: #86c55c; }
+    .highlight[data-type="NL_BSN"] { background: #ffd5d5; border-color: #e57373; }
+    .highlight[data-type="NL_PHONE_NUMBER"] { background: #ffe0c2; border-color: #f0a060; }
+    .highlight[data-type="EMAIL_ADDRESS"] { background: #e8dbff; border-color: #a886d8; }
+    .highlight[data-type="NL_POSTCODE"] { background: #ffe0c2; border-color: #f0a060; }
+    .highlight[data-type="NL_STUDENT_ID"] { background: #c8f2e8; border-color: #5fc0a3; }
+    .pseudo {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: var(--code-bg);
+      color: #ffd27a;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #eef1f5;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    table.mapping {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.mapping th, table.mapping td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.mapping th {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    table.mapping tbody tr:hover { background: #fafbfc; }
+    .score-bar {
+      display: inline-block;
+      width: 40px;
+      height: 6px;
+      background: #e3e6eb;
+      border-radius: 3px;
+      overflow: hidden;
+      vertical-align: middle;
+    }
+    .score-bar > span {
+      display: block;
+      height: 100%;
+      background: var(--ok);
+    }
+    .empty-state {
+      color: var(--muted);
+      font-style: italic;
+      padding: 20px;
+      text-align: center;
+    }
+    pre.raw-json {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      overflow-x: auto;
+      max-height: 480px;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 24px 0;
+    }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Anonimiseer — PII Playground</h1>
+  <div class="meta">
+    Engine: <span id="engine-status">controleren…</span>
+    &middot; Model: <span id="engine-model">—</span>
+    &middot; Recognizers: <span id="engine-recognizers">—</span>
+  </div>
+</header>
+
+<main>
+  <div class="warning">
+    <strong>Alleen voor demo en pilot-tests.</strong>
+    Voer geen echte persoonsgegevens in tenzij dit een goedgekeurde pilot is.
+    Verwerking blijft lokaal op jouw machine. De gebruiker is zelf
+    verantwoordelijk voor controle van de output.
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Invoer</h2>
+      <div class="controls">
+        <label>
+          Modus
+          <select id="mode">
+            <option value="pseudonymize">pseudonymize (PERSON_1, BSN_1, …)</option>
+            <option value="redact">redact ([PERSON], [BSN], …)</option>
+          </select>
+        </label>
+        <label>
+          Score-drempel
+          <input type="number" id="threshold" value="0.35" min="0" max="1" step="0.05">
+        </label>
+        <label>
+          Taal
+          <select id="language">
+            <option value="nl">nl</option>
+          </select>
+        </label>
+      </div>
+
+      <textarea id="input" spellcheck="false" placeholder="Plak Nederlandse tekst met persoonsgegevens hier…"></textarea>
+
+      <div class="examples">
+        <span style="font-size:12px;color:var(--muted);align-self:center;">Voorbeelden:</span>
+        <button type="button" data-example="brief">Klantbrief</button>
+        <button type="button" data-example="student">Studentdossier</button>
+        <button type="button" data-example="kort">Korte notitie</button>
+        <button type="button" data-example="mix">Mixed casus</button>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="run">Anonimiseer</button>
+        <button class="secondary" id="clear">Wissen</button>
+        <span class="status" id="status"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Resultaat</h2>
+      <div class="output-tabs">
+        <button data-tab="anonymized" class="active">Anonieme tekst</button>
+        <button data-tab="highlighted">Origineel met highlights</button>
+        <button data-tab="mapping">Mapping</button>
+        <button data-tab="raw">Rauwe JSON</button>
+      </div>
+
+      <div class="output-pane active" data-pane="anonymized">
+        <div id="out-anonymized" class="text-output"><div class="empty-state">Nog geen resultaat.</div></div>
+      </div>
+      <div class="output-pane" data-pane="highlighted">
+        <div id="out-highlighted" class="text-output"><div class="empty-state">Nog geen resultaat.</div></div>
+      </div>
+      <div class="output-pane" data-pane="mapping">
+        <div id="out-mapping"><div class="empty-state">Nog geen resultaat.</div></div>
+      </div>
+      <div class="output-pane" data-pane="raw">
+        <pre class="raw-json" id="out-raw">Nog geen resultaat.</pre>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <a href="/docs" target="_blank">Swagger API-docs</a>
+  &middot;
+  <a href="/health" target="_blank">Health</a>
+  &middot;
+  Lokale verwerking, geen externe calls.
+</footer>
+
+<script>
+  const EXAMPLES = {
+    brief: `Beste Jan de Vries,
+
+Uw BSN 111222333 is gekoppeld aan uw dossier. U kunt bellen naar 06-12345678 of mailen naar j.devries@example.nl. Uw adres is Dorpsstraat 12, 6811 AA Arnhem.
+
+Met vriendelijke groet,
+Piet Jansen`,
+    student: `Student Fatima El Amrani (studentnummer S1234567) heeft haar portfolio ingeleverd op 2026-03-14. Tutor Marieke Visser (m.visser@example.nl, 024-3531234) beoordeelt het werk. Adres student: Rijnstraat 45, 6811 EW Arnhem.`,
+    kort: `Bel Anna morgen op 06-98765432 over de casus.`,
+    mix: `Notulen 2026-04-17.
+
+Aanwezig: Jeroen Bakker, Sanne de Jong, Omar Yildiz.
+Actie: Jeroen checkt BSN 121212129 van cliënt Willem Smit. Omar neemt contact op met M.Yilmaz@gemeente.nl. Locatie vervolgoverleg: Ruitenberglaan 26, 6826 CC Arnhem.`,
+  };
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  async function refreshHealth() {
+    try {
+      const r = await fetch('/health');
+      const d = await r.json();
+      $('#engine-status').innerHTML = '<span class="ok">OK</span>';
+      $('#engine-model').textContent = d.spacy_model;
+      $('#engine-recognizers').textContent = d.recognizers;
+    } catch (e) {
+      $('#engine-status').innerHTML = '<span class="warn">offline</span>';
+    }
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  function buildHighlighted(text, items) {
+    if (!items || items.length === 0) {
+      return `<div class="empty-state">Geen PII gedetecteerd.</div>`;
+    }
+    const sorted = [...items].sort((a, b) => a.start - b.start);
+    let out = '';
+    let cursor = 0;
+    for (const it of sorted) {
+      if (it.start < cursor) continue;
+      out += escapeHtml(text.slice(cursor, it.start));
+      const original = text.slice(it.start, it.end);
+      const title = `${it.entity_type} — score ${it.score}`;
+      out += `<span class="highlight" data-type="${it.entity_type}" title="${title}">${escapeHtml(original)}</span>`;
+      cursor = it.end;
+    }
+    out += escapeHtml(text.slice(cursor));
+    return out;
+  }
+
+  function buildAnonymized(text) {
+    return escapeHtml(text).replace(/([A-Z_]+_\d+|\[[A-Z_]+\])/g,
+      '<span class="pseudo">$1</span>');
+  }
+
+  function buildMapping(items) {
+    if (!items || items.length === 0) {
+      return '<div class="empty-state">Geen items.</div>';
+    }
+    const rows = items.map(it => {
+      const widthPct = Math.round((it.score || 0) * 100);
+      return `<tr>
+        <td><span class="tag">${it.entity_type}</span></td>
+        <td>${escapeHtml(it.original || '')}</td>
+        <td>${it.pseudonym ? `<span class="pseudo">${escapeHtml(it.pseudonym)}</span>` : '—'}</td>
+        <td><span class="score-bar"><span style="width:${widthPct}%"></span></span> ${it.score ?? ''}</td>
+        <td><span class="tag">${it.start}–${it.end}</span></td>
+      </tr>`;
+    }).join('');
+    return `<table class="mapping">
+      <thead><tr><th>Type</th><th>Origineel</th><th>Vervangen door</th><th>Score</th><th>Positie</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  async function run() {
+    const text = $('#input').value.trim();
+    const mode = $('#mode').value;
+    const threshold = parseFloat($('#threshold').value);
+    const language = $('#language').value;
+
+    if (!text) {
+      $('#status').textContent = 'Plak eerst een tekst.';
+      $('#status').classList.add('error');
+      return;
+    }
+    $('#status').textContent = 'Bezig…';
+    $('#status').classList.remove('error');
+    $('#run').disabled = true;
+
+    const started = performance.now();
+    try {
+      const r = await fetch('/anonymize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          mode,
+          language,
+          score_threshold: threshold,
+          preserve_mapping: true,
+        }),
+      });
+      if (!r.ok) {
+        const msg = await r.text();
+        throw new Error(`${r.status}: ${msg}`);
+      }
+      const data = await r.json();
+      const elapsed = Math.round(performance.now() - started);
+
+      $('#out-anonymized').innerHTML = buildAnonymized(data.text);
+      $('#out-highlighted').innerHTML = buildHighlighted(text, data.items);
+      $('#out-mapping').innerHTML = buildMapping(data.items);
+      $('#out-raw').textContent = JSON.stringify(data, null, 2);
+
+      const n = data.items ? data.items.length : 0;
+      $('#status').textContent = `${n} PII-item${n === 1 ? '' : 's'} gedetecteerd in ${elapsed} ms.`;
+    } catch (e) {
+      $('#status').textContent = `Fout: ${e.message}`;
+      $('#status').classList.add('error');
+    } finally {
+      $('#run').disabled = false;
+    }
+  }
+
+  $('#run').addEventListener('click', run);
+  $('#clear').addEventListener('click', () => {
+    $('#input').value = '';
+    $('#out-anonymized').innerHTML = '<div class="empty-state">Nog geen resultaat.</div>';
+    $('#out-highlighted').innerHTML = '<div class="empty-state">Nog geen resultaat.</div>';
+    $('#out-mapping').innerHTML = '<div class="empty-state">Nog geen resultaat.</div>';
+    $('#out-raw').textContent = 'Nog geen resultaat.';
+    $('#status').textContent = '';
+  });
+
+  $$('.examples button').forEach(b => b.addEventListener('click', () => {
+    $('#input').value = EXAMPLES[b.dataset.example] || '';
+  }));
+
+  $$('.output-tabs button').forEach(btn => btn.addEventListener('click', () => {
+    $$('.output-tabs button').forEach(b => b.classList.remove('active'));
+    $$('.output-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector(`.output-pane[data-pane="${btn.dataset.tab}"]`).classList.add('active');
+  }));
+
+  $('#input').addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      run();
+    }
+  });
+
+  refreshHealth();
+  $('#input').value = EXAMPLES.brief;
+</script>
+</body>
+</html>

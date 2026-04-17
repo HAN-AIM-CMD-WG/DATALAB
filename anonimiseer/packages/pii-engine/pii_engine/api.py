@@ -13,9 +13,12 @@ alleen ``http://localhost`` toe; de Electron-app praat via native requests.
 from __future__ import annotations
 
 import logging
+from importlib import resources
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from pii_engine import __version__
 from pii_engine.analyzer import get_default_analyzer
@@ -38,7 +41,7 @@ logger = logging.getLogger(__name__)
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="HAN Anonimiseer — PII-engine",
+        title="Anonimiseer — PII-engine",
         description=(
             "Lokale Nederlandse PII-detectie en -anonimisering (Presidio + NL)."
             " Deze service is bedoeld voor localhost-gebruik door de Electron-app"
@@ -119,6 +122,25 @@ def create_app() -> FastAPI:
             items=[AnonymizeItem.model_validate(item) for item in out.items],
             mapping=response_mapping,
         )
+
+    if settings.enable_playground:
+
+        @app.get("/", include_in_schema=False)
+        def root() -> RedirectResponse:
+            return RedirectResponse(url="/playground")
+
+        @app.get("/playground", include_in_schema=False, response_class=HTMLResponse)
+        def playground() -> HTMLResponse:
+            try:
+                html = (
+                    resources.files("pii_engine.static")
+                    .joinpath("playground.html")
+                    .read_text(encoding="utf-8")
+                )
+            except (FileNotFoundError, ModuleNotFoundError):
+                fallback = Path(__file__).parent / "static" / "playground.html"
+                html = fallback.read_text(encoding="utf-8")
+            return HTMLResponse(content=html)
 
     return app
 

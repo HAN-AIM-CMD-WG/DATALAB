@@ -13,12 +13,12 @@ def _result(entity_type: str, start: int, end: int, score: float = 0.9) -> Recog
 
 class TestPseudonymize:
     def test_stable_token_for_same_original(self) -> None:
-        text = "Jan werkt bij HAN. Jan belt vaak."
+        text = "Jan werkt hier. Jan belt vaak."
         # Twee detecties voor "Jan".
-        results = [_result("PERSON", 0, 3), _result("PERSON", 19, 22)]
+        results = [_result("PERSON", 0, 3), _result("PERSON", 16, 19)]
         mapping = PseudonymMapping()
         out = anonymize_with_mode(text, results, mode="pseudonymize", mapping=mapping)
-        assert out.text == "PERSON_1 werkt bij HAN. PERSON_1 belt vaak."
+        assert out.text == "PERSON_1 werkt hier. PERSON_1 belt vaak."
         assert out.mapping is not None
         assert len(out.mapping) == 1
         assert out.mapping[0]["pseudonym"] == "PERSON_1"

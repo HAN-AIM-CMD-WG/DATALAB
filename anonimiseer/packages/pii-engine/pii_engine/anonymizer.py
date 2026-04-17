@@ -65,9 +65,7 @@ class PseudonymMapping:
         result: list[dict[str, str]] = []
         for (etype, _casefolded), pseudonym in self.mapping.items():
             original = self._originals.get(pseudonym, _casefolded)
-            result.append(
-                {"entity_type": etype, "original": original, "pseudonym": pseudonym}
-            )
+            result.append({"entity_type": etype, "original": original, "pseudonym": pseudonym})
         return result
 
 

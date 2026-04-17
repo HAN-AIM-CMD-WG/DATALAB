@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pii-engine"
 version = "0.1.0"
-description = "Nederlandse PII-detectie en anonimiseringsengine (Presidio + NL-uitbreidingen) voor de HAN Anonimiseer-toolketen."
+description = "Nederlandse PII-detectie en anonimiseringsengine (Presidio + NL-uitbreidingen) voor de Anonimiseer-toolketen."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "HAN AIM CMD (DataLab)" }]
+authors = [{ name = "DataLab" }]
 keywords = ["pii", "anonimiseren", "presidio", "gdpr", "avg", "nederlands", "nlp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -55,11 +55,14 @@ dev = [
 pii-engine = "pii_engine.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/han-aim-cmd/datalab-monorepo/tree/main/anonimiseer"
-Issues = "https://github.com/han-aim-cmd/datalab-monorepo/issues"
+Homepage = "https://github.com/datalab/anonimiseer"
+Issues = "https://github.com/datalab/anonimiseer/issues"
 
 [tool.setuptools]
-packages = ["pii_engine", "pii_engine.recognizers", "pii_engine.config"]
+packages = ["pii_engine", "pii_engine.recognizers", "pii_engine.config", "pii_engine.static"]
+
+[tool.setuptools.package-data]
+"pii_engine.static" = ["*.html"]
 
 [tool.ruff]
 line-length = 100

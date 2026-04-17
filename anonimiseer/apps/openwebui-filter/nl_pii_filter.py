@@ -1,8 +1,6 @@
 """
-title: Nederlandse PII-filter (HAN Anonimiseer)
-author: HAN AIM CMD DataLab
-author_url: https://github.com/HAN-AIM-CMD-WG/DATALAB
-funding_url: https://www.han.nl
+title: Nederlandse PII-filter (Anonimiseer)
+author: DataLab
 version: 0.1.0
 license: MIT
 description: >-
@@ -234,7 +232,7 @@ class Filter:
             isinstance(m, dict)
             and m.get("role") == "system"
             and isinstance(m.get("content"), str)
-            and "HAN Anonimiseer" in m["content"]
+            and "[Anonimiseer]" in m["content"]
             for m in messages
         )
         if already_has:
@@ -243,13 +241,13 @@ class Filter:
             0,
             {
                 "role": "system",
-                "content": f"[HAN Anonimiseer] {self.valves.disclaimer_text}",
+                "content": f"[Anonimiseer] {self.valves.disclaimer_text}",
             },
         )
 
     def _block_message(self, reason: str) -> str:
         return (
-            "[HAN Anonimiseer] Dit bericht is NIET naar de AI gestuurd omdat "
+            "[Anonimiseer] Dit bericht is NIET naar de AI gestuurd omdat "
             f"de PII-filter niet kon valideren dat het veilig was: {reason}. "
             "Neem contact op met de beheerder als dit onterecht lijkt."
         )

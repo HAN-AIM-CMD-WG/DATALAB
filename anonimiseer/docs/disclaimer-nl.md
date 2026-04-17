@@ -97,4 +97,4 @@ Regels:
 
 ---
 
-**Open punt**: de uiteindelijke wettelijke frasering laten reviewen door de HAN-FG / privacy-coördinator vóór de pilot.
+**Open punt**: de uiteindelijke wettelijke frasering laten reviewen door de FG / privacy-coördinator vóór de pilot.

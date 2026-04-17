@@ -4,14 +4,18 @@ Deze gids beschrijft hoe je **vandaag nog** de PII-filter kan uittesten in een
 Open WebUI. Je hebt geen Electron-app nodig; de UI die je gebruikt is gewoon de
 Open WebUI die je al kent.
 
-Er zijn twee paden:
+Er zijn drie paden, in volgorde van snelheid:
 
-- **Scenario A — Lokaal op je Mac** (~10 min, volledig geïsoleerd, beste
-  startpunt voor de eerste ronde "werkt het?").
+- **Scenario 0 — Ingebouwde playground** (30 seconden, geen Docker, geen Open
+  WebUI; alleen de engine en je browser). Beste manier om in één oogopslag te
+  zien wat er gedetecteerd wordt en of de kwaliteit voldoet.
+- **Scenario A — Lokaal op je Mac** (~10 min, volledig geïsoleerd; test de
+  complete Open WebUI-flow inclusief filter en disclaimer).
 - **Scenario B — Op de SRC-workspace** (~20-30 min, pilot met collega's op de
-  bestaande HAN-omgeving).
+  bestaande Open WebUI-omgeving).
 
-Begin met **Scenario A**. Als dat werkt en overtuigt → door naar B.
+Begin met **Scenario 0**. Overtuigt de detectie? Door naar A. Werkt A? Door
+naar B.
 
 > Laat tijdens het testen de echte productie-Open WebUI met rust. We testen in
 > een eigen sandbox tot de pilot klaar is.
@@ -190,10 +194,10 @@ Zelfde stappen als A3/A4, maar nu in de productie-Open WebUI:
 - `pii_engine_url` → `http://127.0.0.1:8765` (Open WebUI en engine op dezelfde
   host), of `http://<host.docker.internal>:8765` als Open WebUI in Docker op
   die host draait.
-- Koppel de filter eerst aan **één testmodel**, niet aan HAN Assistent /
-  HAN Nakijker. Maak bijvoorbeeld een **HAN Assistent (PII-pilot)** die
-  identiek is aan HAN Assistent maar met filter aan en **Access: Private**
-  voor de pilotgroep.
+- Koppel de filter eerst aan **één testmodel**, niet aan je productiemodellen.
+  Maak bijvoorbeeld een kloon **Assistent (PII-pilot)** die identiek is aan je
+  standaard assistent maar met filter aan en **Access: Private** voor de
+  pilotgroep.
 
 ### B3. Pilot-groep
 
@@ -246,5 +250,5 @@ Wees eerlijk met testgebruikers over wat deze versie nog niet goed doet. De
 
 ## Rapporteer je bevindingen
 
-Open issues op de repo, of post in het HAN Datalab Teams-kanaal. Ik neem ze
-mee naar Fase 1B (betere NER) en Fase 3 (Electron-app).
+Open issues op de repo, of deel ze via het gebruikelijke feedback-kanaal. Ik
+neem ze mee naar Fase 1B (betere NER) en Fase 3 (Electron-app).

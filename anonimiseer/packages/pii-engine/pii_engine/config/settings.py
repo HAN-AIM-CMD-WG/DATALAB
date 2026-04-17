@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     port: int = 8765
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost"])
 
+    # Playground UI
+    enable_playground: bool = Field(
+        default=True,
+        description="Serveert de lokale HTML-playground op '/' en '/playground'. "
+        "Zet op False in productie als de engine publiekelijk bereikbaar is.",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

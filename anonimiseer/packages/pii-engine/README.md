@@ -1,6 +1,6 @@
 # `pii-engine` — Nederlandse PII-detectie en anonimisering
 
-> Gedeelde Python-microservice voor de HAN Anonimiseer-toolketen. Bouwt bovenop
+> Gedeelde Python-microservice voor de Anonimiseer-toolketen. Bouwt bovenop
 > [Microsoft Presidio](https://github.com/microsoft/presidio) met Nederlandse
 > recognizers voor BSN (met Elfproef), telefoon, postcode en studentnummer.
 > Dient als backend voor zowel de Electron-app als de Open WebUI-filter.
@@ -12,7 +12,7 @@
 | `BsnRecognizer` | `NL_BSN` | regex + **Elfproef-checksum** |
 | `NlPhoneRecognizer` | `NL_PHONE_NUMBER` | mobiel/vast/internationaal regex |
 | `NlPostcodeRecognizer` | `NL_POSTCODE` | `[1-9]\d{3}\s?[A-Z]{2}` excl. SA/SD/SS |
-| `NlStudentnrRecognizer` | `NL_STUDENT_ID` | HAN `S\d{7}` + context-gedreven generic |
+| `NlStudentnrRecognizer` | `NL_STUDENT_ID` | `S\d{7}`-prefix + context-gedreven generic |
 | Presidio built-ins (`nl`) | `EMAIL_ADDRESS`, `IBAN_CODE`, `CREDIT_CARD`, `URL`, … | native |
 
 NLP-backend: spaCy met `nl_core_news_lg` (productie) of `nl_core_news_sm`

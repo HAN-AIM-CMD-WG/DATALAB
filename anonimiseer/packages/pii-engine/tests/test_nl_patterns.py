@@ -49,8 +49,8 @@ def test_postcode_rejects_invalid(analyzer: object, text: str) -> None:
     assert results == [], f"Mocht niet matchen: {text!r}"
 
 
-def test_student_number_han(analyzer: object) -> None:
-    text = "Mijn studentnummer is S1234567, aanmelding via HAN."
+def test_student_number_s_prefix(analyzer: object) -> None:
+    text = "Mijn studentnummer is S1234567, aangemeld via osiris."
     results = analyzer.analyze(text=text, language="nl", entities=["NL_STUDENT_ID"])  # type: ignore[attr-defined]
     matched = [text[r.start : r.end] for r in results]
     assert "S1234567" in matched, matched
