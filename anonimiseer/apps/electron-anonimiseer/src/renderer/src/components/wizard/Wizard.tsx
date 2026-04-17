@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Construction } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import type { AppSettings } from '@shared/api';
 import { cn } from '../../lib/utils';
 import { Step1FilePicker } from './Step1FilePicker';
 import { Step2Settings } from './Step2Settings';
+import { Step3Review } from './Step3Review';
+import { Step4Save } from './Step4Save';
 import {
   WIZARD_STEPS,
   type WizardFileEntry,
   type WizardStepId,
 } from './wizardTypes';
 import { defaultWizardSettings, type WizardSettings } from './settingsTypes';
+import type { ReviewState } from './reviewTypes';
 
 /**
  * Wizard-container: stepper + inhoud + navigatieknoppen.
@@ -17,10 +21,22 @@ import { defaultWizardSettings, type WizardSettings } from './settingsTypes';
  * alleen de relevante slice + een setter. Later kunnen we dit naar een
  * context/reducer promoten; voor nu is het klein genoeg.
  */
-export function Wizard(): JSX.Element {
+export function Wizard({ appSettings }: { appSettings: AppSettings }): JSX.Element {
   const [step, setStep] = useState<WizardStepId>('files');
   const [files, setFiles] = useState<WizardFileEntry[]>([]);
   const [settings, setSettings] = useState<WizardSettings>(defaultWizardSettings());
+  const [review, setReview] = useState<ReviewState>({
+    files: {},
+    activePath: null,
+    whitelist: [],
+  });
+
+  const resetAll = (): void => {
+    setFiles([]);
+    setSettings(defaultWizardSettings());
+    setReview({ files: {}, activePath: null, whitelist: [] });
+    setStep('files');
+  };
 
   const validFileCount = useMemo(
     () => files.filter((f) => !f.error).length,
@@ -33,16 +49,28 @@ export function Wizard(): JSX.Element {
 
   const canAdvanceFromFiles = validFileCount > 0;
   const canAdvanceFromSettings = enabledCategoryCount > 0;
+  // Review is doorlopen zodra er minstens één bestand 'done' is (of
+  // expliciet gemarkeerd als niet te doen). Zo voorkomen we dat de
+  // gebruiker per ongeluk op 'Volgende' klikt terwijl de analyse nog
+  // draait en daarmee in stap 4 lege outputs krijgt.
+  const canAdvanceFromReview = useMemo(() => {
+    const fs = Object.values(review.files);
+    if (fs.length === 0) return false;
+    return fs.some((f) => f.status === 'done');
+  }, [review.files]);
 
-  const furthestReached: WizardStepId | null = canAdvanceFromFiles
-    ? canAdvanceFromSettings
-      ? 'settings'
-      : 'files'
-    : null;
+  const furthestReached: WizardStepId | null = !canAdvanceFromFiles
+    ? null
+    : !canAdvanceFromSettings
+      ? 'files'
+      : !canAdvanceFromReview
+        ? 'settings'
+        : 'review';
 
   const canAdvance = (from: WizardStepId): boolean => {
     if (from === 'files') return canAdvanceFromFiles;
     if (from === 'settings') return canAdvanceFromSettings;
+    if (from === 'review') return canAdvanceFromReview;
     return true;
   };
 
@@ -81,8 +109,23 @@ export function Wizard(): JSX.Element {
         {step === 'settings' && (
           <Step2Settings settings={settings} onChange={setSettings} />
         )}
-        {step === 'review' && <ComingSoon step="Controleren" />}
-        {step === 'save' && <ComingSoon step="Opslaan" />}
+        {step === 'review' && (
+          <Step3Review
+            files={files}
+            settings={settings}
+            state={review}
+            onStateChange={setReview}
+          />
+        )}
+        {step === 'save' && (
+          <Step4Save
+            files={files}
+            settings={settings}
+            review={review}
+            appSettings={appSettings}
+            onReset={resetAll}
+          />
+        )}
       </div>
 
       <div className="flex items-center justify-between">
@@ -108,18 +151,22 @@ export function Wizard(): JSX.Element {
             </>
           )}
         </div>
-        <button
-          type="button"
-          onClick={nextStep}
-          disabled={step === 'save' || !canAdvance(step)}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors',
-            'hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40'
-          )}
-        >
-          Volgende
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </button>
+        {step !== 'save' ? (
+          <button
+            type="button"
+            onClick={nextStep}
+            disabled={!canAdvance(step)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors',
+              'hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40'
+            )}
+          >
+            Volgende
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </button>
+        ) : (
+          <span className="w-[92px]" aria-hidden />
+        )}
       </div>
     </section>
   );
@@ -181,17 +228,3 @@ function Stepper({
   );
 }
 
-function ComingSoon({ step }: { step: string }): JSX.Element {
-  return (
-    <div className="mx-auto flex max-w-lg flex-col items-center gap-3 py-10 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Construction className="h-5 w-5" aria-hidden />
-      </div>
-      <h3 className="text-base font-semibold">Stap "{step}" komt eraan</h3>
-      <p className="text-sm text-muted-foreground">
-        Deze stap bouwen we in de volgende iteratie. Ga terug naar de vorige
-        stap om de bestandenlijst aan te passen.
-      </p>
-    </div>
-  );
-}

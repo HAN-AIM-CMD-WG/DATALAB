@@ -21,6 +21,12 @@ import { join } from 'node:path';
 import { registerEngineBridge } from './engineBridge';
 import { registerSettingsBridge } from './settingsStore';
 import { registerFileDialogBridge } from './fileDialog';
+import { registerFileBridge } from './fileBridge';
+import { registerOutputBridge } from './outputBridge';
+import { registerDocumentBridge } from './documentBridge';
+import { registerCatalogBridge } from './catalogBridge';
+import { registerModelsBridge } from './modelsBridge';
+import { registerSystemBridge } from './systemBridge';
 
 const isDev = !app.isPackaged;
 
@@ -77,6 +83,12 @@ app.whenReady().then(() => {
   registerEngineBridge();
   registerSettingsBridge();
   registerFileDialogBridge();
+  registerFileBridge();
+  registerOutputBridge();
+  registerDocumentBridge();
+  registerModelsBridge();
+  registerSystemBridge();
+  registerCatalogBridge();
 
   // macOS: houd het icoon in het Dock actief, maar niet in de taskbar op
   // Windows tenzij er een venster is.
