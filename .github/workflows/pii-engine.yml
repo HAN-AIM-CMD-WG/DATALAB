@@ -1,0 +1,54 @@
+name: pii-engine
+
+on:
+  push:
+    branches: [main, "feat/**"]
+    paths:
+      - "anonimiseer/packages/pii-engine/**"
+      - ".github/workflows/pii-engine.yml"
+  pull_request:
+    paths:
+      - "anonimiseer/packages/pii-engine/**"
+      - ".github/workflows/pii-engine.yml"
+
+defaults:
+  run:
+    working-directory: anonimiseer/packages/pii-engine
+
+jobs:
+  lint-type-test:
+    name: Lint, type-check & test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: anonimiseer/packages/pii-engine/pyproject.toml
+
+      - name: Install package with dev & nl-small extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[nl-small,dev]"
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Ruff (format check)
+        run: ruff format --check .
+
+      - name: Mypy
+        run: mypy pii_engine
+
+      - name: Pytest
+        env:
+          PII_ENGINE_SPACY_MODEL: nl_core_news_sm
+        run: pytest -ra

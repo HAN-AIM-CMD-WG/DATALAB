@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pii-engine"
+version = "0.1.0"
+description = "Nederlandse PII-detectie en anonimiseringsengine (Presidio + NL-uitbreidingen) voor de HAN Anonimiseer-toolketen."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "HAN AIM CMD (DataLab)" }]
+keywords = ["pii", "anonimiseren", "presidio", "gdpr", "avg", "nederlands", "nlp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Natural Language :: Dutch",
+]
+dependencies = [
+    "presidio-analyzer>=2.2.355",
+    "presidio-anonymizer>=2.2.355",
+    "spacy>=3.7,<3.9",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "python-multipart>=0.0.12",
+]
+
+[project.optional-dependencies]
+nl-small = [
+    "nl-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_sm-3.8.0/nl_core_news_sm-3.8.0-py3-none-any.whl",
+]
+nl-large = [
+    "nl-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_lg-3.8.0/nl_core_news_lg-3.8.0-py3-none-any.whl",
+]
+sonar = [
+    "transformers>=4.46.0",
+    "torch>=2.3.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
+    "types-requests",
+]
+
+[project.scripts]
+pii-engine = "pii_engine.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/han-aim-cmd/datalab-monorepo/tree/main/anonimiseer"
+Issues = "https://github.com/han-aim-cmd/datalab-monorepo/issues"
+
+[tool.setuptools]
+packages = ["pii_engine", "pii_engine.recognizers", "pii_engine.config"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["N802", "N803"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+files = ["pii_engine"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra -q"
