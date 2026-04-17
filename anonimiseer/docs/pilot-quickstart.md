@@ -22,20 +22,36 @@ Begin met **Scenario A**. Als dat werkt en overtuigt → door naar B.
 
 ### A1. Zorg dat de PII-engine draait
 
-De engine draait al op poort `8765` (gestart door deze sessie). Check:
-
-```bash
-curl http://127.0.0.1:8765/health
-# {"status":"ok","version":"0.1.0","recognizers":14,"spacy_model":"nl_core_news_lg"}
-```
-
-Staat hij niet? Start opnieuw:
+Start de engine **op alle interfaces** (`0.0.0.0`) — dit is noodzakelijk zodat
+de Open WebUI-container hem via `host.docker.internal` kan bereiken. Luister
+je alleen op `127.0.0.1`, dan ziet Docker hem niet.
 
 ```bash
 cd /Users/wouter/Desktop/CURSOR/DATALAB/REPO/anonimiseer/packages/pii-engine
 source .venv/bin/activate
-SPACY_MODEL=nl_core_news_lg ENABLE_BSN=true pii-engine
+PII_ENGINE_HOST=0.0.0.0 \
+PII_ENGINE_SPACY_MODEL=nl_core_news_lg \
+PII_ENGINE_ENABLE_BSN=true \
+pii-engine
 ```
+
+> Alle env-vars voor de engine beginnen met `PII_ENGINE_`. Zie
+> `packages/pii-engine/README.md` voor het volledige overzicht.
+
+Check vanaf een tweede terminal:
+
+```bash
+curl http://127.0.0.1:8765/health
+# {"status":"ok","version":"0.1.0","recognizers":14,"spacy_model":"nl_core_news_lg"}
+
+lsof -iTCP:8765 -sTCP:LISTEN
+# moet `*:8765` (of `*:ultraseek-http`) tonen — NIET enkel `localhost:8765`
+```
+
+> Op je eigen Mac is `0.0.0.0` veilig: macOS-firewall blokkeert inkomend verkeer
+> van buiten default, en de engine accepteert alleen POST/GET zonder
+> authenticatie (dus ook niet publiekelijk open zetten op een server — voor de
+> SRC-deploy in Scenario B binden we juist op `127.0.0.1`).
 
 ### A2. Start een lokale Open WebUI in Docker
 
@@ -222,7 +238,7 @@ Wees eerlijk met testgebruikers over wat deze versie nog niet goed doet. De
 
 | Symptoom | Waarschijnlijke oorzaak | Check |
 |---|---|---|
-| `PII-filter onbereikbaar` in chat | Engine staat uit of valve-URL klopt niet | `curl http://127.0.0.1:8765/health` + valve-instelling |
+| `PII-filter onbereikbaar` in chat | Engine staat uit, luistert niet op `0.0.0.0`, of valve-URL klopt niet | Check `lsof -iTCP:8765 -sTCP:LISTEN` (moet `*:8765` tonen) + valve moet `http://host.docker.internal:8765` zijn |
 | Banner verschijnt niet | Filter niet gekoppeld aan dit model | Workspace → Models → jouw model → Filters |
 | BSN blijft staan | Nummer faalt Elfproef (geen geldige BSN) | Controleer of het een echte 8- of 9-cijferige BSN is |
 | Naam blijft staan | spaCy herkent hem niet als PERSON | Noteer voorbeeld voor Fase 1B-training |
