@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Construction } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Step1FilePicker } from './Step1FilePicker';
+import { Step2Settings } from './Step2Settings';
 import {
   WIZARD_STEPS,
   type WizardFileEntry,
   type WizardStepId,
 } from './wizardTypes';
+import { defaultWizardSettings, type WizardSettings } from './settingsTypes';
 
 /**
  * Wizard-container: stepper + inhoud + navigatieknoppen.
@@ -18,23 +20,43 @@ import {
 export function Wizard(): JSX.Element {
   const [step, setStep] = useState<WizardStepId>('files');
   const [files, setFiles] = useState<WizardFileEntry[]>([]);
+  const [settings, setSettings] = useState<WizardSettings>(defaultWizardSettings());
 
   const validFileCount = useMemo(
     () => files.filter((f) => !f.error).length,
     [files]
   );
+  const enabledCategoryCount = useMemo(
+    () => Object.values(settings.enabledCategories).filter(Boolean).length,
+    [settings.enabledCategories]
+  );
 
   const canAdvanceFromFiles = validFileCount > 0;
+  const canAdvanceFromSettings = enabledCategoryCount > 0;
+
+  const furthestReached: WizardStepId | null = canAdvanceFromFiles
+    ? canAdvanceFromSettings
+      ? 'settings'
+      : 'files'
+    : null;
+
+  const canAdvance = (from: WizardStepId): boolean => {
+    if (from === 'files') return canAdvanceFromFiles;
+    if (from === 'settings') return canAdvanceFromSettings;
+    return true;
+  };
 
   const goTo = (target: WizardStepId): void => {
-    // We staan vooruit-navigatie alleen toe als de huidige stap klaar is.
     const currentIdx = WIZARD_STEPS.findIndex((s) => s.id === step);
     const targetIdx = WIZARD_STEPS.findIndex((s) => s.id === target);
-    if (targetIdx < currentIdx) {
+    if (targetIdx <= currentIdx) {
       setStep(target);
       return;
     }
-    if (step === 'files' && !canAdvanceFromFiles) return;
+    // Vooruit alleen als alle tussenstappen klaar zijn.
+    for (let i = currentIdx; i < targetIdx; i += 1) {
+      if (!canAdvance(WIZARD_STEPS[i].id)) return;
+    }
     setStep(target);
   };
 
@@ -52,11 +74,13 @@ export function Wizard(): JSX.Element {
 
   return (
     <section className="space-y-6">
-      <Stepper current={step} completedUpTo={canAdvanceFromFiles ? 'files' : null} onSelect={goTo} />
+      <Stepper current={step} furthestReached={furthestReached} onSelect={goTo} />
 
       <div className="rounded-2xl border border-border/70 bg-card p-8 shadow-sm">
         {step === 'files' && <Step1FilePicker files={files} onChange={setFiles} />}
-        {step === 'settings' && <ComingSoon step="Instellingen" />}
+        {step === 'settings' && (
+          <Step2Settings settings={settings} onChange={setSettings} />
+        )}
         {step === 'review' && <ComingSoon step="Controleren" />}
         {step === 'save' && <ComingSoon step="Opslaan" />}
       </div>
@@ -77,11 +101,17 @@ export function Wizard(): JSX.Element {
               {validFileCount} bestand{validFileCount === 1 ? '' : 'en'} klaar
             </>
           )}
+          {step === 'settings' && (
+            <>
+              {enabledCategoryCount} categorie
+              {enabledCategoryCount === 1 ? '' : 'ën'} aan
+            </>
+          )}
         </div>
         <button
           type="button"
           onClick={nextStep}
-          disabled={step === 'save' || (step === 'files' && !canAdvanceFromFiles)}
+          disabled={step === 'save' || !canAdvance(step)}
           className={cn(
             'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors',
             'hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40'
@@ -97,30 +127,24 @@ export function Wizard(): JSX.Element {
 
 function Stepper({
   current,
-  completedUpTo,
+  furthestReached,
   onSelect,
 }: {
   current: WizardStepId;
-  completedUpTo: WizardStepId | null;
+  furthestReached: WizardStepId | null;
   onSelect: (id: WizardStepId) => void;
 }): JSX.Element {
   const currentIdx = WIZARD_STEPS.findIndex((s) => s.id === current);
-  const completedIdx = completedUpTo
-    ? WIZARD_STEPS.findIndex((s) => s.id === completedUpTo)
+  const reachedIdx = furthestReached
+    ? WIZARD_STEPS.findIndex((s) => s.id === furthestReached)
     : -1;
 
   return (
     <ol className="flex items-center gap-3 text-xs text-muted-foreground">
       {WIZARD_STEPS.map((step, idx) => {
         const state: 'done' | 'active' | 'todo' =
-          idx < currentIdx || idx <= completedIdx
-            ? idx === currentIdx
-              ? 'active'
-              : 'done'
-            : idx === currentIdx
-              ? 'active'
-              : 'todo';
-        const clickable = idx <= currentIdx || idx <= completedIdx;
+          idx === currentIdx ? 'active' : idx <= reachedIdx ? 'done' : 'todo';
+        const clickable = idx <= currentIdx || idx <= reachedIdx + 1;
         return (
           <li key={step.id} className="flex items-center gap-2">
             <button
