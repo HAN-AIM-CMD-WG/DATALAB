@@ -17,6 +17,9 @@ out/
 # Models (grote binaries, altijd 1-klik downloadbaar)
 packages/pii-engine/models/
 .pii-engine-cache/
+# Lokale HuggingFace cache voor SoNaR-BERT etc. (~500MB)
+packages/pii-engine/.hf-cache/
+.hf-cache/
 
 # OS
 .DS_Store

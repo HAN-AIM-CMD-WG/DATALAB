@@ -13,12 +13,40 @@
 | `NlPhoneRecognizer` | `NL_PHONE_NUMBER` | mobiel/vast/internationaal regex |
 | `NlPostcodeRecognizer` | `NL_POSTCODE` | `[1-9]\d{3}\s?[A-Z]{2}` excl. SA/SD/SS |
 | `NlStudentnrRecognizer` | `NL_STUDENT_ID` | `S\d{7}`-prefix + context-gedreven generic |
+| `SonarRecognizer` (optioneel) | `PERSON`, `LOCATION`, `ORGANIZATION` | SoNaR-BERT voor NL (zie Fase 1B) |
 | Presidio built-ins (`nl`) | `EMAIL_ADDRESS`, `IBAN_CODE`, `CREDIT_CARD`, `URL`, … | native |
 
 NLP-backend: spaCy met `nl_core_news_lg` (productie) of `nl_core_news_sm`
 (CI/dev) via de `[nl-large]` / `[nl-small]` extras. Valt terug op een lege
 `spacy.blank("nl")` pipeline als geen model geïnstalleerd is — dan werken alleen
 regex-gebaseerde recognizers, niet de statistische NER.
+
+### SoNaR-BERT (Fase 1B, optioneel)
+
+Voor betere recall op Nederlandse persoonsnamen (met name met tussenvoegsels
+zoals `van den Broek`, `ter Horst`, `van Dijk`) is er een optionele recognizer
+rond het model
+[`wietsedv/bert-base-dutch-cased-finetuned-sonar-ner`](https://huggingface.co/wietsedv/bert-base-dutch-cased-finetuned-sonar-ner)
+(SoNaR-corpus, PER/LOC/ORG).
+
+Aanzetten:
+
+```bash
+pip install -e ".[sonar]"                      # +torch, +transformers (~500 MB)
+PII_ENGINE_ENABLE_SONAR=true pii-engine
+```
+
+Observatie uit A/B-test (tekst *"...mijn collega is ter Horst..."*):
+
+| Stack                       | `ter Horst` wordt |
+|-----------------------------|-------------------|
+| spaCy `nl_core_news_lg`     | `LOCATION` (fout — `ter` lekt) |
+| spaCy + SoNaR-BERT          | `PERSON` (correct) |
+
+Kosten: ~440 MB modelcache, +0.5-1s cold-start, +50-150 ms per call (CPU).
+Het model wordt lazy geladen bij de eerste analyse-call zodat startup niet
+blokkeert. Zet bij voorkeur `HF_HOME` naar een cache-pad dat je proces kan
+schrijven (default `~/.cache/huggingface/hub`).
 
 ## Installatie
 
@@ -101,6 +129,10 @@ Dezelfde request als `/analyze` plus `mode` (`"pseudonymize"` | `"redact"`) en
 | `PII_ENGINE_ALLOW_BLANK_NLP_FALLBACK` | `true` | Val terug op blank NL als model mist. Zet op `false` in productie. |
 | `PII_ENGINE_DEFAULT_SCORE_THRESHOLD` | `0.35` | Minimale confidence. |
 | `PII_ENGINE_ENABLE_BSN` | `true` | Schakel individuele recognizers uit. |
+| `PII_ENGINE_ENABLE_SONAR` | `false` | Laad SoNaR-BERT NER (vereist `[sonar]` extras). |
+| `PII_ENGINE_SONAR_MODEL` | `wietsedv/bert-base-dutch-cased-finetuned-sonar-ner` | HF-id. |
+| `PII_ENGINE_SONAR_SCORE_MIN` | `0.5` | Ondergrens modelvertrouwen. |
+| `PII_ENGINE_ENABLE_PLAYGROUND` | `true` | Serveer de HTML-playground op `/`. |
 | `PII_ENGINE_CORS_ALLOW_ORIGINS` | `["http://localhost"]` | CORS-lijst. |
 
 ## Architectuur-positie
@@ -123,7 +155,7 @@ Dezelfde request als `/analyze` plus `mode` (`"pseudonymize"` | `"redact"`) en
 ## Niet in scope voor Fase 1
 
 - GLiNER zero-shot integratie (Fase 4).
-- SoNaR-BERT als Presidio-recognizer (Fase 1B, volgt direct hierna).
+- ONNX-export van SoNaR voor snellere inference (backlog Fase 4).
 - LLM-augmentatie via Ollama (Fase 4).
 - Model Manager & auto-download (Fase 3, aan de Electron-kant).
 - Document-formaten (DOCX/PDF/XLSX) — dat blijft in de Electron-app;

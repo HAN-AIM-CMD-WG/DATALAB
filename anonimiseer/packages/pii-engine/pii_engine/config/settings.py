@@ -42,6 +42,21 @@ class Settings(BaseSettings):
     enable_nl_studentnr: bool = True
     enable_presidio_builtins: bool = True
 
+    # SoNaR-BERT NER voor betere NL-PERSON/LOCATION/ORGANIZATION recall.
+    # Default uit: zwaarder model (~440MB), traagt startup en per-call af.
+    # Zet aan met PII_ENGINE_ENABLE_SONAR=true (en installeer `[sonar]` extras).
+    enable_sonar: bool = False
+    sonar_model: str = Field(
+        default="wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
+        description="HuggingFace-id van het SoNaR NER-model.",
+    )
+    sonar_score_min: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum modelvertrouwen om een entiteit te accepteren.",
+    )
+
     # Engine
     default_language: Literal["nl"] = "nl"
     default_score_threshold: float = Field(default=0.35, ge=0.0, le=1.0)

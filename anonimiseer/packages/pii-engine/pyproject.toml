@@ -86,3 +86,6 @@ files = ["pii_engine"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra -q"
+markers = [
+    "slow: tests die externe modellen downloaden of inference doen (SoNaR-BERT, spaCy-lg)",
+]

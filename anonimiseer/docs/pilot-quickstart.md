@@ -22,6 +22,54 @@ naar B.
 
 ---
 
+## Scenario 0 — Ingebouwde playground (snelste test)
+
+De engine serveert zelf een browser-UI op `/playground`. Daar plak je
+tekst, kies je `pseudonymize` of `redact` en zie je direct wat er
+gedetecteerd wordt, inclusief highlights, mapping-tabel en raw JSON.
+
+Alleen engine starten, geen Docker of Open WebUI:
+
+```bash
+cd /Users/wouter/Desktop/CURSOR/DATALAB/REPO/anonimiseer/packages/pii-engine
+source .venv/bin/activate
+PII_ENGINE_SPACY_MODEL=nl_core_news_lg \
+PII_ENGINE_ENABLE_BSN=true \
+PII_ENGINE_ENABLE_SONAR=true \
+pii-engine
+```
+
+Dan in je browser: <http://127.0.0.1:8765/playground>
+
+> `PII_ENGINE_ENABLE_SONAR=true` is aanbevolen. Het activeert de NL BERT
+> NER-recognizer (SoNaR) die o.a. `ter Horst`, `van den Broek` en `van
+> Dijk` correct als personen herkent waar pure spaCy ze mist of aan
+> `LOCATION` toewijst. Eerste load duurt ~5s, daarna ~50-150 ms per call.
+> Zet `PII_ENGINE_ENABLE_SONAR=false` (of laat hem weg) als je bewust
+> alleen de lichte spaCy-baseline wilt zien.
+
+### Wat je moet zien
+
+Voer bijvoorbeeld dit in de playground in:
+
+```text
+Goedemiddag, ik ben Mevrouw van den Broek en woon in Arnhem. Mijn collega is
+ter Horst en werkt bij de Rijksuniversiteit Groningen. Bel mij op 06-12345678
+of mail mevrouw.vandenbroek@voorbeeld.nl. Mijn BSN is 111222333.
+```
+
+Verwacht (met SoNaR aan):
+
+- `Mevrouw van den Broek` → `PERSON_1`
+- `Arnhem` → `LOCATION_1`
+- `ter Horst` → `PERSON_2` ← zonder SoNaR wordt dit fout `LOCATION`
+- `Rijksuniversiteit Groningen` → `ORGANIZATION_1`
+- `06-12345678` → `NL_PHONE_NUMBER_1`
+- `mevrouw.vandenbroek@voorbeeld.nl` → `EMAIL_ADDRESS_1`
+- `111222333` → `NL_BSN_1`
+
+---
+
 ## Scenario A — Lokale sandbox op je Mac
 
 ### A1. Zorg dat de PII-engine draait
@@ -36,6 +84,7 @@ source .venv/bin/activate
 PII_ENGINE_HOST=0.0.0.0 \
 PII_ENGINE_SPACY_MODEL=nl_core_news_lg \
 PII_ENGINE_ENABLE_BSN=true \
+PII_ENGINE_ENABLE_SONAR=true \
 pii-engine
 ```
 
@@ -46,7 +95,8 @@ Check vanaf een tweede terminal:
 
 ```bash
 curl http://127.0.0.1:8765/health
-# {"status":"ok","version":"0.1.0","recognizers":14,"spacy_model":"nl_core_news_lg"}
+# {"status":"ok","version":"0.1.0","recognizers":15,"spacy_model":"nl_core_news_lg"}
+# (14 zonder SoNaR, 15 mét PII_ENGINE_ENABLE_SONAR=true)
 
 lsof -iTCP:8765 -sTCP:LISTEN
 # moet `*:8765` (of `*:ultraseek-http`) tonen — NIET enkel `localhost:8765`

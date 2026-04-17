@@ -89,6 +89,23 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
         registry.add_recognizer(NlPostcodeRecognizer(supported_language="nl"))
     if settings.enable_nl_studentnr:
         registry.add_recognizer(NlStudentnrRecognizer(supported_language="nl"))
+    if settings.enable_sonar:
+        try:
+            from pii_engine.recognizers.sonar import SonarRecognizer
+
+            registry.add_recognizer(
+                SonarRecognizer(
+                    supported_language="nl",
+                    model_name=settings.sonar_model,
+                    score_min=settings.sonar_score_min,
+                )
+            )
+        except ImportError as exc:
+            logger.warning(
+                "enable_sonar=True maar transformers/torch niet beschikbaar (%s). "
+                "Installeer extras [sonar] om SoNaR-NER te gebruiken.",
+                exc,
+            )
 
     nlp_engine = _build_nlp_engine(settings)
     analyzer = AnalyzerEngine(
