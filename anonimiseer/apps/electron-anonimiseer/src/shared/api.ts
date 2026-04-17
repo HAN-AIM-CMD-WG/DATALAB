@@ -57,10 +57,29 @@ export interface SettingsApi {
   reset(): Promise<AppSettings>;
 }
 
+export interface DialogFileInfo {
+  path: string;
+  name: string;
+  /** Lowercase, inclusief de punt: ".md", ".pdf", … */
+  extension: string;
+  /** Grootte in bytes. */
+  size: number;
+}
+
+export interface DialogApi {
+  /** Opent het native open-file-dialog (multi-select). Leeg = geannuleerd. */
+  openFiles(): Promise<DialogFileInfo[]>;
+  /** Stat bestaande paden; onleesbare/niet-bestaande paden vallen eruit. */
+  statFiles(paths: string[]): Promise<DialogFileInfo[]>;
+  /** Pad van een via drag-drop meegegeven File (gebruikt Electron's webUtils). */
+  getPathForFile(file: File): string;
+}
+
 export interface AnonimiseerApi {
   version: VersionInfo;
   engine: EngineApi;
   settings: SettingsApi;
+  dialog: DialogApi;
 }
 
 declare global {

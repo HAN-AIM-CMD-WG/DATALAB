@@ -20,6 +20,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { registerEngineBridge } from './engineBridge';
 import { registerSettingsBridge } from './settingsStore';
+import { registerFileDialogBridge } from './fileDialog';
 
 const isDev = !app.isPackaged;
 
@@ -75,6 +76,7 @@ function createWindow(): BrowserWindow {
 app.whenReady().then(() => {
   registerEngineBridge();
   registerSettingsBridge();
+  registerFileDialogBridge();
 
   // macOS: houd het icoon in het Dock actief, maar niet in de taskbar op
   // Windows tenzij er een venster is.

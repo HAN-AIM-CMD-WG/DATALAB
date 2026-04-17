@@ -6,8 +6,13 @@
  * oppervlakte": alleen wat de UI nu écht nodig heeft.
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
-import type { AnonimiseerApi, AppSettings, EngineHealth } from '@shared/api';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import type {
+  AnonimiseerApi,
+  AppSettings,
+  DialogFileInfo,
+  EngineHealth,
+} from '@shared/api';
 
 const api: AnonimiseerApi = {
   version: {
@@ -30,6 +35,13 @@ const api: AnonimiseerApi = {
       ipcRenderer.invoke('settings:set', patch) as Promise<AppSettings>,
     reset: (): Promise<AppSettings> =>
       ipcRenderer.invoke('settings:reset') as Promise<AppSettings>,
+  },
+  dialog: {
+    openFiles: (): Promise<DialogFileInfo[]> =>
+      ipcRenderer.invoke('dialog:openFiles') as Promise<DialogFileInfo[]>,
+    statFiles: (paths): Promise<DialogFileInfo[]> =>
+      ipcRenderer.invoke('dialog:statFiles', paths) as Promise<DialogFileInfo[]>,
+    getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   },
 };
 
