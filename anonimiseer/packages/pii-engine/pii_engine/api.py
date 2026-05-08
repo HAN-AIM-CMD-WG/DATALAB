@@ -24,10 +24,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pii_engine import (
     __version__,
     documents,
-    models as model_registry,
     ollama_client,
     ollama_review,
     runtime,
+)
+from pii_engine import (
+    models as model_registry,
 )
 from pii_engine.analyzer import get_default_analyzer
 from pii_engine.anonymizer import PseudonymMapping, anonymize_with_mode
@@ -185,7 +187,9 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=f"extractie mislukt: {exc}") from exc
         return DocumentExtractResponse(
             flat_text=result.flat_text,
-            blocks=[DocumentBlock(id=b.id, kind=b.kind, start=b.start, end=b.end) for b in result.blocks],
+            blocks=[
+                DocumentBlock(id=b.id, kind=b.kind, start=b.start, end=b.end) for b in result.blocks
+            ],
         )
 
     @app.post("/document/apply", tags=["document"])
@@ -238,9 +242,7 @@ def create_app() -> FastAPI:
         analyzer = get_default_analyzer()
         # Gebruik effectieve settings (incl. runtime-overrides via /engine/config).
         active_settings = runtime.effective_settings()
-        recognizer_names = sorted(
-            {type(r).__name__ for r in analyzer.registry.recognizers}
-        )
+        recognizer_names = sorted({type(r).__name__ for r in analyzer.registry.recognizers})
 
         active: list[ActiveModelInfo] = []
 
@@ -266,7 +268,9 @@ def create_app() -> FastAPI:
             active.append(
                 ActiveModelInfo(
                     id=sonar_id,
-                    label=sonar_descriptor.label if sonar_descriptor else active_settings.sonar_model,
+                    label=sonar_descriptor.label
+                    if sonar_descriptor
+                    else active_settings.sonar_model,
                     kind="hf",
                     role="ner",
                 )
@@ -346,8 +350,7 @@ def create_app() -> FastAPI:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Er is geen Ollama-model gekozen. Selecteer er eerst één "
-                    "in Modellen beheren."
+                    "Er is geen Ollama-model gekozen. Selecteer er eerst één in Modellen beheren."
                 ),
             )
         if not ollama_client.is_available():
@@ -362,9 +365,12 @@ def create_app() -> FastAPI:
             )
 
         result = ollama_review.review(text=req.text, model=chosen)
+        verdict_value = result.verdict
+        if verdict_value not in ("clean", "suspect", "unknown"):
+            verdict_value = "unknown"
         return ReviewResponse(
             model=result.model,
-            verdict=result.verdict,
+            verdict=verdict_value,  # type: ignore[arg-type]
             summary=result.summary,
             findings=[
                 ReviewFindingSchema(

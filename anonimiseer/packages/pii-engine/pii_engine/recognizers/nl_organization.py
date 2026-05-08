@@ -27,13 +27,11 @@ from typing import ClassVar
 from presidio_analyzer import (
     AnalysisExplanation,
     EntityRecognizer,
-    Pattern,
-    PatternRecognizer,
     RecognizerResult,
 )
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-__all__ = ["NlOrganizationRecognizer", "ORGANIZATION_PREFIXES"]
+__all__ = ["ORGANIZATION_PREFIXES", "NlOrganizationRecognizer"]
 
 
 # Aanduidingen die bijna altijd het begin van een organisatie-naam markeren.
@@ -161,7 +159,7 @@ class NlOrganizationRecognizer(EntityRecognizer):
                     end=end,
                     score=self.DEFAULT_SCORE,
                     analysis_explanation=AnalysisExplanation(
-                        recognizer=self.name,
+                        recognizer=self.__class__.__name__,
                         original_score=self.DEFAULT_SCORE,
                         pattern_name="nl_org_prefix",
                         pattern="prefix_match",
@@ -183,7 +181,7 @@ class NlOrganizationRecognizer(EntityRecognizer):
                     end=end,
                     score=0.85,
                     analysis_explanation=AnalysisExplanation(
-                        recognizer=self.name,
+                        recognizer=self.__class__.__name__,
                         original_score=0.85,
                         pattern_name="nl_org_suffix",
                         pattern="suffix_match",

@@ -92,10 +92,21 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF"]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    # Nederlandse typografie: en-dash (–) in docstrings/strings/comments
+    # is opzettelijk (correcte schrijfwijze), niet vervangen door hyphen.
+    # Ook dotless-i (ı) is geldig voor namen als "Aysenur Tan ı".
+    "RUF001",  # ambiguous unicode in strings
+    "RUF002",  # ambiguous unicode in docstrings
+    "RUF003",  # ambiguous unicode in comments
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["N802", "N803"]
+# api.py heeft binnen-functie helpers (FastAPI route closures) waarbij
+# UPPER_CASE constants en `File(...)` defaults idiomatisch zijn.
+"pii_engine/api.py" = ["N806", "B008"]
 
 [tool.mypy]
 python_version = "3.11"

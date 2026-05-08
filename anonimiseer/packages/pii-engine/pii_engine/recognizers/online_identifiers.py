@@ -78,7 +78,9 @@ _USERNAME_LABELS = (
 _USERNAME_REGEX = re.compile(
     r"""(?ix)
     (?:^|[\s>*_\[\(\-])                 # begin of veilige scheider
-    (?:""" + "|".join(_USERNAME_LABELS) + r""")
+    (?:"""
+    + "|".join(_USERNAME_LABELS)
+    + r""")
     [^\S\n]* [:\-=]                     # label-eindigt-in :, - of =
     [^\S\n]* \** [^\S\n]*               # optionele markdown ** + spaties
     (?P<value>[A-Za-z0-9][A-Za-z0-9._\-]{2,31})
@@ -100,7 +102,9 @@ _PASSWORD_LABELS = (
 _PASSWORD_REGEX = re.compile(
     r"""(?ix)
     (?:^|[\s>*_\[\(\-])
-    (?:""" + "|".join(_PASSWORD_LABELS) + r""")
+    (?:"""
+    + "|".join(_PASSWORD_LABELS)
+    + r""")
     [^\n]*?                              # optionele tussenwoorden (bv. ``(fictief!)``)
     [:\-=]
     [^\S\n]* \** [^\S\n]*                # optionele markdown ** en spaties
@@ -141,7 +145,7 @@ class OnlineIdentifierRecognizer(EntityRecognizer):
             supported_language=supported_language,
         )
 
-    def load(self) -> None:  # noqa: D401 - Presidio interface
+    def load(self) -> None:
         """Geen externe assets nodig."""
 
     def analyze(

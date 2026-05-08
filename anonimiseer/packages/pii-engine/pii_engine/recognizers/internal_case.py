@@ -28,7 +28,6 @@ from presidio_analyzer import (
 )
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-
 __all__ = ["InternalCaseNumberRecognizer"]
 
 
@@ -143,11 +142,11 @@ class InternalCaseNumberRecognizer(EntityRecognizer):
                     score = self.BOOSTED_SCORE
 
                 explanation = AnalysisExplanation(
-                    recognizer=self.name,
+                    recognizer=self.__class__.__name__,
                     original_score=score,
                     pattern_name=f"internal_case_p{pattern_idx}",
                     pattern=pattern.pattern,
-                    validation_result=None,
+                    validation_result=True,
                     textual_explanation=(
                         "Intern dossier-/patiëntnummer "
                         f"({'met' if has_label else 'zonder'} label-context)"
@@ -161,10 +160,6 @@ class InternalCaseNumberRecognizer(EntityRecognizer):
                         end=end,
                         score=score,
                         analysis_explanation=explanation,
-                        recognition_metadata={
-                            RecognizerResult.RECOGNIZER_NAME_KEY: self.name,
-                            RecognizerResult.RECOGNIZER_IDENTIFIER_KEY: self.id,
-                        },
                     )
                 )
                 seen.add((start, end))

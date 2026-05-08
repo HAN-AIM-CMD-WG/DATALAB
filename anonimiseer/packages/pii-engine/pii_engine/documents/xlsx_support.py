@@ -27,7 +27,7 @@ def _cell_id(sheet_idx: int, sheet_name: str, cell_ref: str) -> str:
     return f"s{sheet_idx}:{safe_name}!{cell_ref}"
 
 
-def extract_xlsx(file_bytes: bytes) -> "ExtractResult":
+def extract_xlsx(file_bytes: bytes) -> ExtractResult:
     from . import Block, ExtractResult
 
     wb = load_workbook(io.BytesIO(file_bytes), data_only=False)
@@ -47,7 +47,7 @@ def extract_xlsx(file_bytes: bytes) -> "ExtractResult":
                 block_id = _cell_id(sheet_idx, sheet_name, cell.coordinate)
                 start = cursor
                 end = start + len(value)
-                blocks.append(Block(id=block_id, kind="sheet-cell", start=start, end=end))  # type: ignore[arg-type]
+                blocks.append(Block(id=block_id, kind="sheet-cell", start=start, end=end))
                 texts.append(value)
                 cursor = end + len(_BLOCK_SEPARATOR)
 
@@ -57,8 +57,8 @@ def extract_xlsx(file_bytes: bytes) -> "ExtractResult":
 
 def apply_xlsx(
     file_bytes: bytes,
-    replacements: list["AcceptedReplacement"],
-    blocks: list["Block"],
+    replacements: list[AcceptedReplacement],
+    blocks: list[Block],
     footer_note: str | None = None,
 ) -> bytes:
     wb = load_workbook(io.BytesIO(file_bytes), data_only=False)

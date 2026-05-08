@@ -53,7 +53,7 @@ def _parse_line_id(block_id: str) -> tuple[int, int, int] | None:
         return None
 
 
-def extract_pdf(file_bytes: bytes) -> "ExtractResult":
+def extract_pdf(file_bytes: bytes) -> ExtractResult:
     from . import Block, ExtractResult
 
     doc = fitz.open(stream=file_bytes, filetype="pdf")
@@ -76,9 +76,7 @@ def extract_pdf(file_bytes: bytes) -> "ExtractResult":
                     block_id = _line_id(page_idx, block_idx, line_idx)
                     start = cursor
                     end = start + len(line_text)
-                    blocks.append(
-                        Block(id=block_id, kind="pdf-line", start=start, end=end)  # type: ignore[arg-type]
-                    )
+                    blocks.append(Block(id=block_id, kind="pdf-line", start=start, end=end))
                     texts.append(line_text)
                     cursor = end + len(_BLOCK_SEPARATOR)
     finally:
@@ -90,14 +88,14 @@ def extract_pdf(file_bytes: bytes) -> "ExtractResult":
 
 def apply_pdf(
     file_bytes: bytes,
-    replacements: list["AcceptedReplacement"],
-    blocks: list["Block"],
+    replacements: list[AcceptedReplacement],
+    blocks: list[Block],
     footer_note: str | None = None,
 ) -> bytes:
     grouped = group_replacements_per_block(blocks, replacements)
 
     # Groepeer blok-ids per pagina zodat we per pagina één keer werken.
-    per_page: dict[int, list[tuple[str, list]]] = {}
+    per_page: dict[int, list[tuple[str, list[AcceptedReplacement]]]] = {}
     for block in blocks:
         parsed = _parse_line_id(block.id)
         if parsed is None:
@@ -112,7 +110,7 @@ def apply_pdf(
                 continue
             page = doc[page_idx]
             any_redaction = False
-            for block_id, block_replacements in page_blocks:
+            for _block_id, block_replacements in page_blocks:
                 if not block_replacements:
                     continue
                 for rep in block_replacements:
@@ -125,9 +123,7 @@ def apply_pdf(
                         continue
                     areas = page.search_for(original, quads=False)
                     for area in areas:
-                        page.add_redact_annot(
-                            area, text=rep.replacement, fill=(1, 1, 1)
-                        )
+                        page.add_redact_annot(area, text=rep.replacement, fill=(1, 1, 1))
                         any_redaction = True
             if any_redaction:
                 page.apply_redactions()
@@ -139,7 +135,9 @@ def apply_pdf(
             for page in doc:
                 rect = page.rect
                 margin = 14
-                box = fitz.Rect(margin, rect.height - 22, rect.width - margin, rect.height - margin / 2)
+                box = fitz.Rect(
+                    margin, rect.height - 22, rect.width - margin, rect.height - margin / 2
+                )
                 page.insert_textbox(
                     box,
                     footer_note,

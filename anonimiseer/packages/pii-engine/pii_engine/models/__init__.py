@@ -28,9 +28,10 @@ import sys
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +127,7 @@ _HF_MODELS: list[ModelDescriptor] = [
         id="hf:GroNLP/bert-base-dutch-cased",
         label="BERTje (BERT-base NL)",
         kind="hf",
-        description=(
-            "Algemeen Nederlands BERT-model. Vereist door SoNaR-NER. ~440 MB."
-        ),
+        description=("Algemeen Nederlands BERT-model. Vereist door SoNaR-NER. ~440 MB."),
         size_mb=440,
         install_target="GroNLP/bert-base-dutch-cased",
         min_ram_mb=2048,
@@ -146,6 +145,7 @@ _HF_MODELS: list[ModelDescriptor] = [
         min_ram_mb=2048,
     ),
 ]
+
 
 def _spacy_installed(name: str) -> tuple[bool, str | None]:
     try:
@@ -277,7 +277,7 @@ def get_task(task_id: str) -> TaskInfo | None:
         return _TASKS.get(task_id)
 
 
-def _update_task(task_id: str, **changes) -> None:
+def _update_task(task_id: str, **changes: object) -> None:
     with _TASK_LOCK:
         task = _TASKS.get(task_id)
         if task is None:
@@ -441,10 +441,10 @@ def start_install(descriptor: ModelDescriptor) -> TaskInfo:
 
 
 __all__ = [
-    "ModelDescriptor",
-    "ModelKind",
     "REGISTRY",
     "REGISTRY_BY_ID",
+    "ModelDescriptor",
+    "ModelKind",
     "TaskInfo",
     "TaskState",
     "get_task",

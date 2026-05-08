@@ -77,12 +77,8 @@ class EngineConfigRequest(BaseModel):
 class OllamaEngineState(BaseModel):
     """Ollama-integratie status voor de UI."""
 
-    model: str | None = Field(
-        default=None, description="Geselecteerde Ollama-tag."
-    )
-    daemon_running: bool = Field(
-        default=False, description="Antwoordt de lokale daemon?"
-    )
+    model: str | None = Field(default=None, description="Geselecteerde Ollama-tag.")
+    daemon_running: bool = Field(default=False, description="Antwoordt de lokale daemon?")
     model_present: bool = Field(
         default=False,
         description="Staat het gekozen model daadwerkelijk in ``ollama list``?",

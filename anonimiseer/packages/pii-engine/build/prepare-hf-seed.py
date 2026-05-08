@@ -20,6 +20,7 @@ naar ``~/.anonimiseer/huggingface/hub/`` geseed op de eindgebruiker.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import sys
@@ -117,10 +118,8 @@ def _copy_filtered(src: Path, dst: Path) -> tuple[int, int]:
             elif entry.is_file():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(entry, target)
-                try:
+                with contextlib.suppress(OSError):
                     copied += target.stat().st_size
-                except OSError:
-                    pass
             # dirs worden vanzelf gemaakt door mkdir
 
     return copied, skipped

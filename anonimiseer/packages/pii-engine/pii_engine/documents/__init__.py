@@ -86,7 +86,7 @@ class AcceptedReplacement:
     original: str | None = None
 
 
-class UnsupportedFormat(ValueError):
+class UnsupportedFormat(ValueError):  # noqa: N818 — publieke API, niet hernoemen
     """Het ingediende bestand heeft een extensie die we niet kennen."""
 
 

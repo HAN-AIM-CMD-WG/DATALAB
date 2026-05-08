@@ -23,7 +23,7 @@ from presidio_analyzer import (
 )
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-__all__ = ["BankNameRecognizer", "BANK_NAMES"]
+__all__ = ["BANK_NAMES", "BankNameRecognizer"]
 
 
 # Multi-word entries staan vóór single-word zodat we bij overlap de
@@ -95,7 +95,7 @@ class BankNameRecognizer(EntityRecognizer):
             supported_language=supported_language,
         )
 
-    def load(self) -> None:  # noqa: D401 - Presidio interface
+    def load(self) -> None:
         """Geen externe assets nodig."""
 
     def analyze(
@@ -120,9 +120,7 @@ class BankNameRecognizer(EntityRecognizer):
                         pattern_name="bank_dict",
                         pattern="",
                         validation_result=True,
-                        textual_explanation=(
-                            "Dictionary-match op bekende NL/BE bank-instelling."
-                        ),
+                        textual_explanation=("Dictionary-match op bekende NL/BE bank-instelling."),
                     ),
                 )
             )

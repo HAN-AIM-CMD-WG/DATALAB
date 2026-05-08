@@ -12,6 +12,7 @@ elke ``apply()`` schrijft het bij.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -19,9 +20,9 @@ import threading
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
+from pii_engine import ollama_client
 from pii_engine.config import Settings, get_settings
 from pii_engine.models import REGISTRY_BY_ID, status_for
-from pii_engine import ollama_client
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def _config_path() -> Path:
     return Path.home() / ".anonimiseer" / "runtime_config.json"
 
 
-def _optional_bool(raw: dict, key: str) -> bool | None:
+def _optional_bool(raw: dict[str, object], key: str) -> bool | None:
     if key not in raw or raw[key] is None:
         return None
     return bool(raw[key])
@@ -136,7 +137,7 @@ def _validate(
     spacy_model: str | None,
     enable_sonar: bool | None,
     sonar_model: str | None,
-    enable_han_edu: bool | None,  # noqa: ARG001 — geen externe afhankelijkheid
+    enable_han_edu: bool | None,
     ollama_model: str | None,
     ollama_review_enabled: bool | None,
     ollama_extra_ner_enabled: bool | None,
@@ -145,9 +146,7 @@ def _validate(
     if spacy_model:
         descriptor = REGISTRY_BY_ID.get(f"spacy:{spacy_model}")
         if descriptor is None:
-            raise RuntimeConfigError(
-                f"spaCy-model '{spacy_model}' staat niet in de registry."
-            )
+            raise RuntimeConfigError(f"spaCy-model '{spacy_model}' staat niet in de registry.")
         installed, _ = status_for(descriptor)
         if not installed:
             raise RuntimeConfigError(
@@ -158,8 +157,8 @@ def _validate(
         # Sonar vereist transformers + torch (extras [sonar]) en het
         # daadwerkelijke HF-snapshot in cache.
         try:
-            import transformers  # noqa: F401
             import torch  # noqa: F401
+            import transformers  # noqa: F401
         except ImportError as exc:
             raise RuntimeConfigError(
                 "SoNaR vereist de extra 'sonar' (transformers + torch); "
@@ -176,12 +175,11 @@ def _validate(
                 )
 
     # Ollama: model moet in de lokale daemon staan; rollen vereisen een model.
-    if ollama_model:
-        if not ollama_client.model_present(ollama_model):
-            raise RuntimeConfigError(
-                f"Ollama-model '{ollama_model}' draait niet lokaal. "
-                "Pull hem eerst of start de Ollama-daemon."
-            )
+    if ollama_model and not ollama_client.model_present(ollama_model):
+        raise RuntimeConfigError(
+            f"Ollama-model '{ollama_model}' draait niet lokaal. "
+            "Pull hem eerst of start de Ollama-daemon."
+        )
 
     current = get_runtime()
     # Pre-check of er een model is wanneer een rol *nieuw* wordt aangezet.
@@ -239,7 +237,9 @@ def apply(
             ),
             ollama_model=ollama_model if ollama_model is not None else current.ollama_model,
             ollama_review_enabled=(
-                ollama_review_enabled if ollama_review_enabled is not None else current.ollama_review_enabled
+                ollama_review_enabled
+                if ollama_review_enabled is not None
+                else current.ollama_review_enabled
             ),
             ollama_extra_ner_enabled=(
                 ollama_extra_ner_enabled
@@ -268,10 +268,8 @@ def reset() -> RuntimeConfig:
         _CURRENT = RuntimeConfig()
         _LOADED = True
         path = _config_path()
-        try:
+        with contextlib.suppress(FileNotFoundError):
             path.unlink()
-        except FileNotFoundError:
-            pass
     _invalidate_analyzer_cache()
     return _CURRENT
 

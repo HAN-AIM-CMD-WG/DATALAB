@@ -28,7 +28,7 @@ from presidio_analyzer import (
 )
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-__all__ = ["EuCityRecognizer", "EU_CITY_NAMES", "EU_CITY_NAMES_LC"]
+__all__ = ["EU_CITY_NAMES", "EU_CITY_NAMES_LC", "EuCityRecognizer"]
 
 
 EU_CITY_NAMES: tuple[str, ...] = (
@@ -225,9 +225,7 @@ def _build_pattern(names: tuple[str, ...]) -> re.Pattern[str]:
     # Gebruik géén ``\b`` aan het begin omdat sommige namen met een
     # apostrof (``'s-Hertogenbosch``) aan een non-word karakter
     # beginnen; we eisen handmatig dat het vorige teken geen letter is.
-    pattern = (
-        r"(?<![A-Za-zÀ-ÿ])(?:" + "|".join(escaped) + r")(?![A-Za-zÀ-ÿ])"
-    )
+    pattern = r"(?<![A-Za-zÀ-ÿ])(?:" + "|".join(escaped) + r")(?![A-Za-zÀ-ÿ])"
     return re.compile(pattern)
 
 
@@ -251,7 +249,7 @@ class EuCityRecognizer(EntityRecognizer):
             supported_language=supported_language,
         )
 
-    def load(self) -> None:  # noqa: D401 - Presidio interface
+    def load(self) -> None:
         """Geen externe assets nodig."""
 
     def analyze(
@@ -276,9 +274,7 @@ class EuCityRecognizer(EntityRecognizer):
                         pattern_name="city_dict",
                         pattern="",
                         validation_result=True,
-                        textual_explanation=(
-                            "Dictionary-match op bekende NL/EU-stadsnaam."
-                        ),
+                        textual_explanation=("Dictionary-match op bekende NL/EU-stadsnaam."),
                     ),
                 )
             )

@@ -25,7 +25,6 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Iterable
 from urllib.parse import urlparse
 
 import httpx
@@ -55,8 +54,7 @@ def _resolve_host() -> str:
     host = (parsed.hostname or "").lower()
     if host not in {"localhost", "127.0.0.1", "::1"}:
         logger.warning(
-            "OLLAMA_HOST=%s wijst niet naar localhost; val terug op %s om "
-            "data lokaal te houden.",
+            "OLLAMA_HOST=%s wijst niet naar localhost; val terug op %s om data lokaal te houden.",
             raw,
             DEFAULT_HOST,
         )
@@ -163,11 +161,7 @@ def generate(
         model=model,
         response=response_text,
         eval_count=_safe_int(data.get("eval_count")),
-        eval_duration_ms=(
-            _safe_int(data.get("eval_duration")) // 1_000_000
-            if isinstance(data.get("eval_duration"), (int, float))
-            else None
-        ),
+        eval_duration_ms=_to_ms(_safe_int(data.get("eval_duration"))),
     )
 
 
@@ -175,6 +169,12 @@ def _safe_int(value: object) -> int | None:
     if isinstance(value, (int, float)):
         return int(value)
     return None
+
+
+def _to_ms(nanoseconds: int | None) -> int | None:
+    if nanoseconds is None:
+        return None
+    return nanoseconds // 1_000_000
 
 
 def is_available() -> bool:
@@ -187,7 +187,7 @@ def is_available() -> bool:
         return False
 
 
-__all__: Iterable[str] = (
+__all__: tuple[str, ...] = (
     "OllamaError",
     "OllamaModelTag",
     "OllamaResult",

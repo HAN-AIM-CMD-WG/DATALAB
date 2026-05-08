@@ -128,10 +128,7 @@ def _has_non_bsn_context(text: str, start: int) -> bool:
 
     window_start = max(0, start - 40)
     preceding = text[window_start:start].lower()
-    for marker in _BSN_NEGATIVE_MARKERS:
-        if marker in preceding:
-            return True
-    return False
+    return any(marker in preceding for marker in _BSN_NEGATIVE_MARKERS)
 
 
 class BsnRecognizer(PatternRecognizer):
@@ -211,7 +208,7 @@ class BsnRecognizer(PatternRecognizer):
                     validation_result=False,
                     textual_explanation=(
                         "Elfproef faalt, maar vlak ervoor staat een BSN-label "
-                        "(\"BSN:\" o.i.d.); behandel voor de zekerheid als BSN."
+                        '("BSN:" o.i.d.); behandel voor de zekerheid als BSN.'
                     ),
                 )
                 validated.append(r)

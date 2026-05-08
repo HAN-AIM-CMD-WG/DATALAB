@@ -25,7 +25,7 @@ verschillende entity-types op exact dezelfde range blijven wel staan
 from __future__ import annotations
 
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 from presidio_analyzer import RecognizerResult
 
@@ -150,9 +150,7 @@ _GREETING_PREFIX_RE = re.compile(
 # (``Jeroen\nvan der Meulen``); alleen wanneer de tweede regel daadwerkelijk
 # met een markdown-label of veld begint (``\n**Docent:**`` /
 # ``\nMentor:``) splitsen we op de newline.
-_LABEL_AFTER_NEWLINE_RE = re.compile(
-    r"^[\s\-*•·]*\*{0,2}[A-Z][A-Za-zÀ-ÿ'\-]+\*{0,2}\s*[:=]"
-)
+_LABEL_AFTER_NEWLINE_RE = re.compile(r"^[\s\-*•·]*\*{0,2}[A-Z][A-Za-zÀ-ÿ'\-]+\*{0,2}\s*[:=]")
 # Vervolg van een naam over de regelafbreking heen (``\nvan der Meulen``,
 # ``\nde Vries-Smit``). Een tussenvoegsel of een hoofdletter-token telt.
 _NAME_CONTINUATION_RE = re.compile(
@@ -173,89 +171,279 @@ _NAME_CONTINUATION_RE = re.compile(
 _LABEL_WORDS_ANY = frozenset(
     {
         # ---- Persoon-/contact-velden ----
-        "naam", "voornaam", "achternaam", "tussenvoegsel", "roepnaam", "bijnaam",
-        "geboortedatum", "geboorteplaats", "geboorteland",
-        "geslacht", "leeftijd", "nationaliteit",
-        "adres", "postcode", "woonplaats", "huisnummer", "straat",
-        "plaats", "stad", "land", "provincie", "regio",
-        "telefoon", "telefoonnummer", "mobiel", "vast", "tel", "gsm",
-        "e-mail", "email", "mail", "e-mailadres", "mailadres",
-        "werkgever", "opdrachtgever", "werknemer", "leverancier",
-        "contact", "contactpersoon",
+        "naam",
+        "voornaam",
+        "achternaam",
+        "tussenvoegsel",
+        "roepnaam",
+        "bijnaam",
+        "geboortedatum",
+        "geboorteplaats",
+        "geboorteland",
+        "geslacht",
+        "leeftijd",
+        "nationaliteit",
+        "adres",
+        "postcode",
+        "woonplaats",
+        "huisnummer",
+        "straat",
+        "plaats",
+        "stad",
+        "land",
+        "provincie",
+        "regio",
+        "telefoon",
+        "telefoonnummer",
+        "mobiel",
+        "vast",
+        "tel",
+        "gsm",
+        "e-mail",
+        "email",
+        "mail",
+        "e-mailadres",
+        "mailadres",
+        "werkgever",
+        "opdrachtgever",
+        "werknemer",
+        "leverancier",
+        "contact",
+        "contactpersoon",
         # ---- Identificatie-nummers ----
-        "bsn", "bsn-nummer", "sofinummer",
-        "paspoort", "paspoortnummer",
-        "id-kaart", "id-bewijs",
-        "identiteit", "identiteitsbewijs", "identiteitskaart",
-        "rijbewijs", "rijbewijsnummer",
-        "documentnummer", "persoonsnummer", "klantnummer",
-        "dossiernummer", "zaaknummer", "kenmerk", "referentie", "referentienummer",
-        "polisnummer", "polis",
-        "rekeningnummer", "bankrekening",
-        "iban", "bic", "swift-code",
-        "btw", "btw-nummer", "kvk", "kvk-nummer",
-        "agb", "agb-code", "big", "big-nummer",
-        "patiëntnummer", "patientnummer", "patiëntid", "patientid",
-        "rijksregister", "rijksregisternummer",
+        "bsn",
+        "bsn-nummer",
+        "sofinummer",
+        "paspoort",
+        "paspoortnummer",
+        "id-kaart",
+        "id-bewijs",
+        "identiteit",
+        "identiteitsbewijs",
+        "identiteitskaart",
+        "rijbewijs",
+        "rijbewijsnummer",
+        "documentnummer",
+        "persoonsnummer",
+        "klantnummer",
+        "dossiernummer",
+        "zaaknummer",
+        "kenmerk",
+        "referentie",
+        "referentienummer",
+        "polisnummer",
+        "polis",
+        "rekeningnummer",
+        "bankrekening",
+        "iban",
+        "bic",
+        "swift-code",
+        "btw",
+        "btw-nummer",
+        "kvk",
+        "kvk-nummer",
+        "agb",
+        "agb-code",
+        "big",
+        "big-nummer",
+        "patiëntnummer",
+        "patientnummer",
+        "patiëntid",
+        "patientid",
+        "rijksregister",
+        "rijksregisternummer",
         # ---- Onderwijs / HAN ----
-        "studentnummer", "studienummer", "leerlingnummer",
-        "medewerkernummer", "personeelsnummer",
-        "klas", "klas-code", "klascode", "klasgroep",
-        "cursus", "cursuscode", "vakcode", "modulecode",
-        "croho", "croho-code",
-        "mentor", "slb", "slb-er", "slb'er", "examinator",
-        "begeleider", "coach", "docent", "lector",
-        "stagebedrijf", "stageorganisatie", "stageplaats", "stage",
-        "stagebegeleider", "praktijkbegeleider",
-        "leerbedrijf", "leerwerkplek", "afstudeerbedrijf",
-        "onderzoeksbedrijf", "contactbedrijf",
-        "beoordelaar", "studieloopbaanbegeleider",
-        "voertuigkenteken", "kenteken", "kentekenplaat",
+        "studentnummer",
+        "studienummer",
+        "leerlingnummer",
+        "medewerkernummer",
+        "personeelsnummer",
+        "klas",
+        "klas-code",
+        "klascode",
+        "klasgroep",
+        "cursus",
+        "cursuscode",
+        "vakcode",
+        "modulecode",
+        "croho",
+        "croho-code",
+        "mentor",
+        "slb",
+        "slb-er",
+        "slb'er",
+        "examinator",
+        "begeleider",
+        "coach",
+        "docent",
+        "lector",
+        "stagebedrijf",
+        "stageorganisatie",
+        "stageplaats",
+        "stage",
+        "stagebegeleider",
+        "praktijkbegeleider",
+        "leerbedrijf",
+        "leerwerkplek",
+        "afstudeerbedrijf",
+        "onderzoeksbedrijf",
+        "contactbedrijf",
+        "beoordelaar",
+        "studieloopbaanbegeleider",
+        "voertuigkenteken",
+        "kenteken",
+        "kentekenplaat",
         # ---- Online identifiers ----
-        "gebruikersnaam", "username", "login", "account", "accountnaam",
-        "wachtwoord", "password", "paswoord", "pwd",
-        "backup-wachtwoord", "backupwachtwoord", "hoofdwachtwoord",
-        "twitter", "twitter/x", "bluesky", "mastodon",
-        "linkedin", "facebook", "instagram",
-        "whatsapp", "signal", "telegram", "discord",
-        "snapchat", "tiktok", "youtube",
-        "github", "gitlab", "bitbucket",
-        "ipv4", "ipv6", "ip-adres", "ip-address",
-        "mac-adres", "mac-address",
-        "url", "website", "homepage", "profielpagina", "profiel",
-        "gps", "gps-locatie", "gps-coördinaten",
-        "coördinaten", "geo", "geo-locatie", "locatie",
-        "lat", "lng", "lon", "latitude", "longitude",
+        "gebruikersnaam",
+        "username",
+        "login",
+        "account",
+        "accountnaam",
+        "wachtwoord",
+        "password",
+        "paswoord",
+        "pwd",
+        "backup-wachtwoord",
+        "backupwachtwoord",
+        "hoofdwachtwoord",
+        "twitter",
+        "twitter/x",
+        "bluesky",
+        "mastodon",
+        "linkedin",
+        "facebook",
+        "instagram",
+        "whatsapp",
+        "signal",
+        "telegram",
+        "discord",
+        "snapchat",
+        "tiktok",
+        "youtube",
+        "github",
+        "gitlab",
+        "bitbucket",
+        "ipv4",
+        "ipv6",
+        "ip-adres",
+        "ip-address",
+        "mac-adres",
+        "mac-address",
+        "url",
+        "website",
+        "homepage",
+        "profielpagina",
+        "profiel",
+        "gps",
+        "gps-locatie",
+        "gps-coördinaten",
+        "coördinaten",
+        "geo",
+        "geo-locatie",
+        "locatie",
+        "lat",
+        "lng",
+        "lon",
+        "latitude",
+        "longitude",
         # ---- Creditcard-meta ----
-        "cvc", "cvv", "cvc-code", "cvv-code",
-        "visa", "mastercard", "amex", "american-express",
-        "dinersclub", "diners-club", "discover", "maestro",
-        "creditcard", "creditcardnummer", "kaart", "kaartnummer",
-        "vervaldatum", "verloopdatum", "geldigheidsdatum",
+        "cvc",
+        "cvv",
+        "cvc-code",
+        "cvv-code",
+        "visa",
+        "mastercard",
+        "amex",
+        "american-express",
+        "dinersclub",
+        "diners-club",
+        "discover",
+        "maestro",
+        "creditcard",
+        "creditcardnummer",
+        "kaart",
+        "kaartnummer",
+        "vervaldatum",
+        "verloopdatum",
+        "geldigheidsdatum",
         "beveiligingscode",
         # ---- Aanhef die spaCy de naam-span in trekt ----
-        "hoi", "hallo", "hey", "dag", "beste", "geachte",
-        "goedemorgen", "goedemiddag", "goedenavond",
-        "groetjes", "groet",
-        "mevrouw", "meneer", "mvr", "dhr", "mw",
+        "hoi",
+        "hallo",
+        "hey",
+        "dag",
+        "beste",
+        "geachte",
+        "goedemorgen",
+        "goedemiddag",
+        "goedenavond",
+        "groetjes",
+        "groet",
+        "mevrouw",
+        "meneer",
+        "mvr",
+        "dhr",
+        "mw",
         # ---- Document-meta uit ons eigen test-template ----
-        "strikt-additief", "additief",
-        "patient", "patiënt",
-        "han-specifieke", "han-medewerker", "han-student", "han-docent",
-        "s-prefix", "p-prefix",
+        "strikt-additief",
+        "additief",
+        "patient",
+        "patiënt",
+        "han-specifieke",
+        "han-medewerker",
+        "han-student",
+        "han-docent",
+        "s-prefix",
+        "p-prefix",
         # ---- IT- / dev-jargon dat spaCy graag als ORG of LOC pakt ----
-        "code-blocks", "code-block", "codeblock", "codeblocks",
-        "front-end", "frontend", "back-end", "backend",
-        "full-stack", "fullstack",
-        "build", "deploy", "deploys", "release", "releases",
-        "endpoint", "endpoints", "api", "api's", "apis",
-        "framework", "frameworks", "library", "libraries",
-        "repo", "repository", "repositories",
-        "dashboard", "dashboards", "logs", "log", "stacktrace",
-        "pull-request", "pullrequest", "merge-request",
-        "branch", "branches", "commit", "commits",
-        "ci", "cd", "ci/cd", "devops",
-        "config", "configs", "env", "envs", "environment",
+        "code-blocks",
+        "code-block",
+        "codeblock",
+        "codeblocks",
+        "front-end",
+        "frontend",
+        "back-end",
+        "backend",
+        "full-stack",
+        "fullstack",
+        "build",
+        "deploy",
+        "deploys",
+        "release",
+        "releases",
+        "endpoint",
+        "endpoints",
+        "api",
+        "api's",
+        "apis",
+        "framework",
+        "frameworks",
+        "library",
+        "libraries",
+        "repo",
+        "repository",
+        "repositories",
+        "dashboard",
+        "dashboards",
+        "logs",
+        "log",
+        "stacktrace",
+        "pull-request",
+        "pullrequest",
+        "merge-request",
+        "branch",
+        "branches",
+        "commit",
+        "commits",
+        "ci",
+        "cd",
+        "ci/cd",
+        "devops",
+        "config",
+        "configs",
+        "env",
+        "envs",
+        "environment",
     }
 )
 
@@ -267,10 +455,30 @@ _LABEL_WORDS_ANY = frozenset(
 # bank-/verzekeraar-/transport-codes die wél echte ORG-namen zijn.
 _SHORT_UPPER_KEEP = frozenset(
     {
-        "ING", "SNS", "ASN", "KBC", "DKB", "AXA", "BNP", "BNG",
-        "HSBC", "NIBC", "DNB", "ASR", "FNG", "NHG",
-        "KLM", "TNT", "DPD", "DHL", "UPS", "PostNL",
-        "RTL", "NOS", "NPO", "NU.nl",
+        "ING",
+        "SNS",
+        "ASN",
+        "KBC",
+        "DKB",
+        "AXA",
+        "BNP",
+        "BNG",
+        "HSBC",
+        "NIBC",
+        "DNB",
+        "ASR",
+        "FNG",
+        "NHG",
+        "KLM",
+        "TNT",
+        "DPD",
+        "DHL",
+        "UPS",
+        "PostNL",
+        "RTL",
+        "NOS",
+        "NPO",
+        "NU.nl",
     }
 )
 
@@ -305,12 +513,7 @@ def _from_address_recognizer(r: RecognizerResult) -> bool:
 def _is_paren_wrapped(text: str, start: int, end: int) -> bool:
     """True als de span tussen ``(`` en ``)`` staat: ``…(NL)`` , ``(BE)`` ."""
 
-    return (
-        start > 0
-        and end < len(text)
-        and text[start - 1] == "("
-        and text[end] == ")"
-    )
+    return start > 0 and end < len(text) and text[start - 1] == "(" and text[end] == ")"
 
 
 # Korte alfanumerieke codes (``AB12``, ``X3``, ``12AB``) zijn geen echte
@@ -318,9 +521,7 @@ def _is_paren_wrapped(text: str, start: int, end: int) -> bool:
 # hoofdletter beginnen. We vangen ze hier weg, mits afkomstig uit
 # ``SpacyRecognizer`` (eigen recognizers met deze patronen — kenteken,
 # kvk, etc. — gebruiken hun eigen entity-types).
-_SHORT_ALNUM_CODE_RE = re.compile(
-    r"^(?:[A-Z]{1,3}\d{1,3}|\d{1,3}[A-Z]{1,3})$"
-)
+_SHORT_ALNUM_CODE_RE = re.compile(r"^(?:[A-Z]{1,3}\d{1,3}|\d{1,3}[A-Z]{1,3})$")
 
 # Productnamen met expliciete tooling-suffix (``Anonimiseer-tool``,
 # ``MyApp-cli``, ``Foo-bar-app``). spaCy tagt deze regelmatig als ORG,
@@ -376,6 +577,8 @@ _DATE_VALIDATION_RE = re.compile(
     # bovendien minder identifying.
     """
 )
+
+
 def _from_strict_date_recognizer(r: RecognizerResult) -> bool:
     """Komt deze DATE_TIME-hit uit onze eigen NlDateRecognizer?"""
 
@@ -391,9 +594,7 @@ def _is_mostly_punct(text_slice: str) -> bool:
     return not _HAS_LETTER_RE.search(text_slice)
 
 
-def _trim_ner_span(
-    result: RecognizerResult, text: str
-) -> RecognizerResult | None:
+def _trim_ner_span(result: RecognizerResult, text: str) -> RecognizerResult | None:
     """Krimp de span van een NER-hit tot de eerste/laatste letter.
 
     Voorbeelden:
@@ -448,18 +649,27 @@ def _trim_ner_span(
     # (``B.V``, ``N.V``, ``V.O.F``, ``Inc``, ``Ltd``, ``GmbH``, ``S.A``)
     # nemen we de direct volgende ``.`` mee, anders blijft die als losse
     # punt naast het pseudoniem staan (``ORGANIZATION_2.``).
-    if result.entity_type == "ORGANIZATION" and new_end < len(text):
-        if text[new_end] == ".":
-            tail = rstrip[-6:].lower()
-            if any(
-                tail.endswith(suffix)
-                for suffix in (
-                    "b.v", "n.v", "v.o.f", "c.v", "s.a",
-                    " inc", " ltd", " co", " plc", " gmbh", " ag", " kg",
-                )
-            ):
-                rstrip = rstrip + "."
-                new_end += 1
+    if result.entity_type == "ORGANIZATION" and new_end < len(text) and text[new_end] == ".":
+        tail = rstrip[-6:].lower()
+        if any(
+            tail.endswith(suffix)
+            for suffix in (
+                "b.v",
+                "n.v",
+                "v.o.f",
+                "c.v",
+                "s.a",
+                " inc",
+                " ltd",
+                " co",
+                " plc",
+                " gmbh",
+                " ag",
+                " kg",
+            )
+        ):
+            rstrip = rstrip + "."
+            new_end += 1
 
     if new_start == result.start and new_end == result.end:
         return result
@@ -536,16 +746,8 @@ def filter_overlaps(
                 if span_lower in _LABEL_WORDS_ANY:
                     continue
 
-                is_short_upper = (
-                    1 <= len(span) <= 3
-                    and span.isalpha()
-                    and span.isupper()
-                )
-                if (
-                    is_short_upper
-                    and _from_spacy(fixed)
-                    and span not in _SHORT_UPPER_KEEP
-                ):
+                is_short_upper = 1 <= len(span) <= 3 and span.isalpha() and span.isupper()
+                if is_short_upper and _from_spacy(fixed) and span not in _SHORT_UPPER_KEEP:
                     continue
 
                 if (
@@ -556,17 +758,10 @@ def filter_overlaps(
                 ):
                     continue
 
-                if (
-                    _from_spacy(fixed)
-                    and _SHORT_ALNUM_CODE_RE.match(span)
-                ):
+                if _from_spacy(fixed) and _SHORT_ALNUM_CODE_RE.match(span):
                     continue
 
-                if (
-                    _from_spacy(fixed)
-                    and fixed.score <= 0.86
-                    and _PRODUCT_SUFFIX_RE.match(span)
-                ):
+                if _from_spacy(fixed) and fixed.score <= 0.86 and _PRODUCT_SUFFIX_RE.match(span):
                     continue
 
                 trimmed.append(fixed)
@@ -640,11 +835,7 @@ def filter_overlaps(
             # NER/DATE_TIME-categorie (prio >= 20). Zo knippen we de
             # "CJ Amsterdam"-ORG niet af tegen een willekeurige PERSON
             # die overlapt met een andere PERSON.
-            if (
-                _overlaps(inner, outer)
-                and outer_prio < 10
-                and inner_prio >= 20
-            ):
+            if _overlaps(inner, outer) and outer_prio < 10 and inner_prio >= 20:
                 keep[i] = False
                 break
 

@@ -50,13 +50,9 @@ _DE_SUFFIXES = (
     "damm",
     "chaussee",
 )
-_DE_NAME = (
-    r"[A-ZÄÖÜ][\wÄÖÜäöüß\-\.]*?(?:" + "|".join(_DE_SUFFIXES) + r")"
-)
+_DE_NAME = r"[A-ZÄÖÜ][\wÄÖÜäöüß\-\.]*?(?:" + "|".join(_DE_SUFFIXES) + r")"
 _DE_HOUSE = r"\d{1,4}[a-zA-Z]?(?:\s*[-\u2013]\s*\d{1,4}[a-zA-Z]?)?"
-_DE_STREET = re.compile(
-    rf"\b(?P<street>{_DE_NAME})\s+(?P<nr>{_DE_HOUSE})\b"
-)
+_DE_STREET = re.compile(rf"\b(?P<street>{_DE_NAME})\s+(?P<nr>{_DE_HOUSE})\b")
 
 # Frans/Belgisch (NL-volgorde): straatnaam + huisnummer. Belangrijkste
 # typen: ``rue``, ``avenue``, ``boulevard``, ``place``, ``chaussée``,
@@ -70,14 +66,10 @@ _FR_HEAD = (
 )
 _FR_TAIL = r"(?:\s+(?:de|du|des|la|le|les|d'|l'|au|aux|saint|sainte|st\.?|ste\.?|[A-ZÀ-ÿ][\wÀ-ÿ\-']*)){1,5}"
 _FR_HOUSE = r"\d{1,4}[a-zA-Z]?(?:\s*[-\u2013/]\s*\d{1,4}[a-zA-Z]?)?(?:\s*bis|\s*ter)?"
-_FR_STREET = re.compile(
-    rf"\b(?P<street>{_FR_HEAD}{_FR_TAIL})\s+(?P<nr>{_FR_HOUSE})\b"
-)
+_FR_STREET = re.compile(rf"\b(?P<street>{_FR_HEAD}{_FR_TAIL})\s+(?P<nr>{_FR_HOUSE})\b")
 # FR-variant met huisnummer vóór de straatnaam (``1 rue de la
 # République``, ``15 avenue de la Liberté``).
-_FR_STREET_NRFIRST = re.compile(
-    rf"\b(?P<nr>{_FR_HOUSE})\s+(?P<street>{_FR_HEAD}{_FR_TAIL})\b"
-)
+_FR_STREET_NRFIRST = re.compile(rf"\b(?P<nr>{_FR_HOUSE})\s+(?P<street>{_FR_HEAD}{_FR_TAIL})\b")
 
 # UK-volgorde: huisnummer eerst, dan straatnaam. Suffixen vrij divers
 # (``Street``, ``Road``, ``Avenue``, ``Lane``, ``Square``, ``Drive``,
@@ -87,17 +79,13 @@ _UK_SUFFIX = (
     r"Court|Park|Boulevard|Gardens|Mews|Close|Hill|Walk|Terrace)"
 )
 _UK_NAME = rf"(?:[A-Z][a-zA-Z'\-]+\s+){{1,4}}{_UK_SUFFIX}"
-_UK_STREET = re.compile(
-    rf"\b(?P<nr>\d{{1,4}}[A-Za-z]?)\s+(?P<street>{_UK_NAME})\b"
-)
+_UK_STREET = re.compile(rf"\b(?P<nr>\d{{1,4}}[A-Za-z]?)\s+(?P<street>{_UK_NAME})\b")
 
 # DE/FR postcode + plaats: 5 cijfers + spatie + 1-3 hoofdletter-woorden.
 _FIVE_DIGIT_PC = r"\d{5}"
 _INTL_CITY_TOKEN = r"[A-ZÄÖÜÀ-Þ][A-Za-zÄÖÜäöüßÀ-ÿ'\-]+"
 _INTL_CITY = rf"{_INTL_CITY_TOKEN}(?:\s+{_INTL_CITY_TOKEN}){{0,2}}"
-_INTL_PC_CITY = re.compile(
-    rf"\b(?P<pc>{_FIVE_DIGIT_PC})\s+(?P<city>{_INTL_CITY})\b"
-)
+_INTL_PC_CITY = re.compile(rf"\b(?P<pc>{_FIVE_DIGIT_PC})\s+(?P<city>{_INTL_CITY})\b")
 
 # BE-postcode: 4 cijfers (1000-9999) + spatie + plaatsnaam. We
 # vereisen dat de plaats ná het cijfer met een hoofdletter begint en
@@ -109,9 +97,7 @@ _BE_PC_CITY = re.compile(
 )
 
 # UK-postcode: ``SW1A 2AA``, ``M1 1AE``, ``EC1A 1BB``.
-_UK_POSTCODE = re.compile(
-    r"\b(?P<pc>[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b"
-)
+_UK_POSTCODE = re.compile(r"\b(?P<pc>[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b")
 
 
 class IntlAddressRecognizer(EntityRecognizer):
@@ -144,40 +130,60 @@ class IntlAddressRecognizer(EntityRecognizer):
         # DE-straat
         for m in _DE_STREET.finditer(text):
             out.append(
-                self._mk(m.start("street"), m.end("nr"), "de_street",
-                         "Duits adres (Straße/Str./Allee/Platz/Weg + huisnr).",
-                         self.STREET_SCORE)
+                self._mk(
+                    m.start("street"),
+                    m.end("nr"),
+                    "de_street",
+                    "Duits adres (Straße/Str./Allee/Platz/Weg + huisnr).",
+                    self.STREET_SCORE,
+                )
             )
 
         # FR/BE-straat (nr ná straatnaam — BE-volgorde)
         for m in _FR_STREET.finditer(text):
             out.append(
-                self._mk(m.start("street"), m.end("nr"), "fr_street",
-                         "Frans/Belgisch adres (Rue/Avenue/Boulevard + huisnr).",
-                         self.STREET_SCORE)
+                self._mk(
+                    m.start("street"),
+                    m.end("nr"),
+                    "fr_street",
+                    "Frans/Belgisch adres (Rue/Avenue/Boulevard + huisnr).",
+                    self.STREET_SCORE,
+                )
             )
         # FR-straat (nr vóór straatnaam — FR-volgorde)
         for m in _FR_STREET_NRFIRST.finditer(text):
             out.append(
-                self._mk(m.start("nr"), m.end("street"), "fr_street_nrfirst",
-                         "Frans adres met huisnr vóór straatnaam.",
-                         self.STREET_SCORE)
+                self._mk(
+                    m.start("nr"),
+                    m.end("street"),
+                    "fr_street_nrfirst",
+                    "Frans adres met huisnr vóór straatnaam.",
+                    self.STREET_SCORE,
+                )
             )
 
         # UK-straat
         for m in _UK_STREET.finditer(text):
             out.append(
-                self._mk(m.start("nr"), m.end("street"), "uk_street",
-                         "UK adres (huisnr + Street/Road/Avenue/…).",
-                         self.STREET_SCORE)
+                self._mk(
+                    m.start("nr"),
+                    m.end("street"),
+                    "uk_street",
+                    "UK adres (huisnr + Street/Road/Avenue/…).",
+                    self.STREET_SCORE,
+                )
             )
 
         # 5-cijfer postcode + plaats (DE/FR)
         for m in _INTL_PC_CITY.finditer(text):
             out.append(
-                self._mk(m.start("pc"), m.end("city"), "intl_pc_city",
-                         "5-cijfer postcode + plaatsnaam (DE/FR-formaat).",
-                         self.POSTCODE_SCORE)
+                self._mk(
+                    m.start("pc"),
+                    m.end("city"),
+                    "intl_pc_city",
+                    "5-cijfer postcode + plaatsnaam (DE/FR-formaat).",
+                    self.POSTCODE_SCORE,
+                )
             )
 
         # 4-cijfer postcode + plaats (BE). Alleen plaatsen waarvan de
@@ -192,9 +198,13 @@ class IntlAddressRecognizer(EntityRecognizer):
             if first not in EU_CITY_NAMES_LC:
                 continue
             out.append(
-                self._mk(m.start("pc"), m.end("city"), "be_pc_city",
-                         "4-cijfer BE-postcode + plaatsnaam.",
-                         self.POSTCODE_SCORE)
+                self._mk(
+                    m.start("pc"),
+                    m.end("city"),
+                    "be_pc_city",
+                    "4-cijfer BE-postcode + plaatsnaam.",
+                    self.POSTCODE_SCORE,
+                )
             )
 
         # UK-postcode standalone
@@ -206,9 +216,13 @@ class IntlAddressRecognizer(EntityRecognizer):
             if not _looks_like_uk_postcode(raw):
                 continue
             out.append(
-                self._mk(m.start("pc"), m.end("pc"), "uk_postcode",
-                         "Britse postcode (outward+inward formaat).",
-                         self.POSTCODE_SCORE)
+                self._mk(
+                    m.start("pc"),
+                    m.end("pc"),
+                    "uk_postcode",
+                    "Britse postcode (outward+inward formaat).",
+                    self.POSTCODE_SCORE,
+                )
             )
         return out
 

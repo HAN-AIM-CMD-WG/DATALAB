@@ -21,22 +21,21 @@ from presidio_analyzer import (
 )
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-
-__all__ = ["NlKentekenRecognizer", "GpsCoordinateRecognizer"]
+__all__ = ["GpsCoordinateRecognizer", "NlKentekenRecognizer"]
 
 
 # Strikte NL sidecodes 1-8 (RDW-officieel). De afzonderlijke alternatieven
 # zijn case-sensitief: kentekens staan in hoofdletters.
 _KENTEKEN_STRICT = re.compile(
     r"(?<![A-Z0-9])(?:"
-    r"[A-Z]{2}-\d{2}-\d{2}"           # 1: AB-12-34
-    r"|\d{2}-\d{2}-[A-Z]{2}"          # 2: 12-34-AB
-    r"|\d{2}-[A-Z]{2}-\d{2}"          # 3: 12-AB-34
-    r"|[A-Z]{2}-\d{2}-[A-Z]{2}"       # 4: AB-12-CD
-    r"|[A-Z]{2}-[A-Z]{2}-\d{2}"       # 5: AB-CD-12
-    r"|\d{2}-[A-Z]{2}-[A-Z]{2}"       # 6: 12-AB-CD
-    r"|\d{2}-[A-Z]{3}-\d"             # 7: 12-ABC-3
-    r"|\d-[A-Z]{3}-\d{2}"             # 8: 1-ABC-23
+    r"[A-Z]{2}-\d{2}-\d{2}"  # 1: AB-12-34
+    r"|\d{2}-\d{2}-[A-Z]{2}"  # 2: 12-34-AB
+    r"|\d{2}-[A-Z]{2}-\d{2}"  # 3: 12-AB-34
+    r"|[A-Z]{2}-\d{2}-[A-Z]{2}"  # 4: AB-12-CD
+    r"|[A-Z]{2}-[A-Z]{2}-\d{2}"  # 5: AB-CD-12
+    r"|\d{2}-[A-Z]{2}-[A-Z]{2}"  # 6: 12-AB-CD
+    r"|\d{2}-[A-Z]{3}-\d"  # 7: 12-ABC-3
+    r"|\d-[A-Z]{3}-\d{2}"  # 8: 1-ABC-23
     r")(?![A-Z0-9])"
 )
 
@@ -105,9 +104,7 @@ class NlKentekenRecognizer(EntityRecognizer):
                         pattern_name="nl_kenteken_strict",
                         pattern=_KENTEKEN_STRICT.pattern,
                         validation_result=True,
-                        textual_explanation=(
-                            "Voldoet aan officiële NL-sidecode 1-8."
-                        ),
+                        textual_explanation=("Voldoet aan officiële NL-sidecode 1-8."),
                     ),
                 )
             )
@@ -139,9 +136,7 @@ class NlKentekenRecognizer(EntityRecognizer):
                         pattern_name="nl_kenteken_loose",
                         pattern=_KENTEKEN_LOOSE.pattern,
                         validation_result=True,
-                        textual_explanation=(
-                            "Drie alfanumerieke groepen rond een kenteken-label."
-                        ),
+                        textual_explanation=("Drie alfanumerieke groepen rond een kenteken-label."),
                     ),
                 )
             )
@@ -154,12 +149,8 @@ class NlKentekenRecognizer(EntityRecognizer):
 #   ``52.0907 N 5.1214 E``         (zonder symbool)
 #   ``52.0907, 5.1214``            (puur decimaal, beide positief)
 #   ``-52.0907, -5.1214``          (decimaal mét teken)
-_GPS_DEC_DEG = (
-    r"-?(?:\d{1,2}|1[0-7]\d)\.\d{2,7}"  # -180..180 met decimalen
-)
-_GPS_DD_DEG = (
-    r"-?(?:\d{1,2}|[1-8]\d)\.\d{2,7}"  # -90..90 met decimalen
-)
+_GPS_DEC_DEG = r"-?(?:\d{1,2}|1[0-7]\d)\.\d{2,7}"  # -180..180 met decimalen
+_GPS_DD_DEG = r"-?(?:\d{1,2}|[1-8]\d)\.\d{2,7}"  # -90..90 met decimalen
 _GPS_LAT_LON = re.compile(
     rf"\b(?P<lat>{_GPS_DD_DEG})\s*°?\s*(?P<latH>[NS])?"
     rf"[,;\s]+"
@@ -212,9 +203,7 @@ class GpsCoordinateRecognizer(EntityRecognizer):
                         pattern_name="gps_decimal_degrees",
                         pattern=_GPS_LAT_LON.pattern,
                         validation_result=True,
-                        textual_explanation=(
-                            "Decimal-degrees GPS-coördinaat (lat, lon)."
-                        ),
+                        textual_explanation=("Decimal-degrees GPS-coördinaat (lat, lon)."),
                     ),
                 )
             )

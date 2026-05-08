@@ -50,9 +50,7 @@ _MONTH_NAMES = (
 )
 
 # 14-03-1985, 14/03/1985, 14.03.1985 (numerieke EU-volgorde)
-_DATE_NUMERIC = re.compile(
-    rf"\b{_DAY}[\-/.]{_MONTH}[\-/.]{_YEAR4}\b"
-)
+_DATE_NUMERIC = re.compile(rf"\b{_DAY}[\-/.]{_MONTH}[\-/.]{_YEAR4}\b")
 # 1985-03-14 (ISO)
 _DATE_ISO = re.compile(rf"\b{_YEAR4}-{_MONTH}-{_DAY}\b")
 # 14 maart 1985, 14 mrt 2026
@@ -91,11 +89,11 @@ def _has_label_before(text: str, start: int, *, window: int = 60) -> bool:
 class NlDateRecognizer(EntityRecognizer):
     """NL/EU datum-detectie met realistische jaarrange en context-boost."""
 
-    SCORE_FULL: ClassVar[float] = 0.85   # ``dd-mm-jjjj`` met 4-cijferig jaar
-    SCORE_LONG: ClassVar[float] = 0.9    # ``14 maart 1985`` (zeer eenduidig)
-    SCORE_ISO: ClassVar[float] = 0.85    # ISO-formaat
+    SCORE_FULL: ClassVar[float] = 0.85  # ``dd-mm-jjjj`` met 4-cijferig jaar
+    SCORE_LONG: ClassVar[float] = 0.9  # ``14 maart 1985`` (zeer eenduidig)
+    SCORE_ISO: ClassVar[float] = 0.85  # ISO-formaat
     SCORE_LABELED: ClassVar[float] = 0.85  # 2-cijferig jaar met label
-    SCORE_SHORT: ClassVar[float] = 0.4   # 2-cijferig jaar zonder label (laag)
+    SCORE_SHORT: ClassVar[float] = 0.4  # 2-cijferig jaar zonder label (laag)
 
     def __init__(self, supported_language: str = "nl") -> None:
         super().__init__(
@@ -104,7 +102,7 @@ class NlDateRecognizer(EntityRecognizer):
             supported_language=supported_language,
         )
 
-    def load(self) -> None:  # noqa: D401 - Presidio interface
+    def load(self) -> None:
         """Geen externe assets nodig."""
 
     def analyze(

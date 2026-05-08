@@ -27,7 +27,8 @@ taggen of een generieke afkorting als cursuscode.
 from __future__ import annotations
 
 import re
-from typing import ClassVar, Iterable
+from collections.abc import Iterable
+from typing import ClassVar
 
 from presidio_analyzer import (
     AnalysisExplanation,
@@ -50,9 +51,7 @@ __all__ = [
 ]
 
 
-def _preceded_by(
-    text: str, start: int, markers: Iterable[str], window: int = 40
-) -> bool:
+def _preceded_by(text: str, start: int, markers: Iterable[str], window: int = 40) -> bool:
     """True als één van de markers binnen ``window`` chars vóór ``start`` staat."""
 
     window_start = max(0, start - window)
@@ -137,9 +136,9 @@ class NlEmployeeIdRecognizer(PatternRecognizer):
 # dat woorden als ``COVID-19`` of ``ISBN-978`` niet matchen.
 # ---------------------------------------------------------------------------
 _CLASS_REGEX = (
-    r"\b[A-Z]{2,6}"                   # opleiding, bv HBO of CMD
-    r"(?:-[A-Z]{1,5}){0,2}"            # optionele variant (ICT, VT, DS)
-    r"-(?:[1-4][A-Z]?|[A-Z]\d?[A-Z]?)" # jaar/klas, bv 1A, 2, B, 3V
+    r"\b[A-Z]{2,6}"  # opleiding, bv HBO of CMD
+    r"(?:-[A-Z]{1,5}){0,2}"  # optionele variant (ICT, VT, DS)
+    r"-(?:[1-4][A-Z]?|[A-Z]\d?[A-Z]?)"  # jaar/klas, bv 1A, 2, B, 3V
     r"\b"
 )
 _CLASS_MARKERS = (
@@ -213,9 +212,9 @@ class EduClassRecognizer(PatternRecognizer):
 # doen we niets, want dit type code lijkt erg op ID-afkortingen.
 # ---------------------------------------------------------------------------
 _COURSE_REGEX = (
-    r"\b[A-Z]{3,8}"                     # basis-afkorting
-    r"(?:\d{0,4})?"                      # cijfer-suffix (OOABDK1)
-    r"(?:-[A-Z0-9]{1,6})?"               # streepje-deel (ICA-PROF, BFVHXX-18)
+    r"\b[A-Z]{3,8}"  # basis-afkorting
+    r"(?:\d{0,4})?"  # cijfer-suffix (OOABDK1)
+    r"(?:-[A-Z0-9]{1,6})?"  # streepje-deel (ICA-PROF, BFVHXX-18)
     r"\b"
 )
 _COURSE_MARKERS = (
@@ -446,11 +445,36 @@ _NAME_MULTI = (
     rf"(?:{_INLINE_WS}+{_NAME_PART}){{1,3}}"
 )
 _INLINE_FOLLOWERS = (
-    "heeft", "is", "zal", "was", "werd", "krijgt", "krijgen",
-    "beoordeelt", "beoordeelde", "begeleidt", "begeleidde",
-    "levert", "leverde", "schreef", "schrijft", "vraagt", "vroeg",
-    "dient", "diende", "neemt", "nam", "kreeg", "stopt", "start",
-    "woont", "woonde", "werkt", "werkte", "studeert", "studeerde",
+    "heeft",
+    "is",
+    "zal",
+    "was",
+    "werd",
+    "krijgt",
+    "krijgen",
+    "beoordeelt",
+    "beoordeelde",
+    "begeleidt",
+    "begeleidde",
+    "levert",
+    "leverde",
+    "schreef",
+    "schrijft",
+    "vraagt",
+    "vroeg",
+    "dient",
+    "diende",
+    "neemt",
+    "nam",
+    "kreeg",
+    "stopt",
+    "start",
+    "woont",
+    "woonde",
+    "werkt",
+    "werkte",
+    "studeert",
+    "studeerde",
 )
 # Let op: we compileren ZONDER re.IGNORECASE, maar maken label- en
 # follower-groep expliciet case-insensitive via ``(?i:…)`` inline flags.
@@ -708,23 +732,17 @@ _PORTAL_URL_PATTERN = re.compile(
     r"https?://[^\s)]+|(?:osiris|alluris|brightspace|studielink|han|hanportal|hanlms)[^\s)]*",
     flags=re.IGNORECASE,
 )
-_PORTAL_STUDENT_NUMBER = re.compile(
-    r"(?<![0-9A-Za-z])(?P<snr>\d{7})(?![0-9A-Za-z])"
-)
+_PORTAL_STUDENT_NUMBER = re.compile(r"(?<![0-9A-Za-z])(?P<snr>\d{7})(?![0-9A-Za-z])")
 # Optionele s-prefix studentnummer (s7654321) — lowercase 's' wordt
 # in HAN-URLs vaak gebruikt.
-_PORTAL_STUDENT_S = re.compile(
-    r"(?<![0-9A-Za-z])(?P<snr>s\d{7})(?![0-9A-Za-z])"
-)
+_PORTAL_STUDENT_S = re.compile(r"(?<![0-9A-Za-z])(?P<snr>s\d{7})(?![0-9A-Za-z])")
 # Personeels-ID in URLs: ``/users/p9876543`` of ``?pnr=p1234567``.
 # Lowercase 'p' is de gangbare conventie binnen brightspace.han.nl.
 # Strikt 7 cijfers; 6-cijferige medewerkernummers vallen hier niet onder
 # (te kort om in een URL betrouwbaar van een random query-param te
 # onderscheiden — die worden door de losse NlEmployeeIdRecognizer
 # gepakt mits er context staat).
-_PORTAL_EMPLOYEE_NUMBER = re.compile(
-    r"(?<![0-9A-Za-z])(?P<pnr>[Pp]\d{7})(?![0-9A-Za-z])"
-)
+_PORTAL_EMPLOYEE_NUMBER = re.compile(r"(?<![0-9A-Za-z])(?P<pnr>[Pp]\d{7})(?![0-9A-Za-z])")
 
 
 class HanPortalStudentIdRecognizer(EntityRecognizer):
@@ -809,8 +827,7 @@ class HanPortalStudentIdRecognizer(EntityRecognizer):
                             pnr_match.end("pnr"),
                             "han_portal_pnr",
                             _PORTAL_EMPLOYEE_NUMBER.pattern,
-                            "Medewerker-ID met p-prefix in HAN-portal-URL "
-                            "(Brightspace).",
+                            "Medewerker-ID met p-prefix in HAN-portal-URL (Brightspace).",
                         )
                     )
         return results

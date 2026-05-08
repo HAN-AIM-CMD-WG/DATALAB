@@ -22,7 +22,6 @@ from typing import ClassVar
 
 from presidio_analyzer import (
     AnalysisExplanation,
-    EntityRecognizer,
     Pattern,
     PatternRecognizer,
     RecognizerResult,
@@ -90,9 +89,7 @@ class BicRecognizer(PatternRecognizer):
             context_window_end = min(len(text), r.end + 60)
             window = text[context_window_start:context_window_end].lower()
             has_marker = any(m.lower() in window for m in _BIC_MARKERS)
-            has_iban = bool(
-                _NEARBY_IBAN.search(text, context_window_start, context_window_end)
-            )
+            has_iban = bool(_NEARBY_IBAN.search(text, context_window_start, context_window_end))
             if not (has_marker or has_iban):
                 continue
             r.score = self.DEFAULT_SCORE

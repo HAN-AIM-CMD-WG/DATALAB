@@ -91,9 +91,9 @@ _STREET_NAME = (
 _HOUSE_NUMBER = (
     r"\d{1,5}"
     r"(?:"
-    r"[-/]?[A-Za-z]{1,3}"          # aanplakkend: 45a, 45-a, 45/b, 45III
+    r"[-/]?[A-Za-z]{1,3}"  # aanplakkend: 45a, 45-a, 45/b, 45III
     r"|"
-    r"[-/]\d{1,4}[A-Za-z]?"        # appartement-nummer: 123-3, 45/12, 12-3a
+    r"[-/]\d{1,4}[A-Za-z]?"  # appartement-nummer: 123-3, 45/12, 12-3a
     r"|"
     r"\s+(?:bis|huis|[IVXivx]{1,5})"  # met spatie, alleen expliciete suffixen
     r")?"
@@ -181,8 +181,7 @@ class NlAddressRecognizer(EntityRecognizer):
                         pattern=_STREET_PATTERN.pattern,
                         validation_result=True,
                         textual_explanation=(
-                            "NL-straatnaam met herkenbaar suffix "
-                            "(straat/laan/weg/…) + huisnummer."
+                            "NL-straatnaam met herkenbaar suffix (straat/laan/weg/…) + huisnummer."
                         ),
                     ),
                 )
@@ -211,9 +210,7 @@ class NlAddressRecognizer(EntityRecognizer):
                         pattern_name="nl_postcode_city",
                         pattern=_POSTCODE_CITY_PATTERN.pattern,
                         validation_result=True,
-                        textual_explanation=(
-                            "Plaatsnaam direct na een NL-postcode."
-                        ),
+                        textual_explanation=("Plaatsnaam direct na een NL-postcode."),
                     ),
                 )
             )
@@ -239,9 +236,7 @@ class NlAddressRecognizer(EntityRecognizer):
                         pattern_name="nl_place_label",
                         pattern=_PLACE_LABEL_PATTERN.pattern,
                         validation_result=True,
-                        textual_explanation=(
-                            "Plaatsnaam achter ``Woonplaats``/``Plaats``-label."
-                        ),
+                        textual_explanation=("Plaatsnaam achter ``Woonplaats``/``Plaats``-label."),
                     ),
                 )
             )

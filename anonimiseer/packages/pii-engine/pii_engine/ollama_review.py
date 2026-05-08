@@ -111,7 +111,7 @@ def review(text: str, model: str) -> ReviewResult:
             eval_duration_ms=result.eval_duration_ms,
         )
 
-    summary = parsed["summary"]
+    summary = str(parsed["summary"])
     if truncated:
         summary = (
             f"{summary} (Let op: alleen de eerste {_MAX_BODY_CHARS} tekens "
@@ -120,15 +120,15 @@ def review(text: str, model: str) -> ReviewResult:
 
     return ReviewResult(
         model=model,
-        verdict=parsed["verdict"],
+        verdict=str(parsed["verdict"]),
         summary=summary,
-        findings=parsed["findings"],
+        findings=parsed["findings"],  # type: ignore[arg-type]
         raw_response=result.response,
         eval_duration_ms=result.eval_duration_ms,
     )
 
 
-def _parse_response(raw: str) -> dict | None:
+def _parse_response(raw: str) -> dict[str, object] | None:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:

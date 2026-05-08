@@ -47,7 +47,9 @@ _EXPIRY_LABELS = (
 )
 _EXPIRY_REGEX = re.compile(
     r"""(?ix)
-    (?:""" + "|".join(_EXPIRY_LABELS) + r""")
+    (?:"""
+    + "|".join(_EXPIRY_LABELS)
+    + r""")
     [^\S\n]* [:\-=]? [^\S\n]*
     (?P<value>(?:0[1-9]|1[0-2])[/\-\.](?:\d{2}|\d{4}))
     \b
@@ -69,7 +71,9 @@ _CVC_LABELS = (
 )
 _CVC_REGEX = re.compile(
     r"""(?ix)
-    (?:""" + "|".join(_CVC_LABELS) + r""")
+    (?:"""
+    + "|".join(_CVC_LABELS)
+    + r""")
     [^\S\n]* [:\-=]? [^\S\n]*
     (?P<value>\d{3,4})
     \b

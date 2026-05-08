@@ -24,11 +24,10 @@ valideren we die, anders vertrouwen we op de context.
 
 from __future__ import annotations
 
-import re
-from typing import ClassVar, Iterable
+from collections.abc import Iterable
+from typing import ClassVar
 
 from presidio_analyzer import (
-    AnalysisExplanation,
     EntityRecognizer,
     Pattern,
     PatternRecognizer,
@@ -60,10 +59,7 @@ def _preceded_by(text: str, start: int, markers: Iterable[str], window: int = 40
 
     window_start = max(0, start - window)
     preceding = text[window_start:start].lower()
-    for m in markers:
-        if m.lower() in preceding:
-            return True
-    return False
+    return any(m.lower() in preceding for m in markers)
 
 
 # ---------------------------------------------------------------------------

@@ -14,31 +14,30 @@ from functools import lru_cache
 from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngine, NlpEngineProvider
 
-from pii_engine.config import Settings, get_settings
-from pii_engine.runtime import effective_settings
+from pii_engine.config import Settings
 from pii_engine.recognizers import (
     BankNameRecognizer,
     BeRijksregisterRecognizer,
     BicRecognizer,
     BsnRecognizer,
     CreditCardMetaRecognizer,
-    EuCityRecognizer,
-    GpsCoordinateRecognizer,
-    IntlAddressRecognizer,
     EduClassRecognizer,
     EduCourseCodeRecognizer,
     EduCrohoRecognizer,
     EduLabeledPersonRecognizer,
+    EuCityRecognizer,
+    GpsCoordinateRecognizer,
     HanPortalStudentIdRecognizer,
     InternalCaseNumberRecognizer,
+    IntlAddressRecognizer,
     NlAddressRecognizer,
     NlAgbRecognizer,
-    NlDateRecognizer,
-    NlFirstNameRecognizer,
-    NlIdCardRecognizer,
     NlBigRecognizer,
     NlBtwRecognizer,
+    NlDateRecognizer,
     NlEmployeeIdRecognizer,
+    NlFirstNameRecognizer,
+    NlIdCardRecognizer,
     NlKentekenRecognizer,
     NlKvkRecognizer,
     NlOrganizationRecognizer,
@@ -51,6 +50,7 @@ from pii_engine.recognizers import (
     OnlineIdentifierRecognizer,
     StageOrganizationRecognizer,
 )
+from pii_engine.runtime import effective_settings
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +145,7 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
     if settings.enable_nl_date:
         registry.add_recognizer(NlDateRecognizer(supported_language="nl"))
     if settings.enable_creditcard_meta:
-        registry.add_recognizer(
-            CreditCardMetaRecognizer(supported_language="nl")
-        )
+        registry.add_recognizer(CreditCardMetaRecognizer(supported_language="nl"))
     if settings.enable_nl_firstnames:
         registry.add_recognizer(NlFirstNameRecognizer(supported_language="nl"))
     if settings.enable_nl_studentnr:
@@ -159,17 +157,13 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
     if settings.enable_bank_names:
         registry.add_recognizer(BankNameRecognizer(supported_language="nl"))
     if settings.enable_online_identifiers:
-        registry.add_recognizer(
-            OnlineIdentifierRecognizer(supported_language="nl")
-        )
+        registry.add_recognizer(OnlineIdentifierRecognizer(supported_language="nl"))
     if settings.enable_nl_kenteken:
         registry.add_recognizer(NlKentekenRecognizer(supported_language="nl"))
     if settings.enable_gps:
         registry.add_recognizer(GpsCoordinateRecognizer(supported_language="nl"))
     if settings.enable_internal_case:
-        registry.add_recognizer(
-            InternalCaseNumberRecognizer(supported_language="nl")
-        )
+        registry.add_recognizer(InternalCaseNumberRecognizer(supported_language="nl"))
     if settings.enable_nl_identifiers:
         registry.add_recognizer(NlKvkRecognizer(supported_language="nl"))
         registry.add_recognizer(NlBigRecognizer(supported_language="nl"))

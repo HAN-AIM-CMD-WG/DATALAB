@@ -16,7 +16,8 @@ Caveats:
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, Iterable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from docx import Document
 from docx.document import Document as DocumentType
@@ -31,7 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
 _BLOCK_SEPARATOR = "\n\n"
 
 
-def _container_element(container):
+def _container_element(container: DocumentType | _Cell):  # type: ignore[no-untyped-def]
     """Geef het XML-element terug waarvan we direct de children willen.
 
     * Document → ``<w:body>`` (hier leven paragrafen/tabellen).
@@ -44,12 +45,12 @@ def _container_element(container):
     if isinstance(container, DocumentType):
         return container.element.body
     if isinstance(container, _Cell):
-        return container._tc  # noqa: SLF001
-    return container._element  # noqa: SLF001
+        return container._tc
+    return container._element
 
 
 def _iter_container(
-    container, prefix: str, kind: str = "paragraph"
+    container: DocumentType | _Cell, prefix: str, kind: str = "paragraph"
 ) -> Iterable[tuple[str, str, Paragraph]]:
     """Loop sequentieel over paragrafen en tabellen in een container.
 
@@ -98,7 +99,7 @@ def _iter_all_paragraphs(doc: DocumentType) -> Iterable[tuple[str, str, Paragrap
             yield (f"f{section_idx}.p{para_idx}", "footer", para)
 
 
-def extract_docx(file_bytes: bytes) -> "ExtractResult":
+def extract_docx(file_bytes: bytes) -> ExtractResult:
     """Bouw flat_text en block_map op voor een DOCX-bestand."""
 
     from . import Block, ExtractResult
@@ -139,14 +140,14 @@ def _replace_paragraph_text(para: Paragraph, new_text: str) -> None:
     # Bewaar run[0] als anker; wis rest.
     first_run = runs[0]
     for run in runs[1:]:
-        run._element.getparent().remove(run._element)  # noqa: SLF001
+        run._element.getparent().remove(run._element)
     first_run.text = new_text
 
 
 def apply_docx(
     file_bytes: bytes,
-    replacements: list["AcceptedReplacement"],
-    blocks: list["Block"],
+    replacements: list[AcceptedReplacement],
+    blocks: list[Block],
     footer_note: str | None = None,
 ) -> bytes:
     """Pas vervangingen toe en geef nieuwe DOCX-bytes terug."""
@@ -162,14 +163,14 @@ def apply_docx(
     for block_id, block_replacements in grouped.items():
         if not block_replacements:
             continue
-        para = paragraphs.get(block_id)
-        if para is None:
+        target = paragraphs.get(block_id)
+        if target is None:
             # Block uit de extract-stap bestaat niet meer in dit document —
             # defensief overslaan.
             continue
-        new_text = apply_replacements_to_text(para.text, block_replacements)
-        if new_text != para.text:
-            _replace_paragraph_text(para, new_text)
+        new_text = apply_replacements_to_text(target.text, block_replacements)
+        if new_text != target.text:
+            _replace_paragraph_text(target, new_text)
 
     if footer_note:
         # Een lichte horizontale lijn + cursief italic paragraaf onderaan

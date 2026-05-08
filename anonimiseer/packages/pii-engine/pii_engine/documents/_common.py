@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 
 
 def group_replacements_per_block(
-    blocks: list["Block"],
-    replacements: list["AcceptedReplacement"],
-) -> dict[str, list["AcceptedReplacement"]]:
+    blocks: list[Block],
+    replacements: list[AcceptedReplacement],
+) -> dict[str, list[AcceptedReplacement]]:
     """Verdeel flat-tekst-vervangingen over hun bijbehorende blokken.
 
     Vervangingen worden per blok teruggegeven in *lokale* coördinaten
@@ -53,9 +53,7 @@ def group_replacements_per_block(
     return grouped
 
 
-def apply_replacements_to_text(
-    text: str, replacements: list["AcceptedReplacement"]
-) -> str:
+def apply_replacements_to_text(text: str, replacements: list[AcceptedReplacement]) -> str:
     """Pas een lijst lokale vervangingen (rechts-naar-links) toe op een string."""
 
     out = text
