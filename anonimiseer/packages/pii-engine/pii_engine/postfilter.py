@@ -64,6 +64,10 @@ ENTITY_PRIORITY: dict[str, int] = {
     "NL_POSTCODE": 3,
     "NL_STUDENT_ID": 3,
     "NL_EMPLOYEE_ID": 3,
+    # Interne dossier-/patiënt-/zaaknummers. Patroon-gebaseerd, valideert
+    # tegen explicit label of hard structureel format. Prio gelijk aan
+    # NL_KVK zodat een PAT-2026-001234 wint van DATE_TIME en NER.
+    "INTERNAL_CASE_NUMBER": 3,
     # OV-chipkaartnummer heeft dezelfde klasse als postcode/ID: strak
     # patroon + context. Prio onder IBAN om kaartnummer-op-bankpas (CC)
     # voorrang te laten houden.
@@ -229,6 +233,19 @@ _LABEL_WORDS_ANY = frozenset(
         "patient", "patiënt",
         "han-specifieke", "han-medewerker", "han-student", "han-docent",
         "s-prefix", "p-prefix",
+        # ---- IT- / dev-jargon dat spaCy graag als ORG of LOC pakt ----
+        "code-blocks", "code-block", "codeblock", "codeblocks",
+        "front-end", "frontend", "back-end", "backend",
+        "full-stack", "fullstack",
+        "build", "deploy", "deploys", "release", "releases",
+        "endpoint", "endpoints", "api", "api's", "apis",
+        "framework", "frameworks", "library", "libraries",
+        "repo", "repository", "repositories",
+        "dashboard", "dashboards", "logs", "log", "stacktrace",
+        "pull-request", "pullrequest", "merge-request",
+        "branch", "branches", "commit", "commits",
+        "ci", "cd", "ci/cd", "devops",
+        "config", "configs", "env", "envs", "environment",
     }
 )
 
@@ -293,6 +310,17 @@ def _is_paren_wrapped(text: str, start: int, end: int) -> bool:
 # kvk, etc. — gebruiken hun eigen entity-types).
 _SHORT_ALNUM_CODE_RE = re.compile(
     r"^(?:[A-Z]{1,3}\d{1,3}|\d{1,3}[A-Z]{1,3})$"
+)
+
+# Productnamen met expliciete tooling-suffix (``Anonimiseer-tool``,
+# ``MyApp-cli``, ``Foo-bar-app``). spaCy tagt deze regelmatig als ORG,
+# maar het is een productlabel, geen organisatie. Drop als hit uit
+# ``SpacyRecognizer`` komt en score ≤ 0.86.
+_PRODUCT_SUFFIX_RE = re.compile(
+    r"^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9]{1,40}"
+    r"(?:-[A-Za-zÀ-ÿ0-9]{1,20}){0,3}"
+    r"-(?:tool|toolkit|app|cli|sdk|api|service|engine|bot|plugin|module|library|lib|framework|script|util|utils|daemon|server|client|gui|ui)$",
+    re.IGNORECASE,
 )
 
 # Presidio laadt voor NL soms een NrpRecognizer (nationalities/religions)
@@ -504,6 +532,13 @@ def filter_overlaps(
                 if (
                     _from_spacy(fixed)
                     and _SHORT_ALNUM_CODE_RE.match(span)
+                ):
+                    continue
+
+                if (
+                    _from_spacy(fixed)
+                    and fixed.score <= 0.86
+                    and _PRODUCT_SUFFIX_RE.match(span)
                 ):
                     continue
 
