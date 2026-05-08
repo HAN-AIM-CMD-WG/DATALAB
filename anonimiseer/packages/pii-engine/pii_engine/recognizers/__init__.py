@@ -18,6 +18,10 @@ from pii_engine.recognizers.han_edu import (
 )
 from pii_engine.recognizers.nl_address import NlAddressRecognizer
 from pii_engine.recognizers.nl_date import NlDateRecognizer
+from pii_engine.recognizers.nl_misc import (
+    GpsCoordinateRecognizer,
+    NlKentekenRecognizer,
+)
 from pii_engine.recognizers.nl_firstnames import (
     FIRST_NAMES,
     NlFirstNameRecognizer,
@@ -53,6 +57,7 @@ __all__ = [
     "EduCourseCodeRecognizer",
     "EduCrohoRecognizer",
     "EduLabeledPersonRecognizer",
+    "GpsCoordinateRecognizer",
     "HanPortalStudentIdRecognizer",
     "NlAddressRecognizer",
     "NlAgbRecognizer",
@@ -62,6 +67,7 @@ __all__ = [
     "NlBigRecognizer",
     "NlBtwRecognizer",
     "NlEmployeeIdRecognizer",
+    "NlKentekenRecognizer",
     "NlKvkRecognizer",
     "NlOrganizationRecognizer",
     "NlOvChipkaartRecognizer",

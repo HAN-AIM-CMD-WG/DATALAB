@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     enable_nl_firstnames: bool = True
     enable_nl_studentnr: bool = True
     enable_nl_organization: bool = True
+    enable_nl_kenteken: bool = True
+    enable_gps: bool = True
     # NL-specifieke identificatienummers (KvK, BIG, AGB, BTW, rijbewijs,
     # polisnummer, BE rijksregister). Zonder deze set wordt een KvK-nummer
     # vaak door Presidio als ``DATE_TIME`` gelabeld.
