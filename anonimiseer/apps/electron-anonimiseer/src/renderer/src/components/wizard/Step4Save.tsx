@@ -430,6 +430,15 @@ function LlmReviewPanel({
     );
   }
   if (state.status === 'error') {
+    const errLower = state.error.toLowerCase();
+    const noGenerateSupport = errLower.includes('does not support generate');
+    const looksLikeEmbedding = Boolean(
+      model &&
+        /^(bge|nomic-embed|mxbai-embed|snowflake-arctic-embed|all-minilm|paraphrase-|e5-|embeddinggemma|granite-embedding)/i.test(
+          model,
+        ),
+    );
+    const isTimeout = errLower.includes('timed out') || errLower.includes('timeout');
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -437,7 +446,36 @@ function LlmReviewPanel({
           {headerLabel} niet uitgevoerd
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{state.error}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        {noGenerateSupport && looksLikeEmbedding && (
+          <p className="mt-2 text-xs text-foreground">
+            <strong>Tip:</strong> <code>{model}</code> is een embedding-model en
+            kan geen tekst genereren. Open <strong>Modellen beheren →
+            Geavanceerd: Ollama</strong> en kies een instruct-model (bv.{' '}
+            <code>qwen2.5:1.5b-instruct</code> of <code>llama3.2:3b</code>).
+          </p>
+        )}
+        {noGenerateSupport && !looksLikeEmbedding && (
+          <p className="mt-2 text-xs text-foreground">
+            <strong>Tip:</strong> dit ziet eruit als een corrupte download van{' '}
+            {model ? <code>{model}</code> : 'het model'} (Ollama-registry kent
+            de naam, maar kan 'm niet laden). Repareer met:
+            <br />
+            <code className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5">
+              ollama rm {model ?? '<model>'} &amp;&amp; ollama pull {model ?? '<model>'}
+            </code>
+            <br />
+            of kies een vers, lichter model in <strong>Modellen beheren</strong>.
+          </p>
+        )}
+        {isTimeout && (
+          <p className="mt-2 text-xs text-foreground">
+            <strong>Tip:</strong> de eerste keer dat een model laadt kan dit
+            30–60s duren. Probeer 'm opnieuw — daarna staat hij warm. Voor
+            snellere reviews kies een lichter model (bv.{' '}
+            <code>qwen2.5:1.5b-instruct</code>).
+          </p>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
           Je kunt rustig doorgaan met opslaan; de LLM-review is adviserend.
         </p>
       </div>

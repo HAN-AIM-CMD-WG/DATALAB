@@ -67,6 +67,30 @@ interface PipelineAction {
  *  - te zwaar daarbuiten
  */
 /**
+ * Embedding-modellen (bge, nomic-embed, mxbai-embed, …) ondersteunen
+ * geen ``/api/generate``. Ollama wijst zo'n call af met HTTP 400.
+ * We filteren ze daarom uit voor "Activeer voor LLM-rollen". De lijst
+ * is opzettelijk conservatief: bij twijfel laten we de gebruiker
+ * gewoon proberen — Ollama zelf valideert daarna nog een keer.
+ */
+const _EMBEDDING_PATTERNS: RegExp[] = [
+  /^bge[-_]/i,
+  /^nomic-embed/i,
+  /^mxbai-embed/i,
+  /^snowflake-arctic-embed/i,
+  /^all-minilm/i,
+  /^paraphrase-/i,
+  /^e5[-_]/i,
+  /^embeddinggemma/i,
+  /^granite-embedding/i,
+  /-embed(?:ding)?(?::|$)/i,
+];
+
+function looksLikeEmbeddingModel(name: string): boolean {
+  return _EMBEDDING_PATTERNS.some((re) => re.test(name));
+}
+
+/**
  * Sorteer een catalogus zodat modellen die op deze machine passen
  * bovenaan staan, daarna de krappe, dan te zware, dan onbekend. Binnen
  * elke groep: kleinste eerst (zo komt de "lichtgewicht aanbevolen"
@@ -1647,6 +1671,7 @@ function OllamaInstalledList({
             const isActive = activeModel === m.name;
             const activateKey = `ollama-activate:${m.name}`;
             const activating = pipelineBusy === activateKey;
+            const isEmbedding = looksLikeEmbeddingModel(m.name);
             return (
               <li
                 key={m.name}
@@ -1662,6 +1687,14 @@ function OllamaInstalledList({
                         Actief
                       </span>
                     )}
+                    {isEmbedding && (
+                      <span
+                        className="rounded-full border border-border/50 bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground"
+                        title="Embedding-modellen kunnen geen tekst genereren en zijn niet bruikbaar voor LLM-rollen."
+                      >
+                        Embedding-only
+                      </span>
+                    )}
                   </p>
                   <p className="text-[10px] text-muted-foreground">{mb(m.size)} MB op schijf</p>
                 </div>
@@ -1669,16 +1702,18 @@ function OllamaInstalledList({
                   <button
                     type="button"
                     onClick={() => onActivate(m.name)}
-                    disabled={activating || isActive || Boolean(pipelineBusy)}
+                    disabled={activating || isActive || isEmbedding || Boolean(pipelineBusy)}
                     className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] disabled:opacity-50 ${
                       isActive
                         ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
                         : 'border-border/50 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-700'
                     }`}
                     title={
-                      isActive
-                        ? 'Dit is het actieve model'
-                        : `Kies ${m.name} als actief LLM-model`
+                      isEmbedding
+                        ? 'Embedding-model — kan geen tekst genereren, dus niet bruikbaar als LLM-rol.'
+                        : isActive
+                          ? 'Dit is het actieve model'
+                          : `Kies ${m.name} als actief LLM-model`
                     }
                   >
                     {activating ? (
@@ -1688,7 +1723,7 @@ function OllamaInstalledList({
                     ) : (
                       <Power className="h-3 w-3" aria-hidden />
                     )}
-                    {isActive ? 'Actief' : 'Activeer'}
+                    {isActive ? 'Actief' : isEmbedding ? 'Niet bruikbaar' : 'Activeer'}
                   </button>
                   <button
                     type="button"
