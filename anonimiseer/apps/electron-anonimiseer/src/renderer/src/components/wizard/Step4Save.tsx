@@ -10,8 +10,16 @@ import {
   FileWarning,
   ShieldCheck,
   ExternalLink,
+  Sparkles,
+  XCircle,
+  HelpCircle,
 } from 'lucide-react';
-import type { AppSettings, WriteRunResponse } from '@shared/api';
+import type {
+  ActiveEngineInfo,
+  AppSettings,
+  ReviewFinding,
+  WriteRunResponse,
+} from '@shared/api';
 import { cn } from '../../lib/utils';
 import { buildRun } from './anonymizeLocal';
 import type { ReviewState } from './reviewTypes';
@@ -29,7 +37,24 @@ import type { WizardFileEntry } from './wizardTypes';
  * Bouwt de geanonimiseerde bestanden lokaal op (geen extra engine-call)
  * en laat de Electron main process ze atomisch wegschrijven. Toont
  * daarna een success-scherm met snelkoppelingen naar de outputmap.
+ *
+ * Als de gebruiker een Ollama-model heeft gekozen met de Review-rol aan,
+ * sturen we de geanonimiseerde tekst hier ook nog door een LLM-second-
+ * opinion zodat de gebruiker ziet of er nog PII in staat.
  */
+
+type LlmReviewState =
+  | { status: 'idle' }
+  | { status: 'running' }
+  | { status: 'error'; error: string }
+  | {
+      status: 'done';
+      model: string;
+      verdict: 'clean' | 'suspect' | 'unknown';
+      summary: string;
+      findings: ReviewFinding[];
+      evalDurationMs: number | null;
+    };
 export function Step4Save({
   files,
   settings,
@@ -48,6 +73,8 @@ export function Step4Save({
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<WriteRunResponse | null>(null);
+  const [activeEngine, setActiveEngine] = useState<ActiveEngineInfo | null>(null);
+  const [llmReview, setLlmReview] = useState<LlmReviewState>({ status: 'idle' });
 
   useEffect(() => {
     void window.anonimiseer.output
@@ -56,10 +83,76 @@ export function Step4Save({
       .catch(() => setEncAvailable(false));
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void window.anonimiseer.engine
+      .active()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) setActiveEngine(res.info);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveEngine(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const run = useMemo(
     () => buildRun(files, review, settings.mode),
     [files, review, settings.mode]
   );
+
+  const reviewableText = useMemo(() => {
+    const parts: string[] = [];
+    for (const f of run.files) {
+      if (f.kind !== 'text') continue;
+      parts.push(`# ${f.sourceName}\n\n${f.anonymizedText.trim()}`);
+    }
+    return parts.join('\n\n---\n\n');
+  }, [run]);
+
+  const ollamaReviewReady = Boolean(
+    activeEngine?.ollama.reviewEnabled &&
+      activeEngine.ollama.modelPresent &&
+      activeEngine.ollama.daemonRunning &&
+      activeEngine.ollama.model
+  );
+
+  useEffect(() => {
+    if (!ollamaReviewReady) return;
+    if (!reviewableText.trim()) return;
+    let cancelled = false;
+    setLlmReview({ status: 'running' });
+    void window.anonimiseer.engine
+      .review(reviewableText)
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setLlmReview({ status: 'error', error: res.error });
+          return;
+        }
+        setLlmReview({
+          status: 'done',
+          model: res.model,
+          verdict: res.verdict,
+          summary: res.summary,
+          findings: res.findings,
+          evalDurationMs: res.evalDurationMs,
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLlmReview({
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ollamaReviewReady, reviewableText]);
 
   const pickFolder = async (): Promise<void> => {
     const dir = await window.anonimiseer.output.pickFolder();
@@ -129,6 +222,10 @@ export function Step4Save({
               gepseudonimiseerd, maar je kunt de originelen straks{' '}
               <em>niet</em> terughalen. Overweeg modus "Anonimiseren" in stap 2.
             </Notice>
+          )}
+
+          {ollamaReviewReady && (
+            <LlmReviewPanel state={llmReview} model={activeEngine?.ollama.model ?? null} />
           )}
 
           <ResponsibilitySection checked={agreed} onChange={setAgreed} />
@@ -305,6 +402,123 @@ function OutputPicker({
           <FolderOpen className="h-3.5 w-3.5" aria-hidden />
           Kies map…
         </button>
+      </div>
+    </div>
+  );
+}
+
+function LlmReviewPanel({
+  state,
+  model,
+}: {
+  state: LlmReviewState;
+  model: string | null;
+}): JSX.Element {
+  const headerLabel = `LLM-review${model ? ` (${model})` : ''}`;
+  if (state.status === 'idle' || state.status === 'running') {
+    return (
+      <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-600" aria-hidden />
+          {headerLabel} — second-opinion vragen…
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Het lokale LLM controleert of er nog herkenbare PII in de
+          geanonimiseerde tekst staat. Dit duurt meestal 5–30 seconden.
+        </p>
+      </div>
+    );
+  }
+  if (state.status === 'error') {
+    return (
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden />
+          {headerLabel} niet uitgevoerd
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{state.error}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Je kunt rustig doorgaan met opslaan; de LLM-review is adviserend.
+        </p>
+      </div>
+    );
+  }
+  const tone =
+    state.verdict === 'clean'
+      ? 'border-emerald-500/30 bg-emerald-500/5'
+      : state.verdict === 'suspect'
+        ? 'border-amber-500/30 bg-amber-500/5'
+        : 'border-border/60 bg-muted/30';
+  const Icon =
+    state.verdict === 'clean'
+      ? CheckCircle2
+      : state.verdict === 'suspect'
+        ? AlertTriangle
+        : HelpCircle;
+  const verdictLabel =
+    state.verdict === 'clean'
+      ? 'Geen verdachte resten gevonden'
+      : state.verdict === 'suspect'
+        ? `${state.findings.length} mogelijk gemiste fragment${state.findings.length === 1 ? '' : 'en'}`
+        : 'Geen geldig oordeel — lees de samenvatting hieronder';
+  const iconClass =
+    state.verdict === 'clean'
+      ? 'text-emerald-600'
+      : state.verdict === 'suspect'
+        ? 'text-amber-600'
+        : 'text-muted-foreground';
+  return (
+    <div className={cn('rounded-xl border p-4', tone)}>
+      <div className="flex items-start gap-2">
+        <Icon className={cn('mt-0.5 h-4 w-4 flex-none', iconClass)} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-blue-500" aria-hidden />
+            {headerLabel}
+          </div>
+          <p className="mt-0.5 text-sm text-foreground">{verdictLabel}</p>
+          {state.summary && (
+            <p className="mt-1 text-xs text-muted-foreground">{state.summary}</p>
+          )}
+          {state.findings.length > 0 && (
+            <ul className="mt-2 space-y-1.5 text-xs">
+              {state.findings.map((f, idx) => (
+                <li
+                  key={`${f.snippet}-${idx}`}
+                  className="rounded-md border border-amber-500/20 bg-background/60 px-2 py-1.5"
+                >
+                  <div className="flex items-start gap-1.5">
+                    <XCircle
+                      className="mt-0.5 h-3 w-3 flex-none text-amber-600"
+                      aria-hidden
+                    />
+                    <div className="min-w-0">
+                      <div className="font-mono text-[11px] text-foreground">
+                        {f.snippet}
+                      </div>
+                      {(f.category || f.explanation) && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          {f.category && (
+                            <span className="mr-1 rounded-sm bg-muted px-1 py-0.5 font-medium uppercase tracking-wide">
+                              {f.category}
+                            </span>
+                          )}
+                          {f.explanation}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {state.evalDurationMs != null && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Beoordeling in {(state.evalDurationMs / 1000).toFixed(1)}s. Dit is
+              een hint, geen vervanging voor je eigen check.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
