@@ -126,12 +126,22 @@ _HAS_LETTER_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]")
 # kanten zonder de binnenkant te raken.
 _TRIM_CHARS = " \t|*_:;,-–—(){}[]"
 
-# Aanhefwoorden die spaCy regelmatig in de PERSON-span trekt
-# (``Hoi Anna`` → één PERSON-span ``"Hoi Anna"``). We knippen ze hier weg
-# als ze als prefix in een PERSON-span verschijnen.
+# Aanhefwoorden en titels die spaCy regelmatig in de PERSON-span trekt
+# (``Hoi Anna`` → één PERSON-span ``"Hoi Anna"``; ``De heer Van der
+# Meulen`` → ``"heer Van der Meulen"``). We knippen ze hier weg als ze
+# als prefix in een PERSON-span verschijnen, zodat de span alleen de
+# echte naam bevat.
 _GREETING_PREFIX_RE = re.compile(
-    r"^(?:Hoi|Hallo|Hi|Hey|Dag|Beste|Geachte|"
-    r"Goedemorgen|Goedemiddag|Goedenavond|Groetjes)\s+",
+    r"^(?:"
+    # Begroetingen
+    r"Hoi|Hallo|Hi|Hey|Dag|Beste|Geachte|"
+    r"Goedemorgen|Goedemiddag|Goedenavond|Groetjes|"
+    # Aanhef-titels (los of gecombineerd met "De ")
+    r"(?:De\s+)?heer|Heer|"
+    r"Mevrouw|mevrouw|Meneer|meneer|"
+    r"Mw\.?|Dhr\.?|Mvr\.?|Mr\.?|"
+    r"Dr\.?|Drs\.?|Prof\.?|Ir\.?|Ing\.?|Mr\.?"
+    r")\s+",
     re.IGNORECASE,
 )
 
@@ -433,6 +443,23 @@ def _trim_ner_span(
             new_start += shift
             rstrip = rstrip[shift:]
             new_end = new_start + len(rstrip)
+
+    # Bij een ORGANIZATION-span die eindigt op een rechtsvorm-afkorting
+    # (``B.V``, ``N.V``, ``V.O.F``, ``Inc``, ``Ltd``, ``GmbH``, ``S.A``)
+    # nemen we de direct volgende ``.`` mee, anders blijft die als losse
+    # punt naast het pseudoniem staan (``ORGANIZATION_2.``).
+    if result.entity_type == "ORGANIZATION" and new_end < len(text):
+        if text[new_end] == ".":
+            tail = rstrip[-6:].lower()
+            if any(
+                tail.endswith(suffix)
+                for suffix in (
+                    "b.v", "n.v", "v.o.f", "c.v", "s.a",
+                    " inc", " ltd", " co", " plc", " gmbh", " ag", " kg",
+                )
+            ):
+                rstrip = rstrip + "."
+                new_end += 1
 
     if new_start == result.start and new_end == result.end:
         return result
