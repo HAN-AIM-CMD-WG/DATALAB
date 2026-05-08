@@ -66,6 +66,46 @@ interface PipelineAction {
  *  - krap als (totaal - 2GB) >= minRamMb
  *  - te zwaar daarbuiten
  */
+/**
+ * Sorteer een catalogus zodat modellen die op deze machine passen
+ * bovenaan staan, daarna de krappe, dan te zware, dan onbekend. Binnen
+ * elke groep: kleinste eerst (zo komt de "lichtgewicht aanbevolen"
+ * keuze meteen bovenaan).
+ */
+function sortCatalogByFit(
+  entries: OllamaCatalogEntry[],
+  system: SystemInfo | null,
+): OllamaCatalogEntry[] {
+  const order: Record<FitLevel, number> = { fits: 0, tight: 1, 'too-large': 2, unknown: 3 };
+  return [...entries].sort((a, b) => {
+    const fa = evaluateFit(a.minRamMb, system).level;
+    const fb = evaluateFit(b.minRamMb, system).level;
+    if (order[fa] !== order[fb]) return order[fa] - order[fb];
+    return a.sizeMb - b.sizeMb;
+  });
+}
+
+/**
+ * Kies een model dat we bovenaan willen aanraden voor deze machine:
+ * het eerste model dat past (``fits``-level). Als de catalogus zelf
+ * een ``recommended: true`` heeft staan en die past, krijgt die
+ * voorrang. Geeft ``null`` als systeeminfo nog ontbreekt of niets
+ * comfortabel past.
+ */
+function pickRecommendedForMachine(
+  entries: OllamaCatalogEntry[],
+  system: SystemInfo | null,
+): OllamaCatalogEntry | null {
+  if (!system) return null;
+  const fitting = entries.filter(
+    (e) => evaluateFit(e.minRamMb, system).level === 'fits',
+  );
+  if (fitting.length === 0) return null;
+  const sweetSpot = fitting.find((e) => e.recommended);
+  if (sweetSpot) return sweetSpot;
+  return [...fitting].sort((a, b) => a.sizeMb - b.sizeMb)[0] ?? null;
+}
+
 function evaluateFit(minRamMb: number, system: SystemInfo | null): FitVerdict {
   if (minRamMb <= 0) return { level: 'unknown', message: 'Geen RAM-richtlijn opgegeven.' };
   if (!system) return { level: 'unknown', message: 'Systeeminfo wordt nog opgehaald.' };
@@ -306,6 +346,24 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
     }
     pollers.current.clear();
   }, [open]);
+
+  // Zodra zowel de catalogus als systeeminfo binnen zijn, kiezen we het
+  // model dat het beste bij deze machine past als default. Doel: de
+  // gebruiker zonder Ollama-kennis krijgt een veilige eerste keuze
+  // (kleinste model dat comfortabel past) i.p.v. het eerste catalogus-
+  // item — wat vaak een te zware 4B is.
+  useEffect(() => {
+    if (catalogEntries.length === 0 || !system) return;
+    setOllamaSelection((current) => {
+      const currentEntry = catalogEntries.find((e) => e.name === current);
+      const currentFits =
+        currentEntry && evaluateFit(currentEntry.minRamMb, system).level === 'fits';
+      if (currentFits) return current;
+      const recommended = pickRecommendedForMachine(catalogEntries, system);
+      if (recommended) return recommended.name;
+      return current || catalogEntries[0]?.name || '';
+    });
+  }, [catalogEntries, system]);
 
   const startPolling = useCallback(
     (descriptorId: string, taskId: string) => {
@@ -1911,6 +1969,18 @@ function OllamaPullCard({
           <label className="block text-[11px] text-muted-foreground" htmlFor="ollama-select">
             Kies een aanbevolen model:
           </label>
+          {(() => {
+            const machineRec = pickRecommendedForMachine(catalogEntries, system);
+            if (!machineRec) return null;
+            return (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="inline h-3 w-3" aria-hidden /> Voor jouw
+                machine ({system ? `${gb(system.totalMemMb)} GB RAM` : '—'}) is{' '}
+                <span className="font-medium">{machineRec.label}</span> een
+                veilige start.
+              </p>
+            );
+          })()}
           <div className="relative">
             <select
               id="ollama-select"
@@ -1919,24 +1989,47 @@ function OllamaPullCard({
               disabled={pullBusy}
               className="w-full appearance-none rounded-md border border-border bg-background px-3 py-2 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
             >
-              {catalogEntries.map((entry) => {
-                const installed = ollamaInstalled(entry.name, ollama.models);
-                const fit = evaluateFit(entry.minRamMb, system);
-                const fitTag =
-                  fit.level === 'too-large'
-                    ? ' — te zwaar'
-                    : fit.level === 'tight'
-                    ? ' — krap'
-                    : '';
-                return (
-                  <option key={entry.name} value={entry.name}>
-                    {installed ? '✓ ' : ''}
-                    {entry.label} ({gb(entry.sizeMb)} GB)
-                    {entry.recommended ? ' ★' : ''}
-                    {fitTag}
-                  </option>
-                );
-              })}
+              {(() => {
+                const sorted = sortCatalogByFit(catalogEntries, system);
+                const machineRec = pickRecommendedForMachine(catalogEntries, system);
+                const groups: Array<{
+                  level: FitLevel;
+                  label: string;
+                  items: OllamaCatalogEntry[];
+                }> = [
+                  { level: 'fits', label: 'Past op deze machine', items: [] },
+                  { level: 'tight', label: 'Krap — sluit andere apps', items: [] },
+                  { level: 'too-large', label: 'Te zwaar voor deze machine', items: [] },
+                  { level: 'unknown', label: 'Onbekende fit', items: [] },
+                ];
+                for (const entry of sorted) {
+                  const lvl = evaluateFit(entry.minRamMb, system).level;
+                  const bucket = groups.find((g) => g.level === lvl);
+                  bucket?.items.push(entry);
+                }
+                return groups
+                  .filter((g) => g.items.length > 0)
+                  .map((g) => (
+                    <optgroup key={g.level} label={g.label}>
+                      {g.items.map((entry) => {
+                        const installed = ollamaInstalled(entry.name, ollama.models);
+                        const isMachineRec = machineRec?.name === entry.name;
+                        const prefix = isMachineRec
+                          ? '★ Aanbevolen — '
+                          : installed
+                            ? '✓ '
+                            : '';
+                        return (
+                          <option key={entry.name} value={entry.name}>
+                            {prefix}
+                            {entry.label} ({gb(entry.sizeMb)} GB)
+                            {entry.recommended && !isMachineRec ? ' ★' : ''}
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  ));
+              })()}
             </select>
             <ChevronDown
               className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
