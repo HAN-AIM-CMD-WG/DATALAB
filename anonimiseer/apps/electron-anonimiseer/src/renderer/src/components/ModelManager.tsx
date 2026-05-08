@@ -562,7 +562,18 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
       setOllamaPullMessage(`Klaar — ${target} is binnen.`);
       void reloadOllama();
     } else {
-      setOllamaPullMessage(`Mislukt: ${res.error}`);
+      const lower = res.error.toLowerCase();
+      let hint = '';
+      if (lower.includes('tls') || lower.includes('x509') || lower.includes('certificate')) {
+        hint =
+          ' — Tip: TLS-fout in de Ollama-daemon. Sluit Ollama af en start opnieuw (Ollama-icoon → Quit → Open). Als het blijft falen, update Ollama via ollama.com/download.';
+      } else if (lower.includes('manifest') && lower.includes('not found')) {
+        hint =
+          ' — Tip: deze tag bestaat niet (meer) in de Ollama-library. Check ollama.com/library voor geldige tags.';
+      } else if (lower.includes('no space') || lower.includes('disk full')) {
+        hint = ' — Tip: schijf zit vol. Verwijder eerst een ander model.';
+      }
+      setOllamaPullMessage(`Mislukt: ${res.error}${hint}`);
     }
   }, [ollamaName, reloadOllama]);
 
