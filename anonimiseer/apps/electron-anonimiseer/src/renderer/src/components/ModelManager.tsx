@@ -517,6 +517,8 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             onReset={() => void resetPipeline()}
             resetBusy={pipelineBusy === 'reset'}
             message={pipelineMessage}
+            onToggleHanEdu={(next) => void toggleHanEdu(next)}
+            hanEduBusy={pipelineBusy === 'toggle:han-edu'}
           />
 
           <section>
@@ -659,6 +661,8 @@ function ActiveEnginePanel({
   onReset,
   resetBusy,
   message,
+  onToggleHanEdu,
+  hanEduBusy,
 }: {
   info: ActiveEngineInfo | null;
   error: string | null;
@@ -666,6 +670,8 @@ function ActiveEnginePanel({
   onReset: () => void;
   resetBusy: boolean;
   message: { kind: 'ok' | 'error'; text: string } | null;
+  onToggleHanEdu: (next: boolean) => void;
+  hanEduBusy: boolean;
 }): JSX.Element {
   return (
     <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
@@ -791,8 +797,8 @@ function ActiveEnginePanel({
 
           <HanEduProfileBlock
             enabled={info.hanEduEnabled}
-            onToggle={toggleHanEdu}
-            busy={pipelineBusy}
+            onToggle={onToggleHanEdu}
+            busy={hanEduBusy}
           />
 
           <OllamaStatusBlock ollama={info.ollama} />
