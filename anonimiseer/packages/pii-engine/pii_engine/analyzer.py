@@ -30,6 +30,7 @@ from pii_engine.recognizers import (
     EduCrohoRecognizer,
     EduLabeledPersonRecognizer,
     HanPortalStudentIdRecognizer,
+    InternalCaseNumberRecognizer,
     NlAddressRecognizer,
     NlAgbRecognizer,
     NlDateRecognizer,
@@ -165,6 +166,10 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
         registry.add_recognizer(NlKentekenRecognizer(supported_language="nl"))
     if settings.enable_gps:
         registry.add_recognizer(GpsCoordinateRecognizer(supported_language="nl"))
+    if settings.enable_internal_case:
+        registry.add_recognizer(
+            InternalCaseNumberRecognizer(supported_language="nl")
+        )
     if settings.enable_nl_identifiers:
         registry.add_recognizer(NlKvkRecognizer(supported_language="nl"))
         registry.add_recognizer(NlBigRecognizer(supported_language="nl"))

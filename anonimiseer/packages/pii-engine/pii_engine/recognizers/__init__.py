@@ -5,6 +5,7 @@ from pii_engine.recognizers.bic import BicRecognizer
 from pii_engine.recognizers.bsn import BsnRecognizer, is_valid_bsn
 from pii_engine.recognizers.creditcard_meta import CreditCardMetaRecognizer
 from pii_engine.recognizers.eu_cities import EU_CITY_NAMES, EuCityRecognizer
+from pii_engine.recognizers.internal_case import InternalCaseNumberRecognizer
 from pii_engine.recognizers.intl_address import IntlAddressRecognizer
 from pii_engine.recognizers.han_edu import (
     EduClassRecognizer,
@@ -59,6 +60,7 @@ __all__ = [
     "EduLabeledPersonRecognizer",
     "GpsCoordinateRecognizer",
     "HanPortalStudentIdRecognizer",
+    "InternalCaseNumberRecognizer",
     "NlAddressRecognizer",
     "NlAgbRecognizer",
     "NlDateRecognizer",

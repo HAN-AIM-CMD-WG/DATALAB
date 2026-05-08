@@ -79,8 +79,8 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
     id: 'ids',
     label: 'ID- en bedrijfsnummers',
     description:
-      'Overheids- en zorgnummers: KvK, BTW, BIG, AGB, rijbewijs, polisnummer, studenten-/personeelsnummer, OV-chipkaart, Belgisch rijksregister.',
-    example: 'KvK 34567890, BIG 19912345601, polisnummer 106543210',
+      'Overheids- en zorgnummers en interne dossiers: KvK, BTW, BIG, AGB, rijbewijs, polisnummer, studenten-/personeelsnummer, OV-chipkaart, Belgisch rijksregister én patiënt-/dossier-/zaaknummers.',
+    example: 'KvK 34567890, BIG 19912345601, PAT-2026-001234',
     entityTypes: [
       'NL_STUDENT_ID',
       'NL_EMPLOYEE_ID',
@@ -93,6 +93,7 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
       'NL_POLICY_NUMBER',
       'NL_OV_CHIPKAART',
       'BE_RIJKSREGISTER',
+      'INTERNAL_CASE_NUMBER',
     ],
     defaultOn: true,
   },

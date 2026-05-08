@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     enable_nl_organization: bool = True
     enable_nl_kenteken: bool = True
     enable_gps: bool = True
+    # Interne dossier-/patiënt-/zaaknummers (PAT-2026-001234,
+    # 2026-OND-09812, CASE-12345). Patroon-gebaseerd; sterke matches
+    # zonder label zijn 0.55, met label 0.85.
+    enable_internal_case: bool = True
     # NL-specifieke identificatienummers (KvK, BIG, AGB, BTW, rijbewijs,
     # polisnummer, BE rijksregister). Zonder deze set wordt een KvK-nummer
     # vaak door Presidio als ``DATE_TIME`` gelabeld.
