@@ -711,16 +711,30 @@ _PORTAL_URL_PATTERN = re.compile(
 _PORTAL_STUDENT_NUMBER = re.compile(
     r"(?<![0-9A-Za-z])(?P<snr>\d{7})(?![0-9A-Za-z])"
 )
+# Optionele s-prefix studentnummer (s7654321) — lowercase 's' wordt
+# in HAN-URLs vaak gebruikt.
+_PORTAL_STUDENT_S = re.compile(
+    r"(?<![0-9A-Za-z])(?P<snr>s\d{7})(?![0-9A-Za-z])"
+)
+# Personeels-ID in URLs: ``/users/p9876543`` of ``?pnr=p1234567``.
+# Lowercase 'p' is de gangbare conventie binnen brightspace.han.nl.
+# Strikt 7 cijfers; 6-cijferige medewerkernummers vallen hier niet onder
+# (te kort om in een URL betrouwbaar van een random query-param te
+# onderscheiden — die worden door de losse NlEmployeeIdRecognizer
+# gepakt mits er context staat).
+_PORTAL_EMPLOYEE_NUMBER = re.compile(
+    r"(?<![0-9A-Za-z])(?P<pnr>[Pp]\d{7})(?![0-9A-Za-z])"
+)
 
 
 class HanPortalStudentIdRecognizer(EntityRecognizer):
-    """Herken 7-cijferige studentnummers binnen HAN-portal-URLs."""
+    """Herken student- en medewerker-ID's binnen HAN-portal-URLs."""
 
     DEFAULT_SCORE: ClassVar[float] = 0.9
 
     def __init__(self, supported_language: str = "nl") -> None:
         super().__init__(
-            supported_entities=["NL_STUDENT_ID"],
+            supported_entities=["NL_STUDENT_ID", "NL_EMPLOYEE_ID"],
             supported_language=supported_language,
             name="HanPortalStudentIdRecognizer",
         )
@@ -734,37 +748,96 @@ class HanPortalStudentIdRecognizer(EntityRecognizer):
         entities: list[str],
         nlp_artifacts: NlpArtifacts | None = None,
     ) -> list[RecognizerResult]:
-        if "NL_STUDENT_ID" not in entities:
+        want_student = "NL_STUDENT_ID" in entities
+        want_employee = "NL_EMPLOYEE_ID" in entities
+        if not (want_student or want_employee):
             return []
+
         results: list[RecognizerResult] = []
         for url_match in _PORTAL_URL_PATTERN.finditer(text):
             url_text = url_match.group(0).lower()
             if not any(h in url_text for h in _PORTAL_HOSTS):
                 continue
-            for snr_match in _PORTAL_STUDENT_NUMBER.finditer(
-                text, url_match.start(), url_match.end()
-            ):
-                results.append(
-                    RecognizerResult(
-                        entity_type="NL_STUDENT_ID",
-                        start=snr_match.start("snr"),
-                        end=snr_match.end("snr"),
-                        score=self.DEFAULT_SCORE,
-                        analysis_explanation=AnalysisExplanation(
-                            recognizer=self.__class__.__name__,
-                            original_score=self.DEFAULT_SCORE,
-                            pattern_name="han_portal_snr",
-                            pattern=_PORTAL_STUDENT_NUMBER.pattern,
-                            validation_result=True,
-                            textual_explanation=(
-                                "7-cijferig studentnummer binnen een HAN-"
-                                "portal-URL (Osiris/Alluris/Brightspace/"
-                                "Studielink)."
-                            ),
-                        ),
+
+            if want_student:
+                for snr_match in _PORTAL_STUDENT_S.finditer(
+                    text, url_match.start(), url_match.end()
+                ):
+                    results.append(
+                        self._make_result(
+                            "NL_STUDENT_ID",
+                            snr_match.start("snr"),
+                            snr_match.end("snr"),
+                            "han_portal_snr_s",
+                            _PORTAL_STUDENT_S.pattern,
+                            "Studentnummer met s-prefix in HAN-portal-URL.",
+                        )
                     )
-                )
+                for snr_match in _PORTAL_STUDENT_NUMBER.finditer(
+                    text, url_match.start(), url_match.end()
+                ):
+                    # Skip als deze positie al door s-prefix is gedekt
+                    # (s1234567 zou anders óók als 1234567 matchen).
+                    if any(
+                        r.start <= snr_match.start("snr")
+                        and r.end >= snr_match.end("snr")
+                        and r.entity_type == "NL_STUDENT_ID"
+                        for r in results
+                    ):
+                        continue
+                    results.append(
+                        self._make_result(
+                            "NL_STUDENT_ID",
+                            snr_match.start("snr"),
+                            snr_match.end("snr"),
+                            "han_portal_snr",
+                            _PORTAL_STUDENT_NUMBER.pattern,
+                            "7-cijferig studentnummer binnen een HAN-"
+                            "portal-URL (Osiris/Alluris/Brightspace/"
+                            "Studielink).",
+                        )
+                    )
+
+            if want_employee:
+                for pnr_match in _PORTAL_EMPLOYEE_NUMBER.finditer(
+                    text, url_match.start(), url_match.end()
+                ):
+                    results.append(
+                        self._make_result(
+                            "NL_EMPLOYEE_ID",
+                            pnr_match.start("pnr"),
+                            pnr_match.end("pnr"),
+                            "han_portal_pnr",
+                            _PORTAL_EMPLOYEE_NUMBER.pattern,
+                            "Medewerker-ID met p-prefix in HAN-portal-URL "
+                            "(Brightspace).",
+                        )
+                    )
         return results
+
+    def _make_result(
+        self,
+        entity_type: str,
+        start: int,
+        end: int,
+        pattern_name: str,
+        pattern: str,
+        explanation: str,
+    ) -> RecognizerResult:
+        return RecognizerResult(
+            entity_type=entity_type,
+            start=start,
+            end=end,
+            score=self.DEFAULT_SCORE,
+            analysis_explanation=AnalysisExplanation(
+                recognizer=self.__class__.__name__,
+                original_score=self.DEFAULT_SCORE,
+                pattern_name=pattern_name,
+                pattern=pattern,
+                validation_result=True,
+                textual_explanation=explanation,
+            ),
+        )
 
 
 # Sanity-check voor linters / unit-tests.

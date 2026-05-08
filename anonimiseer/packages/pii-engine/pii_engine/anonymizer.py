@@ -19,6 +19,8 @@ from typing import Literal
 
 from presidio_analyzer import RecognizerResult
 
+from pii_engine.postfilter import ENTITY_PRIORITY
+
 __all__ = [
     "AnonymizationMode",
     "AnonymizationResult",
@@ -79,13 +81,45 @@ class AnonymizationResult:
 
 
 def _dedupe_overlapping(results: list[RecognizerResult]) -> list[RecognizerResult]:
-    """Los overlap op door score desc + start asc; hoogste score wint.
+    """Los overlap op met voorrang voor specifieke entiteitstypes.
 
-    We sorteren op ``(start asc, score desc)`` en gooien daarna alles weg wat
-    binnen een al geaccepteerde span valt of ermee overlapt.
+    Strategie:
+    1. Verwijder eerst items die volledig binnen een ander item vallen
+       wanneer het *binnenste* item een hogere prioriteit heeft (lager
+       nummer in :data:`ENTITY_PRIORITY`). Zo blijft een ``NL_STUDENT_ID``
+       binnen een ``URL`` overeind: de URL-omhulling wordt gedropt zodat
+       alleen het studentnummer wordt vervangen en de URL leesbaar
+       blijft.
+    2. Voor de resterende items gebruiken we de klassieke
+       ``(start asc, score desc)``-volgorde: bij overlap wint de eerste
+       (op start) en bij gelijke start de hoogste score.
     """
 
-    ordered = sorted(results, key=lambda r: (r.start, -r.score))
+    def _prio(r: RecognizerResult) -> int:
+        return ENTITY_PRIORITY.get(r.entity_type, 999)
+
+    # Stap 1: drop "outer" items waar een echt strikt-kleinere
+    # higher-priority entity binnenin zit.
+    survivors: list[RecognizerResult] = []
+    for outer in results:
+        outer_prio = _prio(outer)
+        outer_len = outer.end - outer.start
+        dropped = False
+        for inner in results:
+            if inner is outer:
+                continue
+            if inner.start < outer.start or inner.end > outer.end:
+                continue
+            inner_len = inner.end - inner.start
+            if inner_len >= outer_len:
+                continue
+            if _prio(inner) < outer_prio:
+                dropped = True
+                break
+        if not dropped:
+            survivors.append(outer)
+
+    ordered = sorted(survivors, key=lambda r: (r.start, -r.score))
     kept: list[RecognizerResult] = []
     last_end = -1
     for r in ordered:
