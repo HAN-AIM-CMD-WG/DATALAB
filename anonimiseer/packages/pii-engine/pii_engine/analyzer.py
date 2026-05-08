@@ -17,10 +17,36 @@ from presidio_analyzer.nlp_engine import NlpEngine, NlpEngineProvider
 from pii_engine.config import Settings, get_settings
 from pii_engine.runtime import effective_settings
 from pii_engine.recognizers import (
+    BankNameRecognizer,
+    BeRijksregisterRecognizer,
+    BicRecognizer,
     BsnRecognizer,
+    CreditCardMetaRecognizer,
+    EuCityRecognizer,
+    IntlAddressRecognizer,
+    EduClassRecognizer,
+    EduCourseCodeRecognizer,
+    EduCrohoRecognizer,
+    EduLabeledPersonRecognizer,
+    HanPortalStudentIdRecognizer,
+    NlAddressRecognizer,
+    NlAgbRecognizer,
+    NlDateRecognizer,
+    NlFirstNameRecognizer,
+    NlIdCardRecognizer,
+    NlBigRecognizer,
+    NlBtwRecognizer,
+    NlEmployeeIdRecognizer,
+    NlKvkRecognizer,
+    NlOrganizationRecognizer,
+    NlOvChipkaartRecognizer,
     NlPhoneRecognizer,
+    NlPolicyNumberRecognizer,
     NlPostcodeRecognizer,
+    NlRijbewijsRecognizer,
     NlStudentnrRecognizer,
+    OnlineIdentifierRecognizer,
+    StageOrganizationRecognizer,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,6 +109,23 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
     registry = RecognizerRegistry(supported_languages=["nl"])
     if settings.enable_presidio_builtins:
         registry.load_predefined_recognizers(languages=["nl"])
+        # Presidio's standaard CC/IP/MAC/URL/Email-recognizers zijn alleen
+        # in 'en' aangemeld. Voor NL-documenten missen we ze dan helemaal.
+        # We instantiëren ze expliciet als NL-variant zodat creditcards,
+        # IP-adressen en MAC-adressen ook in NL-tekst gedetecteerd worden.
+        from presidio_analyzer.predefined_recognizers import (
+            CreditCardRecognizer,
+            EmailRecognizer,
+            IpRecognizer,
+            MacAddressRecognizer,
+            UrlRecognizer,
+        )
+
+        registry.add_recognizer(CreditCardRecognizer(supported_language="nl"))
+        registry.add_recognizer(IpRecognizer(supported_language="nl"))
+        registry.add_recognizer(MacAddressRecognizer(supported_language="nl"))
+        registry.add_recognizer(EmailRecognizer(supported_language="nl"))
+        registry.add_recognizer(UrlRecognizer(supported_language="nl"))
 
     if settings.enable_bsn:
         registry.add_recognizer(BsnRecognizer(supported_language="nl"))
@@ -90,8 +133,50 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
         registry.add_recognizer(NlPhoneRecognizer(supported_language="nl"))
     if settings.enable_nl_postcode:
         registry.add_recognizer(NlPostcodeRecognizer(supported_language="nl"))
+    if settings.enable_nl_address:
+        registry.add_recognizer(NlAddressRecognizer(supported_language="nl"))
+    if settings.enable_intl_address:
+        registry.add_recognizer(IntlAddressRecognizer(supported_language="nl"))
+    if settings.enable_eu_cities:
+        registry.add_recognizer(EuCityRecognizer(supported_language="nl"))
+    if settings.enable_nl_date:
+        registry.add_recognizer(NlDateRecognizer(supported_language="nl"))
+    if settings.enable_creditcard_meta:
+        registry.add_recognizer(
+            CreditCardMetaRecognizer(supported_language="nl")
+        )
+    if settings.enable_nl_firstnames:
+        registry.add_recognizer(NlFirstNameRecognizer(supported_language="nl"))
     if settings.enable_nl_studentnr:
         registry.add_recognizer(NlStudentnrRecognizer(supported_language="nl"))
+    if settings.enable_nl_organization:
+        registry.add_recognizer(NlOrganizationRecognizer(supported_language="nl"))
+    if settings.enable_bic:
+        registry.add_recognizer(BicRecognizer(supported_language="nl"))
+    if settings.enable_bank_names:
+        registry.add_recognizer(BankNameRecognizer(supported_language="nl"))
+    if settings.enable_online_identifiers:
+        registry.add_recognizer(
+            OnlineIdentifierRecognizer(supported_language="nl")
+        )
+    if settings.enable_nl_identifiers:
+        registry.add_recognizer(NlKvkRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlBigRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlAgbRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlRijbewijsRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlBtwRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlPolicyNumberRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlIdCardRecognizer(supported_language="nl"))
+        registry.add_recognizer(BeRijksregisterRecognizer(supported_language="nl"))
+    if settings.enable_han_edu:
+        registry.add_recognizer(NlEmployeeIdRecognizer(supported_language="nl"))
+        registry.add_recognizer(EduClassRecognizer(supported_language="nl"))
+        registry.add_recognizer(EduCourseCodeRecognizer(supported_language="nl"))
+        registry.add_recognizer(EduCrohoRecognizer(supported_language="nl"))
+        registry.add_recognizer(EduLabeledPersonRecognizer(supported_language="nl"))
+        registry.add_recognizer(StageOrganizationRecognizer(supported_language="nl"))
+        registry.add_recognizer(NlOvChipkaartRecognizer(supported_language="nl"))
+        registry.add_recognizer(HanPortalStudentIdRecognizer(supported_language="nl"))
     if settings.enable_sonar:
         try:
             from pii_engine.recognizers.sonar import SonarRecognizer

@@ -27,7 +27,12 @@ class Settings(BaseSettings):
     # NLP
     spacy_model: str = Field(
         default="nl_core_news_lg",
-        description="spaCy-model voor Presidio. Valt terug op blank('nl') als niet geïnstalleerd.",
+        description=(
+            "spaCy-model voor Presidio. Valt terug op blank('nl') als niet geïnstalleerd "
+            "(tenzij allow_blank_nlp_fallback uit staat). "
+            "De PyInstaller-bundle bevat 'nl_core_news_lg' als basismodel voor de "
+            "beste Nederlandse namen-recall."
+        ),
     )
     allow_blank_nlp_fallback: bool = Field(
         default=True,
@@ -37,9 +42,28 @@ class Settings(BaseSettings):
 
     # Recognizers
     enable_bsn: bool = True
+    enable_bic: bool = True
+    enable_bank_names: bool = True
+    enable_online_identifiers: bool = True
     enable_nl_phone: bool = True
+    enable_nl_date: bool = True
+    enable_intl_address: bool = True
+    enable_eu_cities: bool = True
+    enable_creditcard_meta: bool = True
     enable_nl_postcode: bool = True
+    enable_nl_address: bool = True
+    enable_nl_firstnames: bool = True
     enable_nl_studentnr: bool = True
+    enable_nl_organization: bool = True
+    # NL-specifieke identificatienummers (KvK, BIG, AGB, BTW, rijbewijs,
+    # polisnummer, BE rijksregister). Zonder deze set wordt een KvK-nummer
+    # vaak door Presidio als ``DATE_TIME`` gelabeld.
+    enable_nl_identifiers: bool = True
+    # HAN-/onderwijsspecifieke recognizers: personeelsnummer, klas-/groeps-
+    # code, cursus-/vakcode, CROHO en mentor-/docent-label-personen. Staat
+    # default aan omdat de pilot een HAN-deployment is; zet uit via env
+    # ``PII_ENGINE_ENABLE_HAN_EDU=false`` bij inzet buiten onderwijs.
+    enable_han_edu: bool = True
     enable_presidio_builtins: bool = True
 
     # SoNaR-BERT NER voor betere NL-PERSON/LOCATION/ORGANIZATION recall.

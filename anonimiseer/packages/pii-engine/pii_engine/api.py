@@ -32,6 +32,7 @@ from pii_engine import (
 from pii_engine.analyzer import get_default_analyzer
 from pii_engine.anonymizer import PseudonymMapping, anonymize_with_mode
 from pii_engine.config import get_settings
+from pii_engine.postfilter import filter_overlaps
 from pii_engine.schemas import (
     ActiveEngineResponse,
     ActiveModelInfo,
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
             logger.exception("Analyse mislukt")
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+        results = filter_overlaps(results, text=req.text)
         items = [
             AnalysisItem(
                 entity_type=r.entity_type,
@@ -124,6 +126,7 @@ def create_app() -> FastAPI:
                 entities=req.entities,
                 score_threshold=req.score_threshold,
             )
+            results = filter_overlaps(results, text=req.text)
             mapping = PseudonymMapping() if req.mode == "pseudonymize" else None
             out = anonymize_with_mode(
                 text=req.text,
@@ -283,6 +286,7 @@ def create_app() -> FastAPI:
             spacy_model=active_settings.spacy_model,
             sonar_enabled=sonar_loaded,
             sonar_model=active_settings.sonar_model if sonar_loaded else None,
+            han_edu_enabled=active_settings.enable_han_edu,
             score_threshold=active_settings.default_score_threshold,
             recognizers=recognizer_names,
             active_models=active,
@@ -304,6 +308,7 @@ def create_app() -> FastAPI:
                 spacy_model=req.spacy_model,
                 enable_sonar=req.enable_sonar,
                 sonar_model=req.sonar_model,
+                enable_han_edu=req.enable_han_edu,
                 ollama_model=req.ollama_model,
                 ollama_review_enabled=req.ollama_review_enabled,
                 ollama_extra_ner_enabled=req.ollama_extra_ner_enabled,

@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# PyInstaller-bundle (wordt lokaal of via CI gegenereerd, niet in git)
+build/.venv/
+build/build/
+build/dist/
+build/bdist.*/
+build/lib/
+build/hf-seed/
+
+# Editor + OS
+.vscode/
+.idea/
+.DS_Store

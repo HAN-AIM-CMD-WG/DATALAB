@@ -67,7 +67,20 @@ class TaskInfo:
     finished_at: float | None = None
 
 
-REGISTRY: list[ModelDescriptor] = [
+def _is_bundled_build() -> bool:
+    """``True`` als we in een PyInstaller-bundle draaien.
+
+    In de bundle is ``sys.executable`` de engine-binary zelf (geen Python-CLI),
+    dus we kunnen geen ``python -m spacy download`` runnen om nieuwe spaCy-
+    modellen te installeren. Tot we een HF-gebaseerde download-flow voor
+    spaCy-modellen hebben (zie ``electron-build`` plan), tonen we in de Model
+    Manager alleen het bundled spaCy-model + de HF-modellen (die werken wél).
+    """
+
+    return getattr(sys, "frozen", False) is True
+
+
+_SPACY_MODELS: list[ModelDescriptor] = [
     ModelDescriptor(
         id="spacy:nl_core_news_sm",
         label="spaCy NL — klein",
@@ -85,7 +98,8 @@ REGISTRY: list[ModelDescriptor] = [
         label="spaCy NL — medium",
         kind="spacy",
         description=(
-            "Tussenoptie tussen recall en RAM-gebruik. ~43 MB."
+            "Tussenoptie met minder geheugenverbruik. ~43 MB. Large is"
+            " standaard in de desktop-app en herkent complexere namen beter."
         ),
         size_mb=43,
         install_target="nl_core_news_md",
@@ -96,13 +110,18 @@ REGISTRY: list[ModelDescriptor] = [
         label="spaCy NL — large",
         kind="spacy",
         description=(
-            "Aanbevolen voor productie-anonimisering. ~568 MB. Beter bij"
-            " complexere namen."
+            "Standaardmodel van Anonimiseer. Zit meegeleverd in de installer"
+            " en is direct actief. ~568 MB. Beste namen-recall voor Nederlands"
+            " zonder extra downloads."
         ),
         size_mb=568,
         install_target="nl_core_news_lg",
         min_ram_mb=2048,
     ),
+]
+
+
+_HF_MODELS: list[ModelDescriptor] = [
     ModelDescriptor(
         id="hf:GroNLP/bert-base-dutch-cased",
         label="BERTje (BERT-base NL)",
@@ -128,9 +147,6 @@ REGISTRY: list[ModelDescriptor] = [
     ),
 ]
 
-REGISTRY_BY_ID: dict[str, ModelDescriptor] = {m.id: m for m in REGISTRY}
-
-
 def _spacy_installed(name: str) -> tuple[bool, str | None]:
     try:
         import importlib
@@ -140,6 +156,36 @@ def _spacy_installed(name: str) -> tuple[bool, str | None]:
         return True, str(Path(path).parent) if path else None
     except Exception:
         return False, None
+
+
+def _build_registry() -> list[ModelDescriptor]:
+    """Bouw de actieve registry, afhankelijk van runtime-omgeving.
+
+    Dev-modus: alle spaCy-modellen + alle HF-modellen. De Electron-dev laat
+    zowel ``python -m spacy download`` als de optionele ``[sonar]``-extra
+    werken, dus de volledige lijst is relevant.
+
+    Bundle-modus: alleen de gebundelde spaCy-modellen die daadwerkelijk als
+    Python-module aanwezig zijn, plus de HF-modellen die door Electron via
+    ``hf-seed`` voor-geseed zijn (SoNaR-BERT is standaard aanwezig). BERTje
+    op zichzelf heeft in de app geen onafhankelijke functie (geen NER-head),
+    dus die wordt in de bundle verborgen.
+    """
+
+    if not _is_bundled_build():
+        return [*_SPACY_MODELS, *_HF_MODELS]
+
+    available_spacy = [m for m in _SPACY_MODELS if _spacy_installed(m.install_target)[0]]
+    # In de bundle tonen we alleen HF-modellen die Electron heeft voor-geseed
+    # (dus die al in de user-HF-cache staan). BERTje zonder NER-head is in de
+    # app niet los bruikbaar en wordt daarom bewust weggelaten.
+    bundled_hf_ids = {"hf:wietsedv/bert-base-dutch-cased-finetuned-sonar-ner"}
+    available_hf = [m for m in _HF_MODELS if m.id in bundled_hf_ids]
+    return [*available_spacy, *available_hf]
+
+
+REGISTRY: list[ModelDescriptor] = _build_registry()
+REGISTRY_BY_ID: dict[str, ModelDescriptor] = {m.id: m for m in REGISTRY}
 
 
 def _anonimiseer_hf_home() -> Path:

@@ -49,6 +49,13 @@ class EngineConfigRequest(BaseModel):
         default=None,
         description="HF-repo voor SoNaR (laat leeg voor default).",
     )
+    enable_han_edu: bool | None = Field(
+        default=None,
+        description=(
+            "Schakel het HAN-/onderwijsprofiel in/uit: klas-, cursus-, "
+            "CROHO-, personeelsnummer- en mentor-/docent-labelherkenners."
+        ),
+    )
     ollama_model: str | None = Field(
         default=None,
         description="Ollama-tag (bv. 'qwen3.5:4b') voor LLM-rollen.",
@@ -91,6 +98,14 @@ class ActiveEngineResponse(BaseModel):
     spacy_model: str
     sonar_enabled: bool
     sonar_model: str | None = None
+    han_edu_enabled: bool = Field(
+        default=True,
+        description=(
+            "Staat het HAN-/onderwijsprofiel aan? Als False worden de "
+            "klas-, cursus-, CROHO-, personeelsnummer- en mentor-label-"
+            "recognizers niet geladen."
+        ),
+    )
     score_threshold: float
     recognizers: list[str] = Field(
         default_factory=list,

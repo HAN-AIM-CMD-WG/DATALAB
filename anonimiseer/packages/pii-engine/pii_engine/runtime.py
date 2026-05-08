@@ -36,6 +36,10 @@ class RuntimeConfig:
     spacy_model: str | None = None
     enable_sonar: bool | None = None
     sonar_model: str | None = None
+    # HAN-/onderwijsprofiel: zet de klas-, cursus-, CROHO-, personeels-
+    # en mentor-recognizers aan of uit zonder engine-restart. ``None``
+    # betekent: gebruik de env-var/Settings-default (in de pilot: True).
+    enable_han_edu: bool | None = None
     # Ollama integraties. ``ollama_model`` = tagnaam zoals in
     # ``ollama list`` (bv. ``qwen3.5:4b``). De drie flags zijn opt-in
     # zodat Ollama-aanwezigheid alleen bewust meedoet aan detectie.
@@ -76,6 +80,7 @@ def _load_from_disk() -> RuntimeConfig:
         spacy_model=raw.get("spacy_model") or None,
         enable_sonar=_optional_bool(raw, "enable_sonar"),
         sonar_model=raw.get("sonar_model") or None,
+        enable_han_edu=_optional_bool(raw, "enable_han_edu"),
         ollama_model=raw.get("ollama_model") or None,
         ollama_review_enabled=_optional_bool(raw, "ollama_review_enabled"),
         ollama_extra_ner_enabled=_optional_bool(raw, "ollama_extra_ner_enabled"),
@@ -114,6 +119,8 @@ def effective_settings() -> Settings:
         changes["enable_sonar"] = override.enable_sonar
     if override.sonar_model:
         changes["sonar_model"] = override.sonar_model
+    if override.enable_han_edu is not None:
+        changes["enable_han_edu"] = override.enable_han_edu
     if not changes:
         return base
     # Pydantic BaseSettings ondersteunt model_copy(update=...).
@@ -129,6 +136,7 @@ def _validate(
     spacy_model: str | None,
     enable_sonar: bool | None,
     sonar_model: str | None,
+    enable_han_edu: bool | None,  # noqa: ARG001 — geen externe afhankelijkheid
     ollama_model: str | None,
     ollama_review_enabled: bool | None,
     ollama_extra_ner_enabled: bool | None,
@@ -194,6 +202,7 @@ def apply(
     spacy_model: str | None = None,
     enable_sonar: bool | None = None,
     sonar_model: str | None = None,
+    enable_han_edu: bool | None = None,
     ollama_model: str | None = None,
     ollama_review_enabled: bool | None = None,
     ollama_extra_ner_enabled: bool | None = None,
@@ -211,6 +220,7 @@ def apply(
         spacy_model=spacy_model,
         enable_sonar=enable_sonar,
         sonar_model=sonar_model,
+        enable_han_edu=enable_han_edu,
         ollama_model=ollama_model,
         ollama_review_enabled=ollama_review_enabled,
         ollama_extra_ner_enabled=ollama_extra_ner_enabled,
@@ -224,6 +234,9 @@ def apply(
             spacy_model=spacy_model if spacy_model is not None else current.spacy_model,
             enable_sonar=enable_sonar if enable_sonar is not None else current.enable_sonar,
             sonar_model=sonar_model if sonar_model is not None else current.sonar_model,
+            enable_han_edu=(
+                enable_han_edu if enable_han_edu is not None else current.enable_han_edu
+            ),
             ollama_model=ollama_model if ollama_model is not None else current.ollama_model,
             ollama_review_enabled=(
                 ollama_review_enabled if ollama_review_enabled is not None else current.ollama_review_enabled

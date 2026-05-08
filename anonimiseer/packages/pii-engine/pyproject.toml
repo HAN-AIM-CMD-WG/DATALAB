@@ -39,7 +39,18 @@ dependencies = [
 nl-small = [
     "nl-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_sm-3.8.0/nl_core_news_sm-3.8.0-py3-none-any.whl",
 ]
+nl-medium = [
+    "nl-core-news-md @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_md-3.8.0/nl_core_news_md-3.8.0-py3-none-any.whl",
+]
 nl-large = [
+    "nl-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_lg-3.8.0/nl_core_news_lg-3.8.0-py3-none-any.whl",
+]
+bundle = [
+    "pyinstaller>=6.11.0",
+    # nl_core_news_lg wordt gebundeld voor de desktop-app: ~568 MB model maar
+    # geeft de beste namen-recall voor Nederlands zonder dat de gebruiker iets
+    # hoeft te downloaden. Alternatief (sm/md) is kleiner maar mist vaker
+    # complexere namen als "Dr. Anna van der Heide-Janssen".
     "nl-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/nl_core_news_lg-3.8.0/nl_core_news_lg-3.8.0-py3-none-any.whl",
 ]
 sonar = [
@@ -63,7 +74,14 @@ Homepage = "https://github.com/datalab/anonimiseer"
 Issues = "https://github.com/datalab/anonimiseer/issues"
 
 [tool.setuptools]
-packages = ["pii_engine", "pii_engine.recognizers", "pii_engine.config", "pii_engine.static"]
+packages = [
+    "pii_engine",
+    "pii_engine.recognizers",
+    "pii_engine.config",
+    "pii_engine.static",
+    "pii_engine.documents",
+    "pii_engine.models",
+]
 
 [tool.setuptools.package-data]
 "pii_engine.static" = ["*.html"]
