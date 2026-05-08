@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 
 from pii_engine.ollama_client import OllamaError, generate
@@ -63,6 +64,18 @@ class ReviewResult:
 _MAX_BODY_CHARS = 8_000
 _VALID_VERDICTS = {"clean", "suspect"}
 
+# Reasoning-modellen (qwen3, deepseek-r1, …) emitten soms een
+# ``<think>…</think>`` blok voordat het echte antwoord komt. Ook met
+# ``format: "json"`` gebeurt dat bij sommige Ollama-versies. We strippen
+# alle bekende reasoning-tags zodat het antwoord daarna pure JSON is.
+_THINK_TAG_RE = re.compile(
+    r"<(think|thinking|reasoning)>.*?</\1>",
+    flags=re.DOTALL | re.IGNORECASE,
+)
+# Sommige modellen openen wel een tag maar sluiten 'm niet netjes;
+# dan houden we alleen alles vanaf de eerste ``{`` over.
+_OPEN_THINK_RE = re.compile(r"<(think|thinking|reasoning)>", flags=re.IGNORECASE)
+
 
 def review(text: str, model: str) -> ReviewResult:
     """Vraag het LLM om een second-opinion op de geanonimiseerde tekst.
@@ -87,6 +100,7 @@ def review(text: str, model: str) -> ReviewResult:
             json_mode=True,
             temperature=0.0,
             timeout_s=120.0,
+            think=False,
         )
     except OllamaError as exc:
         return ReviewResult(
@@ -128,15 +142,28 @@ def review(text: str, model: str) -> ReviewResult:
     )
 
 
+def _strip_thinking(raw: str) -> str:
+    """Verwijder reasoning-tokens en markdown-fences uit het antwoord."""
+
+    cleaned = _THINK_TAG_RE.sub("", raw).strip()
+    # Onafgesloten <think>… → val terug op alles vanaf eerste ``{``.
+    if _OPEN_THINK_RE.search(cleaned):
+        idx = cleaned.find("{")
+        if idx >= 0:
+            cleaned = cleaned[idx:]
+    cleaned = cleaned.lstrip("`").strip()
+    if cleaned.lower().startswith("json"):
+        cleaned = cleaned[4:].strip()
+    return cleaned.rstrip("`").strip()
+
+
 def _parse_response(raw: str) -> dict[str, object] | None:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        # Sommige modellen plakken Markdown-fences om JSON heen.
-        cleaned = raw.strip().lstrip("`")
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:].strip()
-        cleaned = cleaned.rstrip("`").strip()
+        # Reasoning-blokken (qwen3 e.a.) en markdown-fences strippen,
+        # dan opnieuw proberen.
+        cleaned = _strip_thinking(raw)
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError:

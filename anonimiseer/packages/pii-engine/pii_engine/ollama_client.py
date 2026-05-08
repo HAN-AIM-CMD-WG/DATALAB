@@ -122,12 +122,16 @@ def generate(
     json_mode: bool = False,
     temperature: float = 0.0,
     timeout_s: float | None = None,
+    think: bool | None = None,
 ) -> OllamaResult:
     """Voer één synchrone generate-call uit en retourneer het antwoord.
 
     We zetten ``stream=False`` zodat we het hele antwoord in één keer
     binnenkrijgen — voor onze gebruiken (paar honderd tokens) is dat
     eenvoudiger en sneller.
+
+    ``think=False`` schakelt redeneerstappen uit voor reasoning-modellen
+    (qwen3, deepseek-r1, …). Wordt door oudere Ollama-versies genegeerd.
     """
 
     host = _resolve_host()
@@ -141,6 +145,8 @@ def generate(
         payload["system"] = system
     if json_mode:
         payload["format"] = "json"
+    if think is not None:
+        payload["think"] = think
     try:
         with httpx.Client(timeout=timeout_s or GENERATE_TIMEOUT_S) as client:
             res = client.post(f"{host}/api/generate", json=payload)
