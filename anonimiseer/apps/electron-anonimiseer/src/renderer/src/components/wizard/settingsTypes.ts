@@ -68,9 +68,10 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
   },
   {
     id: 'adres',
-    label: 'Postcodes en adressen',
-    description: 'Nederlandse postcodes en geografische locaties.',
-    example: '6827 AV, Arnhem',
+    label: 'Postcodes, adressen en GPS',
+    description:
+      'Nederlandse postcodes, straat+huisnr, BE/DE/FR/UK-adressen, plaatsnamen en GPS-coördinaten.',
+    example: '6827 AV Arnhem, Bahnhofstraße 5, 52.0907° N, 5.1214° E',
     entityTypes: ['NL_POSTCODE', 'LOCATION'],
     defaultOn: true,
   },
@@ -93,6 +94,15 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
       'NL_OV_CHIPKAART',
       'BE_RIJKSREGISTER',
     ],
+    defaultOn: true,
+  },
+  {
+    id: 'voertuig',
+    label: 'Voertuigkentekens',
+    description:
+      'Nederlandse kentekens (alle officiële sidecodes 1–8 én afwijkende historische plaatjes).',
+    example: '12-AB-3D, 67-RDH-2, AB-123-C',
+    entityTypes: ['NL_KENTEKEN'],
     defaultOn: true,
   },
   {

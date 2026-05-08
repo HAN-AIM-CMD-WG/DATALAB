@@ -83,6 +83,11 @@ const PALETTE: Record<string, Omit<EntityStyle, 'categoryId' | 'label'>> = {
     pill: 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/30',
     strong: 'bg-pink-500/30',
   },
+  voertuig: {
+    highlight: 'bg-yellow-500/20 text-yellow-900 dark:text-yellow-200',
+    pill: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30',
+    strong: 'bg-yellow-500/30',
+  },
 };
 
 const FALLBACK: Omit<EntityStyle, 'categoryId' | 'label'> = {
