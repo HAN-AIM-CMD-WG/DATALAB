@@ -246,6 +246,10 @@ _SURNAME_PREFIX = re.compile(
 _SURNAME_CAP_TOKEN = re.compile(
     rf"\s+(?P<w>{_SURNAME_TOKEN})(?!\d)"
 )
+# Een bijnaam tussen aanhalingstekens tussen voornaam en achternaam:
+# ``Wim "Pim" Fortuyn-de Boer``. We slaan zo'n bijnaam over zodat de
+# achternaam-expansie alsnog ``Fortuyn-de Boer`` meeneemt.
+_NICKNAME_QUOTE = re.compile(r'\s+(?:"[^"\n]{1,30}"|\'[^\'\n]{1,30}\')(?=\s+[A-ZÀ-Þ])')
 
 
 def _prev_word(text: str, start: int) -> str | None:
@@ -333,8 +337,14 @@ class NlFirstNameRecognizer(EntityRecognizer):
             # ``Willem van der Berg``. We kappen op max 4 extra tokens
             # en stoppen zodra er geen kandidaat meer is.
             expanded_end = end
-            for _ in range(4):
+            for _ in range(5):
                 tail = text[expanded_end:]
+                # Eerst eventuele bijnaam tussen aanhalingstekens overslaan
+                # zodat de achternaam erna nog wordt meegepakt.
+                m_nick = _NICKNAME_QUOTE.match(tail)
+                if m_nick:
+                    expanded_end += m_nick.end()
+                    continue
                 m_pref = _SURNAME_PREFIX.match(tail)
                 if m_pref:
                     expanded_end += m_pref.end()

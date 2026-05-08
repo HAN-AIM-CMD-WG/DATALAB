@@ -99,6 +99,15 @@ _INTL_PC_CITY = re.compile(
     rf"\b(?P<pc>{_FIVE_DIGIT_PC})\s+(?P<city>{_INTL_CITY})\b"
 )
 
+# BE-postcode: 4 cijfers (1000-9999) + spatie + plaatsnaam. We
+# vereisen dat de plaats ná het cijfer met een hoofdletter begint en
+# minstens 3 letters telt; zo voorkomen we dat ``1234 op`` of ``1015 in``
+# als adres binnenkomt. ``\b`` aan beide kanten is essentieel.
+_BE_POSTCODE = r"[1-9]\d{3}"
+_BE_PC_CITY = re.compile(
+    rf"\b(?P<pc>{_BE_POSTCODE})\s+(?P<city>{_INTL_CITY_TOKEN}(?:\s+{_INTL_CITY_TOKEN}){{0,2}})\b"
+)
+
 # UK-postcode: ``SW1A 2AA``, ``M1 1AE``, ``EC1A 1BB``.
 _UK_POSTCODE = re.compile(
     r"\b(?P<pc>[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b"
@@ -165,10 +174,26 @@ class IntlAddressRecognizer(EntityRecognizer):
 
         # 5-cijfer postcode + plaats (DE/FR)
         for m in _INTL_PC_CITY.finditer(text):
-            # Span dekt het hele "12345 Plaats"
             out.append(
                 self._mk(m.start("pc"), m.end("city"), "intl_pc_city",
                          "5-cijfer postcode + plaatsnaam (DE/FR-formaat).",
+                         self.POSTCODE_SCORE)
+            )
+
+        # 4-cijfer postcode + plaats (BE). Alleen plaatsen waarvan de
+        # eerste token een bekende EU-stad is (om FP op willekeurige
+        # ``1234 In`` te voorkomen) — als de eerste token in ``EU_CITY_NAMES``
+        # zit pakken we 'm; anders skippen.
+        from pii_engine.recognizers.eu_cities import EU_CITY_NAMES_LC
+
+        for m in _BE_PC_CITY.finditer(text):
+            city = m.group("city")
+            first = city.split()[0].lower()
+            if first not in EU_CITY_NAMES_LC:
+                continue
+            out.append(
+                self._mk(m.start("pc"), m.end("city"), "be_pc_city",
+                         "4-cijfer BE-postcode + plaatsnaam.",
                          self.POSTCODE_SCORE)
             )
 

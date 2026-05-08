@@ -98,6 +98,7 @@ def create_app() -> FastAPI:
                 language=req.language,
                 entities=req.entities,
                 score_threshold=req.score_threshold,
+                return_decision_process=True,
             )
         except Exception as exc:  # pragma: no cover
             logger.exception("Analyse mislukt")
@@ -125,6 +126,7 @@ def create_app() -> FastAPI:
                 language=req.language,
                 entities=req.entities,
                 score_threshold=req.score_threshold,
+                return_decision_process=True,
             )
             results = filter_overlaps(results, text=req.text)
             mapping = PseudonymMapping() if req.mode == "pseudonymize" else None

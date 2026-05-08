@@ -28,7 +28,7 @@ from presidio_analyzer import (
 )
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-__all__ = ["EuCityRecognizer", "EU_CITY_NAMES"]
+__all__ = ["EuCityRecognizer", "EU_CITY_NAMES", "EU_CITY_NAMES_LC"]
 
 
 EU_CITY_NAMES: tuple[str, ...] = (
@@ -232,6 +232,11 @@ def _build_pattern(names: tuple[str, ...]) -> re.Pattern[str]:
 
 
 _CITY_REGEX = _build_pattern(EU_CITY_NAMES)
+
+# Lowercase-set voor losse-token-validatie door andere recognizers
+# (``IntlAddressRecognizer`` checkt of "1040 Brussel" → "Brussel" een
+# bekende stad is voordat hij de span pakt).
+EU_CITY_NAMES_LC: frozenset[str] = frozenset(name.lower() for name in EU_CITY_NAMES)
 
 
 class EuCityRecognizer(EntityRecognizer):

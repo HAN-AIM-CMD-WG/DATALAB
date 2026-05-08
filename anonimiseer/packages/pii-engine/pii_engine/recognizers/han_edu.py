@@ -641,7 +641,7 @@ class StageOrganizationRecognizer(EntityRecognizer):
 # dossiers soms expliciet vermeld; we gebruiken context om random
 # 16-cijfer-reeksen (IBAN, creditcard) niet verkeerd te labelen.
 # ---------------------------------------------------------------------------
-_OV_REGEX = r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"
+_OV_REGEX = r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}(?:[\s-]?\d{1,3})?\b"
 _OV_MARKERS = (
     "ov-chip",
     "ov chipkaart",

@@ -316,7 +316,7 @@ _POLICY_MARKERS = (
     "zorgverzekering",
     "zorgpolis",
 )
-_POLICY_REGEX = r"\b\d{8,12}\b"
+_POLICY_REGEX = r"\b\d(?:[\s-]?\d){7,15}\b"
 
 
 class NlPolicyNumberRecognizer(PatternRecognizer):

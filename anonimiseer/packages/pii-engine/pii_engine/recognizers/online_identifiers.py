@@ -44,6 +44,25 @@ _HANDLE_REGEX = re.compile(
     r"(?<![A-Za-z0-9._@/])@(?P<value>[A-Za-z][A-Za-z0-9_]{2,29})(?![A-Za-z0-9._])"
 )
 
+# BlueSky-/AT-protocol-handle (``@jeroenvdm.bsky.social``,
+# ``@alice.example.com``). Drie of meer alfanum-/hyphen-tokens
+# gescheiden door ``.``. We trekken het hele handle in één span zodat
+# de URL-recognizer niet het domein-deel apart pakt.
+_BLUESKY_HANDLE_REGEX = re.compile(
+    r"(?<![A-Za-z0-9._@/])"
+    r"@(?P<value>[A-Za-z][A-Za-z0-9_-]{1,30}"
+    r"(?:\.[A-Za-z0-9_-]{1,30}){1,4})"
+    r"(?![A-Za-z0-9._])"
+)
+
+# Mastodon-style fediverse handle (``@user@mastodon.nl``).
+_MASTODON_HANDLE_REGEX = re.compile(
+    r"(?<![A-Za-z0-9._@/])"
+    r"@(?P<value>[A-Za-z][A-Za-z0-9_.-]{1,30}"
+    r"@[A-Za-z][A-Za-z0-9.-]{1,40}\.[A-Za-z]{2,10})"
+    r"(?![A-Za-z0-9._])"
+)
+
 # Gebruikersnaam achter label. Captures alleen de waarde.
 _USERNAME_LABELS = (
     r"gebruikersnaam",
@@ -135,21 +154,35 @@ class OnlineIdentifierRecognizer(EntityRecognizer):
         out: list[RecognizerResult] = []
 
         if "SOCIAL_HANDLE" in wanted:
-            for m in _HANDLE_REGEX.finditer(text):
-                start, end = m.span("value")
-                # Resultaat-span omvat de ``@`` voor leesbaarheid in de UI.
-                out.append(
-                    self._make_result(
-                        "SOCIAL_HANDLE",
-                        start - 1,
-                        end,
-                        score=self.DEFAULT_SCORES["SOCIAL_HANDLE"],
-                        explanation=(
-                            "Social-media handle (``@username``); 3-30 alfanum"
-                            " tekens, geen e-mail-context."
-                        ),
+            # Match volgorde: éérst de meer-specifieke patronen
+            # (Mastodon/BlueSky met meerdere segmenten) zodat hun grotere
+            # span in de overlap-resolver van de eenvoudige
+            # ``@username``-match wint.
+            for regex, why in (
+                (
+                    _MASTODON_HANDLE_REGEX,
+                    "Fediverse-handle (``@user@server.tld``).",
+                ),
+                (
+                    _BLUESKY_HANDLE_REGEX,
+                    "AT-protocol-handle (``@user.bsky.social``).",
+                ),
+                (
+                    _HANDLE_REGEX,
+                    "Social-media handle (``@username``); 3-30 alfanum tekens.",
+                ),
+            ):
+                for m in regex.finditer(text):
+                    start, end = m.span("value")
+                    out.append(
+                        self._make_result(
+                            "SOCIAL_HANDLE",
+                            start - 1,
+                            end,
+                            score=self.DEFAULT_SCORES["SOCIAL_HANDLE"],
+                            explanation=why,
+                        )
                     )
-                )
 
         if "USERNAME" in wanted:
             for m in _USERNAME_REGEX.finditer(text):

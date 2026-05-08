@@ -45,7 +45,11 @@ ENTITY_PRIORITY: dict[str, int] = {
     # en handle zijn iets minder sterk maar nog ruim boven NER.
     "PASSWORD": 1,
     "USERNAME": 4,
-    "SOCIAL_HANDLE": 4,
+    # Social-handle prio = 1 zodat een Mastodon-/BlueSky-handle die een
+    # e-mailadres of URL omhult, beide overschrijft. Anders zou
+    # ``@user@mastodon.nl`` als EMAIL_ADDRESS eindigen.
+    "SOCIAL_HANDLE": 1,
+    "NL_KENTEKEN": 2,
     # NL-identificatienummers: hard patroon + context. Staan bewust
     # boven DATE_TIME/PHONE_NUMBER zodat we "KvK 34567890" niet als
     # datum of telefoonnummer behandelen.
@@ -118,85 +122,177 @@ _HAS_LETTER_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ]")
 # kanten zonder de binnenkant te raken.
 _TRIM_CHARS = " \t|*_:;,-–—(){}[]"
 
-# Woorden die we nooit als ORGANIZATION-naam willen zien, ook niet als
-# spaCy ze als "eigennaam" oppikt: dit zijn label-termen die we zelf
-# gebruiken om te promoten. Case-insensitief.
-# Label-woorden die spaCy regelmatig als PERSON markeert omdat ze
-# uniek en gekapitaliseerd zijn; ze zijn echter nooit een naam maar
-# een veld-label. Filteren we er op dezelfde manier uit als
-# organisatie-labels.
-_PERSON_LABEL_WORDS = frozenset(
+# Aanhefwoorden die spaCy regelmatig in de PERSON-span trekt
+# (``Hoi Anna`` → één PERSON-span ``"Hoi Anna"``). We knippen ze hier weg
+# als ze als prefix in een PERSON-span verschijnen.
+_GREETING_PREFIX_RE = re.compile(
+    r"^(?:Hoi|Hallo|Hi|Hey|Dag|Beste|Geachte|"
+    r"Goedemorgen|Goedemiddag|Goedenavond|Groetjes)\s+",
+    re.IGNORECASE,
+)
+
+# Detectie van een label-header op de regel ná een PERSON-span. Als een
+# PERSON-span een newline bevat is dat meestal een naam over twee regels
+# (``Jeroen\nvan der Meulen``); alleen wanneer de tweede regel daadwerkelijk
+# met een markdown-label of veld begint (``\n**Docent:**`` /
+# ``\nMentor:``) splitsen we op de newline.
+_LABEL_AFTER_NEWLINE_RE = re.compile(
+    r"^[\s\-*•·]*\*{0,2}[A-Z][A-Za-zÀ-ÿ'\-]+\*{0,2}\s*[:=]"
+)
+# Vervolg van een naam over de regelafbreking heen (``\nvan der Meulen``,
+# ``\nde Vries-Smit``). Een tussenvoegsel of een hoofdletter-token telt.
+_NAME_CONTINUATION_RE = re.compile(
+    r"^\s*(?:"
+    r"(?:el|al|ibn|bin|de|den|der|van|te|ten|ter|'t|het|op|aan)\s+"
+    r"|"
+    r"[A-ZÀ-Þ][a-zà-ÿ]"
+    r")"
+)
+
+# Woorden die we nooit als ORGANIZATION/PERSON/LOCATION willen zien, ook
+# niet als spaCy ze als "eigennaam" oppikt. Dit zijn alléén veld-labels die
+# we zelf in formulieren/markdown gebruiken (``**Paspoortnummer:**``,
+# ``**Twitter/X:**``). Vergelijking is case-insensitief, na het strippen
+# van markdown-opmaak (``**``, ``:``, ``-`` aan de randen) door
+# ``_trim_ner_span``. Filter is opzettelijk breed: liever een gemiste
+# label-FP dan dat 'Paspoortnummer' als PERSON in de output blijft staan.
+_LABEL_WORDS_ANY = frozenset(
     {
-        "paspoortnummer",
-        "paspoort",
-        "identiteitsbewijs",
-        "identiteitskaart",
-        "identiteit",
-        "documentnummer",
-        "persoonsnummer",
-        "klantnummer",
-        "dossiernummer",
-        "zaaknummer",
-        "kenmerk",
-        "referentie",
-        "referentienummer",
-        "polisnummer",
-        "rekeningnummer",
-        "bsn",
-        "bsn-nummer",
-        "rijbewijs",
-        "bankrekening",
-        "iban",
-        "bic",
-        "btw",
-        "btw-nummer",
-        "kvk",
-        "kvk-nummer",
-        "agb",
-        "big",
-        "telefoon",
-        "telefoonnummer",
-        "mobiel",
-        "vast",
-        "e-mail",
-        "email",
-        "woonplaats",
-        "geboortedatum",
-        "adres",
-        "postcode",
-        "werkgever",
-        "opdrachtgever",
-        "naam",
-        "voornaam",
-        "achternaam",
-        "tussenvoegsel",
+        # ---- Persoon-/contact-velden ----
+        "naam", "voornaam", "achternaam", "tussenvoegsel", "roepnaam", "bijnaam",
+        "geboortedatum", "geboorteplaats", "geboorteland",
+        "geslacht", "leeftijd", "nationaliteit",
+        "adres", "postcode", "woonplaats", "huisnummer", "straat",
+        "plaats", "stad", "land", "provincie", "regio",
+        "telefoon", "telefoonnummer", "mobiel", "vast", "tel", "gsm",
+        "e-mail", "email", "mail", "e-mailadres", "mailadres",
+        "werkgever", "opdrachtgever", "werknemer", "leverancier",
+        "contact", "contactpersoon",
+        # ---- Identificatie-nummers ----
+        "bsn", "bsn-nummer", "sofinummer",
+        "paspoort", "paspoortnummer",
+        "id-kaart", "id-bewijs",
+        "identiteit", "identiteitsbewijs", "identiteitskaart",
+        "rijbewijs", "rijbewijsnummer",
+        "documentnummer", "persoonsnummer", "klantnummer",
+        "dossiernummer", "zaaknummer", "kenmerk", "referentie", "referentienummer",
+        "polisnummer", "polis",
+        "rekeningnummer", "bankrekening",
+        "iban", "bic", "swift-code",
+        "btw", "btw-nummer", "kvk", "kvk-nummer",
+        "agb", "agb-code", "big", "big-nummer",
+        "patiëntnummer", "patientnummer", "patiëntid", "patientid",
+        "rijksregister", "rijksregisternummer",
+        # ---- Onderwijs / HAN ----
+        "studentnummer", "studienummer", "leerlingnummer",
+        "medewerkernummer", "personeelsnummer",
+        "klas", "klas-code", "klascode", "klasgroep",
+        "cursus", "cursuscode", "vakcode", "modulecode",
+        "croho", "croho-code",
+        "mentor", "slb", "slb-er", "slb'er", "examinator",
+        "begeleider", "coach", "docent", "lector",
+        "stagebedrijf", "stageorganisatie", "stageplaats", "stage",
+        "stagebegeleider", "praktijkbegeleider",
+        "leerbedrijf", "leerwerkplek", "afstudeerbedrijf",
+        "onderzoeksbedrijf", "contactbedrijf",
+        "beoordelaar", "studieloopbaanbegeleider",
+        "voertuigkenteken", "kenteken", "kentekenplaat",
+        # ---- Online identifiers ----
+        "gebruikersnaam", "username", "login", "account", "accountnaam",
+        "wachtwoord", "password", "paswoord", "pwd",
+        "backup-wachtwoord", "backupwachtwoord", "hoofdwachtwoord",
+        "twitter", "twitter/x", "bluesky", "mastodon",
+        "linkedin", "facebook", "instagram",
+        "whatsapp", "signal", "telegram", "discord",
+        "snapchat", "tiktok", "youtube",
+        "github", "gitlab", "bitbucket",
+        "ipv4", "ipv6", "ip-adres", "ip-address",
+        "mac-adres", "mac-address",
+        "url", "website", "homepage", "profielpagina", "profiel",
+        "gps", "gps-locatie", "gps-coördinaten",
+        "coördinaten", "geo", "geo-locatie", "locatie",
+        "lat", "lng", "lon", "latitude", "longitude",
+        # ---- Creditcard-meta ----
+        "cvc", "cvv", "cvc-code", "cvv-code",
+        "visa", "mastercard", "amex", "american-express",
+        "dinersclub", "diners-club", "discover", "maestro",
+        "creditcard", "creditcardnummer", "kaart", "kaartnummer",
+        "vervaldatum", "verloopdatum", "geldigheidsdatum",
+        "beveiligingscode",
+        # ---- Aanhef die spaCy de naam-span in trekt ----
+        "hoi", "hallo", "hey", "dag", "beste", "geachte",
+        "goedemorgen", "goedemiddag", "goedenavond",
+        "groetjes", "groet",
+        "mevrouw", "meneer", "mvr", "dhr", "mw",
+        # ---- Document-meta uit ons eigen test-template ----
+        "strikt-additief", "additief",
+        "patient", "patiënt",
+        "han-specifieke", "han-medewerker", "han-student", "han-docent",
+        "s-prefix", "p-prefix",
     }
 )
 
 
-_ORG_LABEL_WORDS = frozenset(
+# Korte (≤ 3 tekens) hoofdletter-tokens die spaCy graag als ORG/LOC pakt
+# maar die hier juist géén PII zijn (landcodes, sectie-letters tussen
+# haakjes, ``Klant K``). Als de hit uit ``SpacyRecognizer`` komt en niet
+# in deze whitelist staat → drop. De whitelist bevat 2-3 letter NL/BE/DE
+# bank-/verzekeraar-/transport-codes die wél echte ORG-namen zijn.
+_SHORT_UPPER_KEEP = frozenset(
     {
-        "stagebedrijf",
-        "stageorganisatie",
-        "stageplaats",
-        "werkgever",
-        "opdrachtgever",
-        "leerbedrijf",
-        "leerwerkplek",
-        "afstudeerbedrijf",
-        "onderzoeksbedrijf",
-        "contactbedrijf",
-        "stagebegeleider",
-        "praktijkbegeleider",
-        "contactpersoon",
-        "docent",
-        "mentor",
-        "begeleider",
-        "coach",
-        "examinator",
-        "beoordelaar",
-        "studieloopbaanbegeleider",
+        "ING", "SNS", "ASN", "KBC", "DKB", "AXA", "BNP", "BNG",
+        "HSBC", "NIBC", "DNB", "ASR", "FNG", "NHG",
+        "KLM", "TNT", "DPD", "DHL", "UPS", "PostNL",
+        "RTL", "NOS", "NPO", "NU.nl",
     }
+)
+
+
+def _from_spacy(r: RecognizerResult) -> bool:
+    """True als de hit door Presidio's SpacyRecognizer is geproduceerd."""
+
+    expl = getattr(r, "analysis_explanation", None)
+    if expl is None:
+        return False
+    return getattr(expl, "recognizer", "") in {"SpacyRecognizer", "SonarRecognizer"}
+
+
+# Recognizers die een address/locatie produceren. Hits hieruit winnen van
+# een spaCy-ORG/PERSON op dezelfde tekst (regel 3 hieronder).
+_ADDRESS_RECOGNIZER_NAMES = frozenset(
+    {
+        "NlAddressRecognizer",
+        "IntlAddressRecognizer",
+        "EuCityRecognizer",
+    }
+)
+
+
+def _from_address_recognizer(r: RecognizerResult) -> bool:
+    expl = getattr(r, "analysis_explanation", None)
+    if expl is None:
+        return False
+    return getattr(expl, "recognizer", "") in _ADDRESS_RECOGNIZER_NAMES
+
+
+def _is_paren_wrapped(text: str, start: int, end: int) -> bool:
+    """True als de span tussen ``(`` en ``)`` staat: ``…(NL)`` , ``(BE)`` ."""
+
+    return (
+        start > 0
+        and end < len(text)
+        and text[start - 1] == "("
+        and text[end] == ")"
+    )
+
+
+# Korte alfanumerieke codes (``AB12``, ``X3``, ``12AB``) zijn geen echte
+# eigennamen; spaCy zet ze niettemin regelmatig op ORG omdat ze met een
+# hoofdletter beginnen. We vangen ze hier weg, mits afkomstig uit
+# ``SpacyRecognizer`` (eigen recognizers met deze patronen — kenteken,
+# kvk, etc. — gebruiken hun eigen entity-types).
+_SHORT_ALNUM_CODE_RE = re.compile(
+    r"^(?:[A-Z]{1,3}\d{1,3}|\d{1,3}[A-Z]{1,3})$"
 )
 
 # Presidio laadt voor NL soms een NrpRecognizer (nationalities/religions)
@@ -275,16 +371,41 @@ def _trim_ner_span(
     span = text[result.start : result.end]
     # SpaCy labelt regelmatig NER-spans door naar een volgende regel
     # omdat het tabel-layout niet goed snapt (``Mentor: X\nDocent: Y``
-    # levert dan één PERSON-span). Knip op de eerste newline.
+    # levert dan één PERSON-span). Standaard knippen we op de eerste
+    # newline, BEHALVE als de span een naam over twee regels is en de
+    # tweede regel met een tussenvoegsel of hoofdletter-token begint
+    # (``Jeroen\nvan der Meulen``). Dan houden we de hele naam in één
+    # span. Een echte label-header op de tweede regel (``\n**Docent:**``)
+    # wint nog wel: dan splitsen we alsnog.
     newline_idx = span.find("\n")
     if newline_idx != -1:
-        span = span[:newline_idx]
+        after = span[newline_idx + 1 :]
+        keep_through_newline = (
+            result.entity_type == "PERSON"
+            and not _LABEL_AFTER_NEWLINE_RE.match(after)
+            and _NAME_CONTINUATION_RE.match(after)
+        )
+        if not keep_through_newline:
+            span = span[:newline_idx]
     lstrip = span.lstrip(_TRIM_CHARS)
     rstrip = lstrip.rstrip(_TRIM_CHARS)
     if not rstrip:
         return None
+
     new_start = result.start + (len(span) - len(lstrip))
     new_end = new_start + len(rstrip)
+
+    # Aanhef voor een PERSON-span (``Hoi Anna``) wegtrimmen zodat alleen
+    # de naam overblijft. Geldt enkel voor PERSON; ``Hoi`` zelf hoort
+    # nooit bij een org/loc.
+    if result.entity_type == "PERSON":
+        m = _GREETING_PREFIX_RE.match(rstrip)
+        if m and len(rstrip) > m.end():
+            shift = m.end()
+            new_start += shift
+            rstrip = rstrip[shift:]
+            new_end = new_start + len(rstrip)
+
     if new_start == result.start and new_end == result.end:
         return result
     return RecognizerResult(
@@ -334,10 +455,17 @@ def filter_overlaps(
             or _DATE_VALIDATION_RE.fullmatch(text[r.start : r.end].strip())
         ]
 
-    # Optionele punct-only filter: enkel NER-hits zonder letters droppen
-    # (bv. spaCy labelt ``|---|---|---|---|`` soms als ORG). Voor ORG
-    # filteren we ook hits die gelijk zijn aan een HAN-label (het woord
-    # ``Stagebedrijf`` zelf mag geen ORG zijn).
+    # Optionele punct-only filter + label-FP-filter. Voor PERSON/ORG/LOCATION
+    # uit de NER-laag kijken we apart naar drie soorten ruis:
+    #
+    #   1. Span bevat geen enkele letter (bv. ``|---|`` als ORG) → drop.
+    #   2. Span (na trim) is exact een veld-label uit ``_LABEL_WORDS_ANY``
+    #      (``Paspoortnummer`` als ORG, ``Postcode`` als LOC,
+    #      ``Hoi`` ingebakken in ``Hoi Anna`` als PERSON) → drop.
+    #   3. Span is ≤ 3 tekens hoofdletters, komt uit spaCy en staat niet in
+    #      onze ``_SHORT_UPPER_KEEP``-whitelist (``(NL)``, ``Klant K``,
+    #      ``(UK)``) → drop. Korte spans tussen haakjes zijn vrijwel altijd
+    #      afkortingen of sectie-letters, geen PII.
     if text is not None:
         trimmed: list[RecognizerResult] = []
         for r in deduped:
@@ -347,17 +475,38 @@ def filter_overlaps(
                 fixed = _trim_ner_span(r, text)
                 if fixed is None:
                     continue
-                span_lower = text[fixed.start : fixed.end].strip().lower()
+                span = text[fixed.start : fixed.end].strip()
+                span_lower = span.lower()
+
+                if span_lower in _LABEL_WORDS_ANY:
+                    continue
+
+                is_short_upper = (
+                    1 <= len(span) <= 3
+                    and span.isalpha()
+                    and span.isupper()
+                )
                 if (
-                    fixed.entity_type == "ORGANIZATION"
-                    and span_lower in _ORG_LABEL_WORDS
+                    is_short_upper
+                    and _from_spacy(fixed)
+                    and span not in _SHORT_UPPER_KEEP
                 ):
                     continue
+
                 if (
-                    fixed.entity_type == "PERSON"
-                    and span_lower in _PERSON_LABEL_WORDS
+                    _from_spacy(fixed)
+                    and len(span) <= 4
+                    and _is_paren_wrapped(text, fixed.start, fixed.end)
+                    and span not in _SHORT_UPPER_KEEP
                 ):
                     continue
+
+                if (
+                    _from_spacy(fixed)
+                    and _SHORT_ALNUM_CODE_RE.match(span)
+                ):
+                    continue
+
                 trimmed.append(fixed)
             else:
                 trimmed.append(r)
@@ -378,13 +527,28 @@ def filter_overlaps(
         if not keep[i]:
             continue
         inner_prio = _priority(inner.entity_type)
+        inner_is_ner = inner.entity_type in _PUNCT_SENSITIVE_TYPES
         for j, outer in enumerate(deduped):
             if i == j or not keep[j]:
                 continue
             outer_prio = _priority(outer.entity_type)
+            outer_is_ner = outer.entity_type in _PUNCT_SENSITIVE_TYPES
 
-            # Regel 1: volledige containment.
-            if _is_contained_in(inner, outer) and outer_prio < inner_prio:
+            # Regel 1: volledige containment. Uitzondering: een LOCATION
+            # uit een eigen address-recognizer mag niet sneuvelen tegen
+            # een spaCy-ORG/PERSON met formeel hogere prio. Die uitzondering
+            # is symmetrisch met regel 3 hieronder.
+            address_loc_vs_spacy_ner = (
+                inner.entity_type == "LOCATION"
+                and _from_address_recognizer(inner)
+                and outer.entity_type in {"ORGANIZATION", "PERSON"}
+                and _from_spacy(outer)
+            )
+            if (
+                _is_contained_in(inner, outer)
+                and outer_prio < inner_prio
+                and not address_loc_vs_spacy_ner
+            ):
                 keep[i] = False
                 break
             if (
@@ -392,6 +556,19 @@ def filter_overlaps(
                 and outer_prio == inner_prio
                 and (outer.end - outer.start) > (inner.end - inner.start)
                 and outer.score >= inner.score
+            ):
+                keep[i] = False
+                break
+            # Regel 1b: NER-types onderling (PERSON/ORG/LOC). Als de
+            # binnenste hit volledig binnen een strikt grotere NER-hit
+            # valt, droppen we de binnenste, ongeacht relatieve prio.
+            # Dit voorkomt dat ``Boer`` als LOC overblijft binnen
+            # ``Wim "Pim" Fortuyn-de Boer`` als PERSON.
+            if (
+                inner_is_ner
+                and outer_is_ner
+                and _is_contained_in(inner, outer)
+                and (outer.end - outer.start) > (inner.end - inner.start)
             ):
                 keep[i] = False
                 break
@@ -405,6 +582,22 @@ def filter_overlaps(
                 _overlaps(inner, outer)
                 and outer_prio < 10
                 and inner_prio >= 20
+            ):
+                keep[i] = False
+                break
+
+            # Regel 3: een eigen address-/plaats-recognizer levert een
+            # LOCATION-hit die deels overlapt met een spaCy-ORG of
+            # spaCy-PERSON: de LOCATION wint. Dit dekt
+            # ``Bahnhofstraße 5`` (LOC uit IntlAddressRecognizer) vs.
+            # ``Bahnhofstraße 5`` (ORG uit spaCy in lange zin-context).
+            if (
+                _overlaps(inner, outer)
+                and inner_is_ner
+                and inner.entity_type in {"ORGANIZATION", "PERSON"}
+                and outer.entity_type == "LOCATION"
+                and _from_address_recognizer(outer)
+                and not _from_spacy(outer)
             ):
                 keep[i] = False
                 break

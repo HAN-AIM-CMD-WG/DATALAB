@@ -64,6 +64,11 @@ _STREET_SUFFIXES = (
     "veld",
     "brink",
     "lei",
+    # Specifieke suffixen voor minder voorkomende NL-straten
+    # (``Voorhout`` → -hout, ``Hooghorst`` → -horst, ``Strijkamp`` → -kamp).
+    "hout",
+    "horst",
+    "kamp",
 )
 
 # Straatnaam = één of meer hoofdlettertokens, eventueel met titels als
@@ -87,6 +92,8 @@ _HOUSE_NUMBER = (
     r"\d{1,5}"
     r"(?:"
     r"[-/]?[A-Za-z]{1,3}"          # aanplakkend: 45a, 45-a, 45/b, 45III
+    r"|"
+    r"[-/]\d{1,4}[A-Za-z]?"        # appartement-nummer: 123-3, 45/12, 12-3a
     r"|"
     r"\s+(?:bis|huis|[IVXivx]{1,5})"  # met spatie, alleen expliciete suffixen
     r")?"
@@ -147,8 +154,18 @@ class NlAddressRecognizer(EntityRecognizer):
             start = match.start("street")
             end = match.end("nr")
             raw = text[start:end]
-            # Sanity: eerste token moet met hoofdletter beginnen en het
-            # geheel moet een spatie tussen straat en nummer hebben.
+            # Een straatnaam begint met een hoofdletter. Als ons regex-
+            # patroon per ongeluk een lowercase tussenvoegsel als eerste
+            # token heeft meegepakt (``op\nKeizersgracht 123``) schuiven
+            # we ``start`` op naar het eerste hoofdletter-token.
+            while raw and not raw[0].isupper():
+                ws_match = re.search(r"\s+", raw)
+                if ws_match is None:
+                    raw = ""
+                    break
+                skip = ws_match.end()
+                start += skip
+                raw = raw[skip:]
             if not raw or not raw[0].isupper():
                 continue
             results.append(
