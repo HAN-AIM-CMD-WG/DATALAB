@@ -180,6 +180,8 @@ function parseActiveBody(data: unknown): ActiveEngineResponse {
       spacyModel: typeof obj.spacy_model === 'string' ? obj.spacy_model : '—',
       sonarEnabled: Boolean(obj.sonar_enabled),
       sonarModel: typeof obj.sonar_model === 'string' ? obj.sonar_model : null,
+      hanEduEnabled:
+        typeof obj.han_edu_enabled === 'boolean' ? obj.han_edu_enabled : true,
       scoreThreshold:
         typeof obj.score_threshold === 'number' ? obj.score_threshold : 0.35,
       recognizers,
@@ -324,6 +326,7 @@ export function registerEngineBridge(): void {
     if (typeof patch?.spacyModel === 'string') body.spacy_model = patch.spacyModel;
     if (typeof patch?.enableSonar === 'boolean') body.enable_sonar = patch.enableSonar;
     if (typeof patch?.sonarModel === 'string') body.sonar_model = patch.sonarModel;
+    if (typeof patch?.enableHanEdu === 'boolean') body.enable_han_edu = patch.enableHanEdu;
     if (typeof patch?.ollamaModel === 'string') body.ollama_model = patch.ollamaModel;
     if (typeof patch?.ollamaReviewEnabled === 'boolean')
       body.ollama_review_enabled = patch.ollamaReviewEnabled;

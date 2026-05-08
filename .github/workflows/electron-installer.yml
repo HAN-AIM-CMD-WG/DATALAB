@@ -1,0 +1,186 @@
+name: electron-installer
+
+# Bouwt cross-platform installers voor de Anonimiseer Electron-app.
+# Per OS:
+#   1) PyInstaller one-folder bundle van pii-engine (inclusief spaCy nl_core_news_md)
+#   2) electron-builder: dmg (mac) of NSIS (win) installer met bundle als extraResource
+#
+# Triggert op:
+#   - push naar feat/** of main wanneer app- of engine-code wijzigt
+#   - manueel via workflow_dispatch
+#   - bij een release-tag (v*.*.*) → artifacts worden ook aan de Release gekoppeld
+#
+# Geen code-signing voor de pilot: dmg en nsis worden uitgeleverd als
+# "unsigned". Install-docs beschrijven hoe gebruikers de SmartScreen-/
+# Gatekeeper-waarschuwing wegklikken.
+
+on:
+  push:
+    branches: [main, "feat/**"]
+    paths:
+      - "anonimiseer/apps/electron-anonimiseer/**"
+      - "anonimiseer/packages/pii-engine/**"
+      - ".github/workflows/electron-installer.yml"
+  pull_request:
+    paths:
+      - "anonimiseer/apps/electron-anonimiseer/**"
+      - "anonimiseer/packages/pii-engine/**"
+      - ".github/workflows/electron-installer.yml"
+  workflow_dispatch:
+  release:
+    types: [created]
+
+concurrency:
+  group: electron-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build installer (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14            # Apple Silicon runner
+            target: mac
+            artifact_glob: "anonimiseer/apps/electron-anonimiseer/release/*.dmg"
+          - os: windows-latest
+            target: win
+            artifact_glob: "anonimiseer/apps/electron-anonimiseer/release/*.exe"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: anonimiseer/apps/electron-anonimiseer/package-lock.json
+
+      # --- 1) PyInstaller bundle ---------------------------------------------
+      - name: Install pii-engine + PyInstaller (Unix)
+        if: runner.os != 'Windows'
+        working-directory: anonimiseer/packages/pii-engine
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          # [sonar] voegt torch + transformers toe zodat SoNaR-BERT NER in de
+          # gebundelde app werkt. Maakt de installer ~400 MB groter maar is de
+          # moeite waard voor Nederlandse namen-recall.
+          pip install -e ".[bundle,sonar]"
+
+      - name: Install pii-engine + PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        working-directory: anonimiseer/packages/pii-engine
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e ".[bundle,sonar]"
+
+      - name: Run PyInstaller (Unix)
+        if: runner.os != 'Windows'
+        working-directory: anonimiseer/packages/pii-engine
+        run: |
+          cd build
+          pyinstaller pii-engine.spec --noconfirm --clean
+
+      - name: Run PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        working-directory: anonimiseer/packages/pii-engine
+        shell: pwsh
+        run: |
+          cd build
+          pyinstaller pii-engine.spec --noconfirm --clean
+
+      - name: Smoke-test pii-engine bundle (Unix)
+        if: runner.os != 'Windows'
+        working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
+        env:
+          PII_ENGINE_SPACY_MODEL: nl_core_news_md
+        run: |
+          ./pii-engine &
+          PID=$!
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8765/health >/dev/null 2>&1; then
+              echo "Bundle OK after ${i}s"
+              kill $PID || true
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Bundle failed health-check"
+          kill $PID || true
+          exit 1
+
+      - name: Smoke-test pii-engine bundle (Windows)
+        if: runner.os == 'Windows'
+        working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
+        shell: pwsh
+        env:
+          PII_ENGINE_SPACY_MODEL: nl_core_news_md
+        run: |
+          $proc = Start-Process -FilePath ".\pii-engine.exe" -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 45; $i++) {
+            try {
+              $r = Invoke-WebRequest -Uri "http://127.0.0.1:8765/health" -UseBasicParsing -TimeoutSec 2
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "Bundle failed health-check" }
+
+      # --- 2) Electron-builder installer -------------------------------------
+      - name: Install Electron-app dependencies
+        working-directory: anonimiseer/apps/electron-anonimiseer
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: anonimiseer/apps/electron-anonimiseer
+        run: npm run typecheck
+
+      - name: Build installer (mac)
+        if: matrix.target == 'mac'
+        working-directory: anonimiseer/apps/electron-anonimiseer
+        env:
+          # Expliciet geen signing in de pilot-fase; vermijd `electron/notarize`
+          # errors zonder Apple-credentials.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run dist:mac
+
+      - name: Build installer (win)
+        if: matrix.target == 'win'
+        working-directory: anonimiseer/apps/electron-anonimiseer
+        run: npm run dist:win
+
+      # --- 3) Artifacts -------------------------------------------------------
+      - name: List build output
+        if: always()
+        working-directory: anonimiseer/apps/electron-anonimiseer/release
+        shell: bash
+        run: ls -la || true
+
+      - name: Upload installer artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anonimiseer-${{ matrix.target }}
+          path: ${{ matrix.artifact_glob }}
+          if-no-files-found: error
+          retention-days: 14
+
+      # Bij een release-tag: hang artifacts direct aan de Release.
+      - name: Attach to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact_glob }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

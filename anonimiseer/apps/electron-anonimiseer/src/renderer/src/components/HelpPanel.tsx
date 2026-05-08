@@ -274,7 +274,8 @@ function PipelineExplanation(): JSX.Element {
           Breekt de tekst op in woorden, herkent zinsgrenzen, en geeft een eerste ronde
           namen/locaties/organisaties. Alle andere regels (BSN, postcode, IBAN, telefoon…)
           bouwen hierop door. Daarom kun je niet "nul" kiezen — de motor heeft één
-          basis nodig. Je kiest wél <em>welke</em>: klein, medium of large.
+          basis nodig. De installer levert <em>large</em> standaard mee (het krachtigste
+          spaCy-NL-model); medium is een alternatief voor minder RAM-gebruik.
         </p>
       </div>
 
@@ -283,20 +284,22 @@ function PipelineExplanation(): JSX.Element {
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] text-primary">
             2
           </span>
-          Aanvullende NER (SoNaR-BERT) — optioneel erbij
+          Aanvullende NER (SoNaR-BERT) — standaard aan
         </p>
         <p className="mt-1">
           Draait <em>naast</em> spaCy en voegt hits toe die spaCy heeft gemist
           (vooral Nederlandse persoonsnamen in formele context). Overlappende hits worden
-          samengevoegd, je krijgt dus geen dubbele markeringen. Nadeel: eerste analyse
-          duurt 10–30 seconden extra omdat het model eenmalig geladen wordt.
+          samengevoegd, dus geen dubbele markeringen. Zit in de installer meegeleverd en
+          staat direct aan. Nadeel: eerste analyse duurt 10–30 seconden extra omdat het
+          model eenmalig geladen wordt; kost ~600 MB RAM zolang de app open is.
         </p>
       </div>
 
       <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 text-emerald-900 dark:text-emerald-200">
         <CheckCircle2 className="mr-1 inline h-3 w-3" aria-hidden />
-        <span className="font-medium">Sweet spot voor Nederlands:</span>{' '}
-        spaCy-large + SoNaR-BERT aan. Dat is de standaard als je de app voor het eerst opent.
+        <span className="font-medium">Standaard na installatie:</span>{' '}
+        spaCy-large + SoNaR-BERT allebei actief — de sweet spot voor Nederlandse NER.
+        Alles zit in de installer; geen extra downloads of internet nodig.
       </p>
     </div>
   );
@@ -305,24 +308,23 @@ function PipelineExplanation(): JSX.Element {
 function ModelGuide(): JSX.Element {
   return (
     <div className="space-y-3">
-      <p className="font-medium">spaCy NL — klein / medium / large</p>
+      <p className="font-medium">spaCy NL — large (standaard) / medium</p>
       <p>
-        Alle drie doen hetzelfde werk, maar large herkent complexere namen beter
-        (bv. "Dr. Anna van der Heide-Janssen"). Klein is sneller en lichter.
-        Je kunt er maar één tegelijk gebruiken — klik <em>Gebruik</em> om te wisselen.
+        <span className="font-medium">Large</span> zit in de installer en is direct
+        actief — het krachtigste spaCy-NL-model, herkent ook complexere namen als
+        "Dr. Anna van der Heide-Janssen". <span className="font-medium">Medium</span>{' '}
+        gebruikt ~500 MB minder RAM maar mist vaker samengestelde namen; alleen
+        wisselen als je machine krap zit. Je kunt er maar één spaCy-pipeline tegelijk
+        gebruiken — klik <em>Gebruik</em> om te wisselen.
       </p>
 
-      <p className="font-medium">SoNaR-BERT NER</p>
+      <p className="font-medium">SoNaR-BERT NER — standaard aan</p>
       <p>
         Een BERT-model dat specifiek op Nederlandse NER is getraind. Vangt een paar
-        procent extra hits op die spaCy mist. Kost ongeveer 500 MB RAM zolang de app open is.
-      </p>
-
-      <p className="font-medium">BERTje (BERT-base NL) — geen knop, bewust</p>
-      <p className="rounded-md border border-border/60 bg-muted/30 p-2">
-        BERTje is het <em>fundament</em> waar SoNaR-BERT op is getraind. Op zichzelf herkent
-        BERTje geen entities — er is geen NER-laag bovenop getraind. Daarom staat er geen
-        knop "Activeer" bij. Als je SoNaR-BERT gebruikt, gebruik je BERTje indirect mee.
+        procent extra hits op die spaCy mist, vooral in formele teksten en met
+        ongebruikelijke namen. Zit in de installer en is meteen aan. Je kunt 'm
+        uitzetten via Model Manager → Opnieuw/Uitschakelen, bijvoorbeeld om RAM
+        te besparen (~600 MB) op een krappe laptop.
       </p>
 
       <p className="font-medium">Ollama-modellen (Qwen, Gemma, Llama…)</p>
@@ -440,9 +442,10 @@ function Troubleshoot(): JSX.Element {
       <div className="rounded-md border border-border/60 bg-muted/30 p-3">
         <p className="text-xs font-semibold">Laptop wordt traag of luidruchtig</p>
         <p className="mt-1">
-          Waarschijnlijk draait er een zwaar model: SoNaR-BERT (~500 MB RAM) of een LLM
-          (enkele GB). Schakel ze uit in Modellen beheren als je ze niet nodig hebt.
-          Eén analyse kan de eerste keer 30–60 seconden duren — daarna sneller.
+          Waarschijnlijk draait er een zwaar model: SoNaR-BERT (~600 MB RAM, standaard
+          aan) of een Ollama LLM (enkele GB, alleen als je 'm aan hebt gezet).
+          Schakel ze uit in Modellen beheren als je ze niet nodig hebt. Eén analyse
+          kan de eerste keer 30–60 seconden duren — daarna sneller dankzij caching.
         </p>
       </div>
       <div className="rounded-md border border-border/60 bg-muted/30 p-3">
@@ -457,8 +460,9 @@ function Troubleshoot(): JSX.Element {
         <p className="text-xs font-semibold">Een naam wordt niet herkend</p>
         <p className="mt-1">
           Zet in stap 3 de <em>drempelwaarde</em> lager (Geavanceerd), of selecteer de
-          naam zelf en voeg hem via <em>Aan mijn lijst toevoegen</em> toe. Denk bij
-          ongewone namen ook aan SoNaR-BERT erbij: die vangt vaak wat spaCy mist.
+          naam zelf en voeg hem via <em>Aan mijn lijst toevoegen</em> toe. Standaard zijn
+          spaCy-large én SoNaR-BERT al actief; controleer in Modellen beheren dat je ze
+          niet per ongeluk hebt uitgezet.
         </p>
       </div>
     </div>

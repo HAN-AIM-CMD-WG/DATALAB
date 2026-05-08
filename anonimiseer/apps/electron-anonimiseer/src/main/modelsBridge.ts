@@ -79,6 +79,8 @@ async function listModels(): Promise<ModelListResponse> {
         install_target: string;
         installed: boolean;
         local_path: string | null;
+        min_ram_mb?: number;
+        gpu_recommended?: boolean;
       }>;
     };
     const models: ModelInfo[] = json.models.map((m) => ({
@@ -90,6 +92,8 @@ async function listModels(): Promise<ModelListResponse> {
       installTarget: m.install_target,
       installed: m.installed,
       localPath: m.local_path,
+      minRamMb: m.min_ram_mb ?? 0,
+      gpuRecommended: m.gpu_recommended ?? false,
     }));
     return { ok: true, models };
   } catch (err) {

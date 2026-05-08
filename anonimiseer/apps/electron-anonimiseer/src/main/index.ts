@@ -16,7 +16,7 @@
  * komt in ``src/main/engineBridge.ts`` zodra we Fase 3.2 bouwen.
  */
 
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, dialog, shell } from 'electron';
 import { join } from 'node:path';
 import { registerEngineBridge } from './engineBridge';
 import { registerSettingsBridge } from './settingsStore';
@@ -27,6 +27,7 @@ import { registerDocumentBridge } from './documentBridge';
 import { registerCatalogBridge } from './catalogBridge';
 import { registerModelsBridge } from './modelsBridge';
 import { registerSystemBridge } from './systemBridge';
+import { startEngine, stopEngine } from './engineProcess';
 
 const isDev = !app.isPackaged;
 
@@ -79,7 +80,7 @@ function createWindow(): BrowserWindow {
   return mainWindow;
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   registerEngineBridge();
   registerSettingsBridge();
   registerFileDialogBridge();
@@ -89,6 +90,26 @@ app.whenReady().then(() => {
   registerModelsBridge();
   registerSystemBridge();
   registerCatalogBridge();
+
+  // In productie: start de meegebundelde pii-engine sidecar voordat we het
+  // hoofdvenster tonen. Als het starten faalt tonen we een heldere dialog en
+  // laten we de app alsnog open gaan — dan ziet de gebruiker de engine-status
+  // "Niet bereikbaar" in de UI en kan hij contact opnemen met support.
+  const engineResult = await startEngine();
+  if (!engineResult.started && app.isPackaged) {
+    dialog.showErrorBox(
+      'PII-engine kon niet starten',
+      [
+        'Anonimiseer kon de lokale verwerkings-engine niet starten.',
+        '',
+        engineResult.reason ?? 'Onbekende oorzaak.',
+        '',
+        'De app opent toch, maar kan geen documenten verwerken totdat de',
+        'engine beschikbaar is. Start de app opnieuw of neem contact op met',
+        'support als het probleem blijft.',
+      ].join('\n'),
+    );
+  }
 
   // macOS: houd het icoon in het Dock actief, maar niet in de taskbar op
   // Windows tenzij er een venster is.
@@ -105,6 +126,15 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Belangrijk: engine killen bij app-quit zodat er geen zombie-proces
+// achterblijft dat port 8765 vasthoudt.
+app.on('before-quit', () => {
+  stopEngine();
+});
+app.on('quit', () => {
+  stopEngine();
 });
 
 // Extra veiligheidsnet: weiger requests die via WebContents proberen een nieuw

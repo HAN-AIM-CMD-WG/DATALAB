@@ -101,15 +101,16 @@ export function Step2Settings({
       <section className="space-y-3">
         <SectionTitle
           step="2"
-          title="Hoe streng moet Anonimiseer zijn?"
-          hint="Strenger = minder fout-positieven, maar grotere kans dat echte PII gemist wordt."
+          title="Hoeveel wil je laten maskeren?"
+          hint="Voorzichtig = meeste maskering (incl. twijfelgevallen). Streng = alleen heel zekere matches; twijfelgevallen blijven dan zichtbaar."
         />
         <div className="grid gap-2 md:grid-cols-3">
           <SensitivityCard
             id="voorzichtig"
             icon={<ShieldAlert className="h-4 w-4" aria-hidden />}
             label="Voorzichtig"
-            description="Liever te veel markeren dan iets missen. Jij filtert zelf in de volgende stap."
+            tagline="Veiligst voor privacy"
+            description="Maskeert ook bij twijfel. Je krijgt meer hits voorgelegd in stap 3 die je zelf kunt afvinken."
             selected={settings.sensitivity === 'voorzichtig'}
             onSelect={(v) => update('sensitivity', v)}
           />
@@ -117,7 +118,8 @@ export function Step2Settings({
             id="standaard"
             icon={<ShieldCheck className="h-4 w-4" aria-hidden />}
             label="Standaard"
-            description="Evenwichtige balans tussen recall en precisie. Past bij de meeste documenten."
+            tagline="Aanbevolen"
+            description="Evenwichtige balans. Past bij de meeste documenten en is de veilige keuze als je twijfelt."
             selected={settings.sensitivity === 'standaard'}
             onSelect={(v) => update('sensitivity', v)}
           />
@@ -125,11 +127,24 @@ export function Step2Settings({
             id="streng"
             icon={<ShieldQuestion className="h-4 w-4" aria-hidden />}
             label="Streng"
-            description="Alleen zekere treffers. Sneller klaar, maar twijfelgevallen kunnen doorglippen."
+            tagline="Alleen zekere treffers"
+            description="Maskeert alleen wat de tool heel zeker weet. Geboortedatums, vaste-lijn telefoonnummers e.d. kunnen blijven staan."
             selected={settings.sensitivity === 'streng'}
             onSelect={(v) => update('sensitivity', v)}
           />
         </div>
+        {settings.sensitivity === 'streng' && (
+          <p className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            <Info className="mt-0.5 h-3.5 w-3.5 flex-none" aria-hidden />
+            <span>
+              <strong>Let op:</strong> bij &laquo;streng&raquo; kunnen zwakkere
+              detecties (bv. geboortedatums of vaste-lijn telefoonnummers
+              zonder duidelijk label) blijven staan in je document. Voor
+              gevoelige data is &laquo;standaard&raquo; of &laquo;voorzichtig&raquo;
+              veiliger.
+            </span>
+          </p>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -371,6 +386,7 @@ function SensitivityCard({
   id,
   icon,
   label,
+  tagline,
   description,
   selected,
   onSelect,
@@ -378,6 +394,7 @@ function SensitivityCard({
   id: Sensitivity;
   icon: JSX.Element;
   label: string;
+  tagline?: string;
   description: string;
   selected: boolean;
   onSelect: (v: Sensitivity) => void;
@@ -414,6 +431,18 @@ function SensitivityCard({
           {selected && <Check className="h-3 w-3" />}
         </span>
       </div>
+      {tagline && (
+        <p
+          className={cn(
+            'text-[11px] font-medium uppercase tracking-wide',
+            id === 'streng' && 'text-amber-700 dark:text-amber-300',
+            id === 'standaard' && 'text-primary',
+            id === 'voorzichtig' && 'text-emerald-700 dark:text-emerald-300'
+          )}
+        >
+          {tagline}
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">{description}</p>
     </button>
   );
@@ -479,18 +508,23 @@ function EntitiesPreview({ settings }: { settings: WizardSettings }): JSX.Elemen
         <span className="font-medium">Mode:</span>{' '}
         <code className="rounded bg-background px-1 py-0.5">{settings.mode}</code>
       </p>
-      <p>
+      <div>
         <span className="font-medium">Entiteiten ({entities.length}):</span>{' '}
         {entities.length === 0 ? (
           <span className="text-amber-700 dark:text-amber-300">(geen — kies eerst een categorie)</span>
         ) : (
-          entities.map((e) => (
-            <code key={e} className="mx-0.5 rounded bg-background px-1 py-0.5">
-              {e}
-            </code>
-          ))
+          <div className="mt-1 flex flex-wrap gap-1">
+            {entities.map((e) => (
+              <code
+                key={e}
+                className="rounded bg-background px-1 py-0.5 font-mono text-[10px]"
+              >
+                {e}
+              </code>
+            ))}
+          </div>
         )}
-      </p>
+      </div>
     </div>
   );
 }

@@ -84,6 +84,9 @@ export interface ActiveEngineInfo {
   /** Of SoNaR-BERT echt geladen is in de huidige analyzer. */
   sonarEnabled: boolean;
   sonarModel: string | null;
+  /** HAN-/onderwijsprofiel actief? Zet klas-, cursus-, CROHO-, medewerker-
+   *  en mentor-/docent-recognizers aan. */
+  hanEduEnabled: boolean;
   scoreThreshold: number;
   /** Klassennamen van alle aktieve recognizers (bv. ``BsnRecognizer``). */
   recognizers: string[];
@@ -104,6 +107,9 @@ export interface EngineConfigPatch {
   enableSonar?: boolean;
   /** HF-repo voor SoNaR. */
   sonarModel?: string;
+  /** Schakel HAN-/onderwijsprofiel aan/uit (klas, cursus, CROHO, medewerker,
+   *  mentor-/docent-label). */
+  enableHanEdu?: boolean;
   /** Ollama-tag (bv. ``qwen3.5:4b``) voor alle LLM-rollen. */
   ollamaModel?: string;
   /** Schakel de LLM-review-laag aan/uit. */

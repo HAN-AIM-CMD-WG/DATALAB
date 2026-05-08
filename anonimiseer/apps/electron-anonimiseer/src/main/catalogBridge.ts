@@ -215,7 +215,7 @@ async function getEffectiveCatalog(): Promise<OllamaCatalogResponse> {
     source = 'bundled';
   }
 
-  if (!active) {
+  if (!active || source === 'none') {
     return {
       ok: false,
       error: 'Geen geldige catalog gevonden (zowel bundled als cache mislukt).',

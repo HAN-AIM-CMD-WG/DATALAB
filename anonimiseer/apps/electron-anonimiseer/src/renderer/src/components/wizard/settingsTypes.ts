@@ -76,10 +76,32 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
   },
   {
     id: 'ids',
-    label: 'Studenten- en personeelsnummers',
-    description: 'Generieke NL student/medewerker IDs (s1234567).',
-    example: 's1234567, p000123',
-    entityTypes: ['NL_STUDENT_ID'],
+    label: 'ID- en bedrijfsnummers',
+    description:
+      'Overheids- en zorgnummers: KvK, BTW, BIG, AGB, rijbewijs, polisnummer, studenten-/personeelsnummer, OV-chipkaart, Belgisch rijksregister.',
+    example: 'KvK 34567890, BIG 19912345601, polisnummer 106543210',
+    entityTypes: [
+      'NL_STUDENT_ID',
+      'NL_EMPLOYEE_ID',
+      'NL_KVK',
+      'NL_BIG',
+      'NL_AGB',
+      'NL_BTW',
+      'NL_RIJBEWIJS',
+      'NL_ID_CARD',
+      'NL_POLICY_NUMBER',
+      'NL_OV_CHIPKAART',
+      'BE_RIJKSREGISTER',
+    ],
+    defaultOn: true,
+  },
+  {
+    id: 'onderwijs',
+    label: 'Onderwijscodes (HAN)',
+    description:
+      'HAN-/hogeschool-specifieke codes: klas- en groepsnamen, vak-/cursus- en CROHO-codes.',
+    example: 'Klas HBO-ICT-1A, cursus OOABDK1, CROHO 34391',
+    entityTypes: ['EDU_CLASS', 'EDU_COURSE_CODE', 'EDU_CROHO'],
     defaultOn: true,
   },
   {
@@ -87,7 +109,15 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
     label: 'IBAN en creditcards',
     description: 'Bankrekeningen en kaartnummers.',
     example: 'NL91 ABNA 0417 1643 00',
-    entityTypes: ['IBAN_CODE', 'CREDIT_CARD'],
+    entityTypes: ['IBAN_CODE', 'CREDIT_CARD', 'BIC_CODE'],
+    defaultOn: true,
+  },
+  {
+    id: 'netwerk',
+    label: 'Netwerk-adressen',
+    description: 'IP- en MAC-adressen. Kunnen een apparaat/persoon herleidbaar maken.',
+    example: '145.97.12.233, 00:1A:2B:3C:4D:5E',
+    entityTypes: ['IP_ADDRESS', 'MAC_ADDRESS'],
     defaultOn: true,
   },
   {
@@ -105,6 +135,15 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
     example: 'https://example.com/jansen',
     entityTypes: ['URL'],
     defaultOn: false,
+  },
+  {
+    id: 'online',
+    label: 'Online identifiers (handles, accounts, wachtwoorden)',
+    description:
+      'Social-media handles, gebruikersnamen achter een label en wachtwoorden in testdata. Wachtwoorden worden altijd gemaskeerd, óók als de tool denkt dat het een datum of naam is.',
+    example: '@jeroenvdm, Gebruikersnaam: jvdmeulen85, Wachtwoord: Zomer2026',
+    entityTypes: ['SOCIAL_HANDLE', 'USERNAME', 'PASSWORD'],
+    defaultOn: true,
   },
   {
     id: 'datum',

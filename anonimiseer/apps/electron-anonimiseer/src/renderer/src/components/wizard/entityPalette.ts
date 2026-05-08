@@ -68,6 +68,21 @@ const PALETTE: Record<string, Omit<EntityStyle, 'categoryId' | 'label'>> = {
     pill: 'bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30',
     strong: 'bg-orange-500/30',
   },
+  netwerk: {
+    highlight: 'bg-indigo-500/15 text-indigo-900 dark:text-indigo-200',
+    pill: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+    strong: 'bg-indigo-500/30',
+  },
+  onderwijs: {
+    highlight: 'bg-lime-500/20 text-lime-900 dark:text-lime-200',
+    pill: 'bg-lime-500/10 text-lime-700 dark:text-lime-300 border-lime-500/30',
+    strong: 'bg-lime-500/30',
+  },
+  online: {
+    highlight: 'bg-pink-500/15 text-pink-900 dark:text-pink-200',
+    pill: 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/30',
+    strong: 'bg-pink-500/30',
+  },
 };
 
 const FALLBACK: Omit<EntityStyle, 'categoryId' | 'label'> = {

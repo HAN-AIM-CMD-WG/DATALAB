@@ -404,6 +404,18 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
     [activeEngine, applyPipeline, sonarRepoActive]
   );
 
+  const toggleHanEdu = useCallback(
+    (next: boolean) =>
+      applyPipeline(
+        { enableHanEdu: next },
+        'toggle:han-edu',
+        next
+          ? 'HAN-/onderwijsprofiel ingeschakeld: klas-, cursus-, CROHO-, medewerker- en mentor-/docent-herkenners zijn actief.'
+          : 'HAN-/onderwijsprofiel uitgeschakeld: alleen de algemene NL-detecties draaien.',
+      ),
+    [applyPipeline],
+  );
+
   const activateOllama = useCallback(
     (name: string) =>
       applyPipeline(
@@ -753,14 +765,17 @@ function ActiveEnginePanel({
               <span className="font-medium text-foreground">Recognizers:</span>{' '}
               {info.recognizers.length}
             </span>
-            {!info.sonarEnabled && (
-              <span>
-                <span className="font-medium text-foreground">SoNaR-BERT:</span> uit
+            <span>
+              <span className="font-medium text-foreground">SoNaR-BERT:</span>{' '}
+              {info.sonarEnabled ? 'aan' : 'uit'}
+              {info.sonarEnabled ? (
+                <span className="ml-1 opacity-70">(extra Nederlandse NER)</span>
+              ) : (
                 <span className="ml-1 opacity-70">
-                  (zet aan met PII_ENGINE_ENABLE_SONAR=true voor extra Nederlandse NER)
+                  (zet aan in Engine-modellen hieronder voor extra Nederlandse NER)
                 </span>
-              </span>
-            )}
+              )}
+            </span>
           </div>
 
           {info.recognizers.length > 0 && (
@@ -774,10 +789,61 @@ function ActiveEnginePanel({
             </details>
           )}
 
+          <HanEduProfileBlock
+            enabled={info.hanEduEnabled}
+            onToggle={toggleHanEdu}
+            busy={pipelineBusy}
+          />
+
           <OllamaStatusBlock ollama={info.ollama} />
           </div>
       )}
     </section>
+  );
+}
+
+function HanEduProfileBlock({
+  enabled,
+  onToggle,
+  busy,
+}: {
+  enabled: boolean;
+  onToggle: (next: boolean) => void;
+  busy: boolean;
+}): JSX.Element {
+  return (
+    <div className="rounded-md border border-border/50 bg-background/60 p-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium">
+            HAN-/onderwijsprofiel{' '}
+            <span
+              className={
+                enabled
+                  ? 'rounded-full border border-lime-500/40 bg-lime-500/10 px-1.5 py-0.5 text-[10px] text-lime-700 dark:text-lime-200'
+                  : 'rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground'
+              }
+            >
+              {enabled ? 'actief' : 'uit'}
+            </span>
+          </p>
+          <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+            Extra herkenners voor studentnummers, personeelsnummers, klas- en
+            groepscodes, cursus- en CROHO-codes en namen direct achter
+            mentor-/docent-/SLB-/examinator-labels. Zet uit voor gebruik buiten
+            het hoger onderwijs.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="shrink-0 rounded-md border border-border/60 bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={() => onToggle(!enabled)}
+          disabled={busy}
+        >
+          {enabled ? 'Uitschakelen' : 'Inschakelen'}
+        </button>
+      </div>
+    </div>
   );
 }
 
