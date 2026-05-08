@@ -99,7 +99,7 @@ def review(text: str, model: str) -> ReviewResult:
             system=SYSTEM_PROMPT,
             json_mode=True,
             temperature=0.0,
-            timeout_s=120.0,
+            timeout_s=240.0,
             think=False,
         )
     except OllamaError as exc:

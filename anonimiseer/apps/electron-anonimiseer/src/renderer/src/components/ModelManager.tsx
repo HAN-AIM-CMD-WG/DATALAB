@@ -418,10 +418,14 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
 
   const activateOllama = useCallback(
     (name: string) =>
+      // Bewust géén auto-enable van Review: een 4B-model dat cold-start
+      // op een laptop onder druk kan tot 60s laden + extra geheugendruk
+      // veroorzaken. Gebruiker schakelt zelf in via de rol-badge in de
+      // active-engine card of in de rollen-kaart hieronder.
       applyPipeline(
         { ollamaModel: name },
         `ollama-activate:${name}`,
-        `${name} is nu het gekozen Ollama-model. Schakel hieronder de rollen aan die je wilt gebruiken.`,
+        `${name} is gekozen als Ollama-model. Klik bij "Lokaal LLM" op Review om de privacy-controle aan te zetten.`,
       ),
     [applyPipeline],
   );
@@ -436,7 +440,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             : { ollamaBorderlineEnabled: enabled };
       const niceName =
         role === 'review'
-          ? 'Review-laag'
+          ? 'Privacy-controle achteraf'
           : role === 'extra-ner'
             ? 'Extra NER-detector'
             : 'Borderline-rechter';
@@ -519,6 +523,8 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             message={pipelineMessage}
             onToggleHanEdu={(next) => void toggleHanEdu(next)}
             hanEduBusy={pipelineBusy === 'toggle:han-edu'}
+            onToggleOllamaReview={(next) => void toggleOllamaRole('review', next)}
+            ollamaReviewBusy={pipelineBusy === 'ollama-role:review'}
           />
 
           <section>
@@ -663,6 +669,8 @@ function ActiveEnginePanel({
   message,
   onToggleHanEdu,
   hanEduBusy,
+  onToggleOllamaReview,
+  ollamaReviewBusy,
 }: {
   info: ActiveEngineInfo | null;
   error: string | null;
@@ -672,6 +680,8 @@ function ActiveEnginePanel({
   message: { kind: 'ok' | 'error'; text: string } | null;
   onToggleHanEdu: (next: boolean) => void;
   hanEduBusy: boolean;
+  onToggleOllamaReview: (next: boolean) => void;
+  ollamaReviewBusy: boolean;
 }): JSX.Element {
   return (
     <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
@@ -801,7 +811,11 @@ function ActiveEnginePanel({
             busy={hanEduBusy}
           />
 
-          <OllamaStatusBlock ollama={info.ollama} />
+          <OllamaStatusBlock
+            ollama={info.ollama}
+            onToggleReview={onToggleOllamaReview}
+            reviewBusy={ollamaReviewBusy}
+          />
           </div>
       )}
     </section>
@@ -857,8 +871,12 @@ function HanEduProfileBlock({
 // normaliseren we hier en renderen we altijd een veilige representatie.
 function OllamaStatusBlock({
   ollama,
+  onToggleReview,
+  reviewBusy,
 }: {
   ollama: ActiveEngineInfo['ollama'] | undefined;
+  onToggleReview: (next: boolean) => void;
+  reviewBusy: boolean;
 }): JSX.Element {
   const state = ollama ?? {
     model: null,
@@ -868,6 +886,7 @@ function OllamaStatusBlock({
     extraNerEnabled: false,
     borderlineEnabled: false,
   };
+  const reviewClickable = Boolean(state.model && state.daemonRunning && state.modelPresent);
   return (
     <div className="rounded-md border border-border/50 bg-background/60 p-2">
       <p className="text-[11px] font-medium">
@@ -882,11 +901,17 @@ function OllamaStatusBlock({
       </p>
       {state.model ? (
         <>
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <div className="mt-1.5 flex flex-wrap gap-2 text-[11px]">
             <RoleBadge
-              label="Review"
+              label="Privacy-controle"
               on={state.reviewEnabled}
-              hint="LLM controleert na anonimisering of er nog PII achterblijft."
+              hint="LLM controleert na anonimisering of er nog PII achterblijft. Klik om aan/uit te zetten."
+              onToggle={
+                reviewClickable
+                  ? () => onToggleReview(!state.reviewEnabled)
+                  : undefined
+              }
+              busy={reviewBusy}
             />
             <RoleBadge
               label="Extra-NER"
@@ -899,6 +924,12 @@ function OllamaStatusBlock({
               hint="LLM oordeelt alleen over twijfelgevallen (vervolgronde)."
             />
           </div>
+          {state.reviewEnabled && reviewClickable && (
+            <p className="mt-1.5 text-[10px] text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="inline h-3 w-3" aria-hidden /> Bij stap 4
+              vraagt {state.model} een second-opinion na anonimisatie.
+            </p>
+          )}
           {state.daemonRunning ? (
             state.modelPresent ? null : (
               <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
@@ -928,25 +959,40 @@ function RoleBadge({
   label,
   on,
   hint,
+  onToggle,
+  busy,
 }: {
   label: string;
   on: boolean;
   hint: string;
+  onToggle?: () => void;
+  busy?: boolean;
 }): JSX.Element {
+  const baseClass = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] transition-colors ${
+    on
+      ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+      : 'border border-border/50 bg-muted/40 text-muted-foreground'
+  }`;
+  const Icon = busy ? Loader2 : on ? Power : PowerOff;
+  const iconClass = busy ? 'h-3 w-3 animate-spin' : 'h-3 w-3';
+  if (onToggle) {
+    return (
+      <button
+        type="button"
+        title={hint}
+        onClick={onToggle}
+        disabled={busy}
+        className={`${baseClass} cursor-pointer hover:bg-emerald-500/20 disabled:cursor-wait disabled:opacity-60`}
+      >
+        <Icon className={iconClass} aria-hidden />
+        {label}: {on ? 'aan' : 'uit'}
+        <span className="sr-only">— klik om {on ? 'uit' : 'aan'} te zetten</span>
+      </button>
+    );
+  }
   return (
-    <span
-      title={hint}
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${
-        on
-          ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
-          : 'border border-border/50 bg-muted/40 text-muted-foreground'
-      }`}
-    >
-      {on ? (
-        <Power className="h-3 w-3" aria-hidden />
-      ) : (
-        <PowerOff className="h-3 w-3" aria-hidden />
-      )}
+    <span title={hint} className={baseClass}>
+      <Icon className={iconClass} aria-hidden />
       {label}
       <span className="sr-only">{on ? ' aan' : ' uit'}</span>
     </span>
@@ -1639,9 +1685,9 @@ function OllamaRolesCard({
   }> = [
     {
       key: 'review',
-      label: 'Review-laag',
+      label: 'Privacy-controle achteraf (aanbevolen)',
       description:
-        'Na anonimisering controleert het LLM of er nog PII in de tekst staat. Extra vangnet, verandert de detectie zelf niet.',
+        'Na anonimisering controleert het LLM of er nog PII in de tekst staat. Extra vangnet — verandert de detectie zelf niet. Eerste keer kan het laden van het model 30–60 seconden duren.',
       enabled: state.reviewEnabled,
       availableNow: true,
     },

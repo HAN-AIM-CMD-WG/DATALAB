@@ -32,7 +32,7 @@ const ANALYZE_TIMEOUT_MS = 30_000;
 // seconden duren omdat de eerstvolgende analyzer-build het model laadt.
 const CONFIG_TIMEOUT_MS = 120_000;
 // LLM-review is per definitie langzamer: lokale inference + prompt.
-const REVIEW_TIMEOUT_MS = 180_000;
+const REVIEW_TIMEOUT_MS = 300_000;
 
 async function fetchHealth(): Promise<EngineHealth> {
   const url = `${ENGINE_URL}/health`;
