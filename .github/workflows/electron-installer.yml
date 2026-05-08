@@ -2,7 +2,8 @@ name: electron-installer
 
 # Bouwt cross-platform installers voor de Anonimiseer Electron-app.
 # Per OS:
-#   1) PyInstaller one-folder bundle van pii-engine (inclusief spaCy nl_core_news_md)
+#   1) PyInstaller one-folder bundle van pii-engine (inclusief spaCy
+#      nl_core_news_lg + SoNaR-BERT, zie pyproject extras [bundle,sonar]).
 #   2) electron-builder: dmg (mac) of NSIS (win) installer met bundle als extraResource
 #
 # Triggert op:
@@ -99,15 +100,22 @@ jobs:
           cd build
           pyinstaller pii-engine.spec --noconfirm --clean
 
+      # Smoke-test: het gebundelde spaCy-model is nl_core_news_lg (zie
+      # pyproject [bundle] en pii-engine.spec). De engine moet zonder
+      # internet kunnen starten — geen pip download_spacy_model fallback.
       - name: Smoke-test pii-engine bundle (Unix)
         if: runner.os != 'Windows'
         working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
         env:
-          PII_ENGINE_SPACY_MODEL: nl_core_news_md
+          PII_ENGINE_SPACY_MODEL: nl_core_news_lg
+          # Schakel SoNaR uit tijdens de smoke-test: cold-load van de BERT-
+          # weights duurt 30-60s op een CI-runner zonder pre-cache, plus we
+          # toetsen alleen of de basis-pipeline up komt.
+          PII_ENGINE_ENABLE_SONAR: "false"
         run: |
           ./pii-engine &
           PID=$!
-          for i in $(seq 1 45); do
+          for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8765/health >/dev/null 2>&1; then
               echo "Bundle OK after ${i}s"
               kill $PID || true
@@ -124,11 +132,12 @@ jobs:
         working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
         shell: pwsh
         env:
-          PII_ENGINE_SPACY_MODEL: nl_core_news_md
+          PII_ENGINE_SPACY_MODEL: nl_core_news_lg
+          PII_ENGINE_ENABLE_SONAR: "false"
         run: |
           $proc = Start-Process -FilePath ".\pii-engine.exe" -PassThru -NoNewWindow
           $ok = $false
-          for ($i = 0; $i -lt 45; $i++) {
+          for ($i = 0; $i -lt 60; $i++) {
             try {
               $r = Invoke-WebRequest -Uri "http://127.0.0.1:8765/health" -UseBasicParsing -TimeoutSec 2
               if ($r.StatusCode -eq 200) { $ok = $true; break }
