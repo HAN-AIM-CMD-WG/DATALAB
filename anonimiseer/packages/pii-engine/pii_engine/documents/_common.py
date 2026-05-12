@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from bisect import bisect_right
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from . import AcceptedReplacement, Block
+
+logger = logging.getLogger(__name__)
 
 
 def group_replacements_per_block(
@@ -54,12 +57,39 @@ def group_replacements_per_block(
 
 
 def apply_replacements_to_text(text: str, replacements: list[AcceptedReplacement]) -> str:
-    """Pas een lijst lokale vervangingen (rechts-naar-links) toe op een string."""
+    """Pas een lijst lokale vervangingen (rechts-naar-links) toe op een string.
+
+    Replacements moeten al rechts-naar-links (descending start) gesorteerd
+    zijn. We slaan reps over die out-of-bounds raken of overlap hebben met
+    een eerder toegepaste rep. Indien dit gebeurt loggen we een waarschuwing
+    omdat het meestal duidt op een coördinaat-bug bovenstrooms (bv.
+    block-iterator die dezelfde paragraaf dubbel ziet en dezelfde rep dus
+    twee keer geleverd krijgt).
+    """
 
     out = text
     last_start = len(text) + 1
     for rep in replacements:
-        if rep.start < 0 or rep.end > len(out) or rep.end > last_start:
+        if rep.start < 0 or rep.end > len(out):
+            logger.warning(
+                "skipping out-of-bounds replacement: start=%s end=%s text_len=%s "
+                "(replacement=%r). Mogelijk wordt dezelfde paragraaf meerdere keren "
+                "bezocht (merged-cell bug?).",
+                rep.start,
+                rep.end,
+                len(out),
+                rep.replacement,
+            )
+            continue
+        if rep.end > last_start:
+            logger.warning(
+                "skipping overlapping replacement: start=%s end=%s last_start=%s "
+                "(replacement=%r).",
+                rep.start,
+                rep.end,
+                last_start,
+                rep.replacement,
+            )
             continue
         out = out[: rep.start] + rep.replacement + out[rep.end :]
         last_start = rep.start

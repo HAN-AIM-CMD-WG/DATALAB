@@ -1,16 +1,30 @@
 """DOCX-extractie en -herbouw via python-docx.
 
 We lopen over alle paragrafen (body, table-cellen, headers, footers) en
-behandelen iedere paragraaf als één blok. Vervangingen worden
-rechts-naar-links binnen een paragraaf toegepast op run-niveau zodat
-zoveel mogelijk opmaak (bold/italic/hyperlinks) behouden blijft.
+behandelen iedere paragraaf als één blok. Vervangingen worden per
+paragraaf in één keer toegepast op de gecombineerde tekst en daarna
+teruggeschreven naar één enkele plain run (alle eerdere runs en
+``<w:hyperlink>``-children worden gewist). Dat is destructief voor
+inline-opmaak (bold midden in een zin, mailto-links) maar voorkomt twee
+klassen van bugs die we eerder hadden:
+
+1. **Gemergde tabelcellen** (``gridSpan`` of ``vMerge``): python-docx's
+   ``row.cells`` retourneert dezelfde ``<w:tc>`` meerdere keren via
+   verschillende wrappers. Vroeger leidde dat tot dubbele
+   block-registratie en daardoor tot mangled placeholders zoals
+   ``NL_PHONE_NUMBER_1MBER_1`` na een tweede vervanging op de reeds
+   gemoduleerde tekst. We dedupliceren nu op ``id(cell._tc)``.
+
+2. **Hyperlinks** met de PII zelf als display text (Word zet
+   ``mailto:foo@bar.nl`` automatisch in een ``<w:hyperlink>`` met de
+   email als zichtbare tekst). Voorheen bleef het origineel naast de
+   placeholder staan omdat ``para.runs`` alleen top-level runs
+   teruggeeft. We strippen nu ook hyperlink-children weg.
 
 Caveats:
     * Velden en comments worden niet aangeraakt.
-    * Run-granulariteit betekent dat een vervanging die *midden* in
-      een run begint en in de volgende eindigt, tot verlies van opmaak
-      op het overgangsstuk leidt. Dat is een bewust trade-off voor
-      simpliciteit en werkt voor 99% van wat we tegenkomen.
+    * Bookmarks en kruisverwijzingen binnen een vervangen paragraaf
+      gaan verloren. Voor de pilot acceptabel.
 """
 
 from __future__ import annotations
@@ -25,6 +39,10 @@ from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 
 from ._common import apply_replacements_to_text, group_replacements_per_block
+
+# Word-namespace voor lxml-queries op `<w:tc>` etc.
+_W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_TC_TAG = f"{{{_W_NS}}}tc"
 
 if TYPE_CHECKING:  # pragma: no cover
     from . import AcceptedReplacement, Block, ExtractResult
@@ -58,6 +76,15 @@ def _iter_container(
     rechtstreeks om paragrafen en tabellen in originele volgorde op te
     leveren; dat geeft stabielere id's dan ``container.paragraphs`` +
     ``container.tables`` apart af te lopen.
+
+    Voor tabellen lopen we direct over de fysieke ``<w:tc>`` XML-
+    elementen (in plaats van ``row.cells``) zodat een cel met
+    ``gridSpan`` of ``vMerge`` slechts één keer wordt bezocht. Voorheen
+    leverde ``row.cells`` "virtuele" cell-wrappers op die naar
+    hetzelfde ``<w:tc>`` wezen voor gemergde kolommen — daardoor werd
+    dezelfde paragraaf-tekst meerdere keren in flat_text geplaatst en
+    werden replacements dubbel uitgevoerd (mangled output zoals
+    ``NL_PHONE_NUMBER_1MBER_1``).
     """
 
     element = _container_element(container)
@@ -71,7 +98,9 @@ def _iter_container(
         elif tag == "tbl":
             table = Table(child, container)
             for row_idx, row in enumerate(table.rows):
-                for cell_idx, cell in enumerate(row.cells):
+                tr_element = row._tr
+                for cell_idx, tc in enumerate(tr_element.findall(_TC_TAG)):
+                    cell = _Cell(tc, table)
                     yield from _iter_container(
                         cell,
                         f"{prefix}.t{table_idx}.r{row_idx}.c{cell_idx}",
@@ -121,27 +150,44 @@ def extract_docx(file_bytes: bytes) -> ExtractResult:
     return ExtractResult(flat_text=flat_text, blocks=blocks)
 
 
-def _replace_paragraph_text(para: Paragraph, new_text: str) -> None:
-    """Vervang de tekst van een paragraaf maar behoud opmaak van run 0.
+_TEXT_PRODUCING_TAGS = frozenset({"r", "hyperlink", "smartTag", "fldSimple"})
 
-    We pakken de eerste run als "ankerrun" en zetten daar de nieuwe
-    tekst in. De overige runs verwijderen we. Dat verliest inline-
-    formatting (bold midden in de zin) maar houdt
-    paragraaf-level-opmaak (lettertype, grootte, alinea-stijl) intact.
+
+def _replace_paragraph_text(para: Paragraph, new_text: str) -> None:
+    """Vervang de tekst van een paragraaf met een enkele plain run.
+
+    Strategie: bewaar ``<w:pPr>`` (paragraaf-stijl: alignment, spacing,
+    lettertype-default) en verwijder alle tekst-producerende children
+    (runs, hyperlinks, smartTags, fldSimple). Voeg vervolgens één
+    nieuwe run toe met ``new_text``.
+
+    Verlies: inline run-formatting (bold/cursief mid-zin) en hyperlinks
+    op de oorspronkelijke tekst. Behouden: paragraaf-stijl, alignment,
+    table-cell-context.
+
+    Waarom destructief? Voorheen pakten we alleen ``runs[0]`` als anker
+    en verwijderden we ``runs[1:]``. Dat liet ``<w:hyperlink>``-children
+    intact (die staan náást ``<w:r>`` in de XML, niet erin). Resultaat:
+    bij een email die door Word in een hyperlink is gezet, bleef het
+    origineel naast de placeholder staan (zie
+    ``tests/test_docx_support.py::test_hyperlink_email_replaced``).
     """
 
-    runs = para.runs
-    if not runs:
-        # Lege paragraaf kunnen we niet zinvol vullen zonder een run te maken;
-        # gebruik `add_run` als fallback.
-        para.add_run(new_text)
-        return
+    p_element = para._element
 
-    # Bewaar run[0] als anker; wis rest.
-    first_run = runs[0]
-    for run in runs[1:]:
-        run._element.getparent().remove(run._element)
-    first_run.text = new_text
+    # Verzamel children om te slopen: alles wat tekst produceert.
+    # `<w:pPr>` (paragraph properties) en bookmark/proof-error markers
+    # blijven staan zodat alinea-stijl en cursor-bookmarks behouden zijn.
+    to_remove = []
+    for child in p_element:
+        tag = child.tag.split("}", 1)[-1]
+        if tag in _TEXT_PRODUCING_TAGS:
+            to_remove.append(child)
+
+    for child in to_remove:
+        p_element.remove(child)
+
+    para.add_run(new_text)
 
 
 def apply_docx(
