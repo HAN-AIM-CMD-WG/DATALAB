@@ -85,6 +85,11 @@ def apply_xlsx(
         new_text = apply_replacements_to_text(original, block_replacements)
         if new_text != original:
             cell.value = new_text
+            # Strip eventuele hyperlink (bv. mailto:foo@bar.nl) — de URL
+            # blijft anders als verborgen target staan ook nadat de
+            # display-text is geanonimiseerd. Kleine maar reële leak.
+            if cell.hyperlink is not None:
+                cell.hyperlink = None
 
     if footer_note:
         # Voeg een aparte sheet "_Anonimiseer" toe met het watermerk.
