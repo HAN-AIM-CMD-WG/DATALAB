@@ -90,9 +90,7 @@ class TestMergedCells:
         tc_ids = [id(c._tc) for c in row.cells]
         # Cell B en C delen dezelfde _tc — dat is de duplicate die we
         # in _iter_container moeten skippen.
-        assert tc_ids.count(tc_ids[1]) > 1, (
-            f"verwachtte duplicate _tc bij gridSpan, kreeg {tc_ids}"
-        )
+        assert tc_ids.count(tc_ids[1]) > 1, f"verwachtte duplicate _tc bij gridSpan, kreeg {tc_ids}"
 
     def test_merged_cell_visited_only_once(self):
         """Dedupe-fix: gemergde paragraaf staat exact één keer in flat_text."""
@@ -103,9 +101,7 @@ class TestMergedCells:
             f"{result.flat_text!r}"
         )
         block_ids = [b.id for b in result.blocks]
-        assert len(block_ids) == len(set(block_ids)), (
-            "duplicate block_ids — dedupe werkt niet"
-        )
+        assert len(block_ids) == len(set(block_ids)), "duplicate block_ids — dedupe werkt niet"
 
     def test_merged_cell_replacement_not_mangled(self):
         """De originele productie-bug: 06-12345678 → NL_PHONE_NUMBER_1MBER_1.
@@ -128,10 +124,7 @@ class TestMergedCells:
 
         out_doc = Document(io.BytesIO(out_bytes))
         cell_texts = [
-            cell.text
-            for table in out_doc.tables
-            for row in table.rows
-            for cell in row.cells
+            cell.text for table in out_doc.tables for row in table.rows for cell in row.cells
         ]
 
         # De content-cel bevat de placeholder exact één keer en geen
@@ -141,9 +134,7 @@ class TestMergedCells:
         for txt in target_cells:
             # Exact-match check — geen suffix-fragment, geen origineel,
             # geen duplicaat.
-            assert txt == "NL_PHONE_NUMBER_1", (
-                f"mangled placeholder in cel: {txt!r}"
-            )
+            assert txt == "NL_PHONE_NUMBER_1", f"mangled placeholder in cel: {txt!r}"
 
 
 # --------------------------------------------------------------------------- #
@@ -187,13 +178,9 @@ class TestHyperlinkEmail:
         body_text = "\n".join(p.text for p in out_doc.paragraphs)
 
         # Origineel mag nergens meer staan.
-        assert email not in body_text, (
-            f"origineel email staat nog in output: {body_text!r}"
-        )
+        assert email not in body_text, f"origineel email staat nog in output: {body_text!r}"
         # Placeholder moet er één keer in staan.
-        assert body_text.count("EMAIL_ADDRESS_1") == 1, (
-            f"placeholder count != 1: {body_text!r}"
-        )
+        assert body_text.count("EMAIL_ADDRESS_1") == 1, f"placeholder count != 1: {body_text!r}"
 
         # Extra: er mag geen <w:hyperlink> meer in de paragraaf zitten.
         para = out_doc.paragraphs[0]

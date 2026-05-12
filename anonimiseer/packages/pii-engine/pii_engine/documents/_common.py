@@ -83,8 +83,7 @@ def apply_replacements_to_text(text: str, replacements: list[AcceptedReplacement
             continue
         if rep.end > last_start:
             logger.warning(
-                "skipping overlapping replacement: start=%s end=%s last_start=%s "
-                "(replacement=%r).",
+                "skipping overlapping replacement: start=%s end=%s last_start=%s (replacement=%r).",
                 rep.start,
                 rep.end,
                 last_start,

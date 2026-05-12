@@ -43,7 +43,9 @@ class TestMergedCells:
         result = extract_xlsx(data)
         # B1 heeft de waarde, C1 is een MergedCell met None — slechts één
         # tekst-block voor het telefoonnummer.
-        text_blocks = [b for b in result.blocks if "06-12345678" in result.flat_text[b.start:b.end]]
+        text_blocks = [
+            b for b in result.blocks if "06-12345678" in result.flat_text[b.start : b.end]
+        ]
         assert len(text_blocks) == 1
 
     def test_merged_cell_replacement_clean(self):
@@ -104,12 +106,8 @@ class TestHyperlinkStrip:
         assert out_cell.value == "EMAIL_ADDRESS_1"
         # En de hyperlink-target met daarin de originele email is weg.
         assert out_cell.hyperlink is None, (
-            f"hyperlink-leak: target={out_cell.hyperlink.target!r}"
-            if out_cell.hyperlink
-            else "ok"
+            f"hyperlink-leak: target={out_cell.hyperlink.target!r}" if out_cell.hyperlink else "ok"
         )
         # Geen email-string te vinden in de gehele XLSX-bytes (in cel,
         # gedeelde strings, hyperlinks, enz.).
-        assert email.encode() not in out_bytes, (
-            "originele email zit nog ergens in de XLSX-bytes"
-        )
+        assert email.encode() not in out_bytes, "originele email zit nog ergens in de XLSX-bytes"
