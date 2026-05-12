@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pii-engine"
-version = "0.1.1"
+version = "0.1.0"
 description = "Nederlandse PII-detectie en anonimiseringsengine (Presidio + NL-uitbreidingen) voor de Anonimiseer-toolketen."
 readme = "README.md"
 requires-python = ">=3.11"

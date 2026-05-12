@@ -1,7 +1,7 @@
 """
 title: Nederlandse PII-filter (Anonimiseer)
 author: DataLab
-version: 0.1.1
+version: 0.1.0
 license: MIT
 description: >-
   Detecteert Nederlandse PII (BSN met Elfproef, NL-telefoon, postcode,

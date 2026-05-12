@@ -113,7 +113,7 @@ def build_docx() -> bytes:
       - Email-cel met <w:hyperlink>.
     """
     doc = Document()
-    doc.add_heading("Inzet HANFlex-er (CIM formulier)", level=1)
+    doc.add_heading("Aanstellingsformulier", level=1)
     doc.add_paragraph(
         f"Kandidaat: {PII['naam']}, geboren op {PII['geboortedatum']}, "
         f"studentnummer {PII['studentnummer']}, BSN {PII['bsn']}. "
@@ -195,7 +195,7 @@ def build_pdf() -> bytes:
     c = canvas.Canvas(buf, pagesize=A4)
     _width, height = A4
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(20 * mm, height - 25 * mm, "Inzet HANFlex-er (CIM formulier)")
+    c.drawString(20 * mm, height - 25 * mm, "Aanstellingsformulier")
     c.setFont("Helvetica", 11)
     y = height - 40 * mm
     lines = [
