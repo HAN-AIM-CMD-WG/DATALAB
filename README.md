@@ -1,4 +1,4 @@
-# DataLab - HAN AIM CMD
+# DataLab - HAN AIM 
 
 Projecten van het DataLab aan de HAN (Hogeschool van Arnhem en Nijmegen).
 
