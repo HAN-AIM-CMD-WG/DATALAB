@@ -2,10 +2,10 @@
 
 > Laagdrempelige, **100% lokale** tooling om documenten (DOCX, PDF, XLSX, TXT) en chat-prompts te anonimiseren of pseudonimiseren voordat ze gedeeld worden met externe AI-diensten.
 
-[![Latest release](https://img.shields.io/github/v/release/HAN-AIM-CMD-WG/DATALAB?filter=anonimiseer-*&label=download&color=blue)](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases?q=anonimiseer)
+[![Latest release](https://img.shields.io/github/v/release/HAN-AIM-CMD-WG/DATALAB?include_prereleases&label=download&color=blue)](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
 
-Status: **pilot-klaar** — eerste publieke release in voorbereiding.
+Status: **pilot v0.1.0** — beschikbaar als pre-release voor interne HAN-test (8 mei 2026).
 
 ---
 
@@ -13,24 +13,40 @@ Status: **pilot-klaar** — eerste publieke release in voorbereiding.
 
 > Geen Python, geen Node, geen installatie van losse onderdelen nodig. Alles zit in de download.
 
-| Besturingssysteem | Bestand | Wat doe je ermee? |
-|---|---|---|
-| **macOS** (Apple Silicon + Intel) | `Anonimiseer-x.y.z.dmg` | Open de `.dmg`, sleep de app naar **Programma's**. |
-| **Windows 10/11** (64-bit) | `Anonimiseer-Setup-x.y.z.exe` | Dubbelklik de installer, kies een map (admin niet nodig). |
-| Linux | `Anonimiseer-x.y.z.AppImage` | Download, `chmod +x`, dubbelklik. |
+### Stap 1 — kies de juiste installer
 
-👉 **[Naar de Releases-pagina →](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases?q=anonimiseer)**
+👉 **[Open de Releases-pagina](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases/latest)** en download het bestand dat bij jouw computer past:
 
-### Eerste keer openen
+| Jouw computer | Bestand op de Releases-pagina | Grootte |
+| --- | --- | --- |
+| **Mac met Apple Silicon** (M1/M2/M3/M4) | `Anonimiseer-x.y.z-arm64.dmg` | ~840 MB |
+| **Mac met Intel-CPU** (~2015–2020) | `Anonimiseer-x.y.z.dmg` | ~840 MB |
+| **Windows 10/11** (64-bit) | `Anonimiseer Setup x.y.z.exe` | ~700 MB |
+
+> **Welke Mac heb ik?** Apple-menu → *"Over deze Mac"*. Staat er "Apple M1/M2/M3/M4 …"? Dan **arm64**. Staat er "Intel Core …"? Dan de DMG zonder suffix.
+
+### Stap 2 — installeren
+
+- **macOS**: open de `.dmg`, sleep `Anonimiseer.app` naar **Programma's**.
+- **Windows**: dubbelklik de installer, kies een map (admin niet nodig).
+
+### Stap 3 — eerste keer openen (eenmalig)
 
 Omdat de app nog niet is **code-signed** (Apple Developer / Microsoft EV cert) krijg je éénmalig een waarschuwing:
 
 | OS | Waarschuwing | Wat je doet |
 |---|---|---|
-| macOS | *"Anonimiseer kan niet worden geopend omdat de identiteit niet kan worden gecontroleerd"* | **Rechts-klik op de app → Openen → "Open"**. Daarna nooit meer. |
+| macOS | *"Anonimiseer kan niet worden geopend omdat de identiteit niet kan worden gecontroleerd"* | **Rechter-muisklik (Ctrl-klik) op de app → "Openen" → bevestig in dialoog.** Daarna nooit meer. |
 | Windows | *"Windows beschermt uw pc — SmartScreen"* | Klik **"Meer info" → "Toch uitvoeren"**. Daarna nooit meer. |
 
 Dat is verwacht gedrag bij ongesigneerde apps; de app zelf is veilig en draait volledig offline. Voor brede uitrol komt code-signing later.
+
+### Verificatie (optioneel)
+
+Bestand controleren tegen de SHA-256 op de Releases-pagina:
+
+- macOS: `shasum -a 256 ~/Downloads/Anonimiseer-*.dmg`
+- Windows (PowerShell): `Get-FileHash Anonimiseer*.exe -Algorithm SHA256`
 
 ### Wat de app doet
 
