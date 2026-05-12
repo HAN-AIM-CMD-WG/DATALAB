@@ -1,0 +1,219 @@
+{"text": "Jeroen van der Meulen", "type": "PERSON", "should_match": true, "comment": "Klant A naam"}
+{"text": "Fatima El Amrani", "type": "PERSON", "should_match": true, "comment": "Klant B - El-tussenvoegsel"}
+{"text": "Pieter-Jan de Groot-Visser", "type": "PERSON", "should_match": true, "comment": "Klant C - dubbele achternaam"}
+{"text": "Wei Liu", "type": "PERSON", "should_match": true, "comment": "Klant D - Aziatisch"}
+{"text": "Robin Klein", "type": "PERSON", "should_match": true, "comment": "Klant E - genderneutraal + woord-naam"}
+{"text": "P. de Vries", "type": "PERSON", "should_match": true, "comment": "Klant F - initialen-only", "tolerant": true}
+{"text": "Sophie Janssens", "type": "PERSON", "should_match": true, "comment": "Klant H BE"}
+{"text": "Hans Müller", "type": "PERSON", "should_match": true, "comment": "Klant I DE"}
+{"text": "Marie Dupont", "type": "PERSON", "should_match": true, "comment": "Klant J FR"}
+{"text": "John Smith", "type": "PERSON", "should_match": true, "comment": "Klant K UK"}
+{"text": "Youssef Bakker", "type": "PERSON", "should_match": true, "comment": "partner in vrije tekst"}
+{"text": "Anna", "type": "PERSON", "should_match": true, "comment": "voornaam in 'Hoi Anna'"}
+{"text": "Pieter Jansen", "type": "PERSON", "should_match": true, "comment": "HAN mentor"}
+{"text": "Aisha El-Hassan", "type": "PERSON", "should_match": true, "comment": "HAN SLB'er"}
+{"text": "Mark de Vries", "type": "PERSON", "should_match": true, "comment": "HAN examinator"}
+{"text": "Zoë Müller-Østergård", "type": "PERSON", "should_match": true, "comment": "Edge: accenten + diakrieten"}
+{"text": "Anna van 't Hof-de Wit", "type": "PERSON", "should_match": true, "comment": "Edge: complex tussenvoegsel"}
+{"text": "Bakker", "type": "PERSON", "should_match": true, "comment": "Edge: naam = beroep ('Dhr. Bakker')"}
+
+{"text": "14-03-1985", "type": "DATE_TIME", "should_match": true, "comment": "dd-mm-jjjj"}
+{"text": "02/11/1992", "type": "DATE_TIME", "should_match": true, "comment": "dd/mm/jjjj"}
+{"text": "30 juni 1978", "type": "DATE_TIME", "should_match": true, "comment": "lange NL"}
+{"text": "1990-08-22", "type": "DATE_TIME", "should_match": true, "comment": "ISO"}
+{"text": "7 mei 1995", "type": "DATE_TIME", "should_match": true, "comment": "lange NL kort"}
+{"text": "1962-12-01", "type": "DATE_TIME", "should_match": true, "comment": "ISO 1962"}
+{"text": "11.04.1975", "type": "DATE_TIME", "should_match": true, "comment": "DE-formaat met punten"}
+{"text": "17 april 2026", "type": "DATE_TIME", "should_match": true, "comment": "vrije tekst"}
+{"text": "12 januari 2026", "type": "DATE_TIME", "should_match": true, "comment": "verwijsbrief"}
+{"text": "3 maart 2026", "type": "DATE_TIME", "should_match": true, "comment": "vergadering"}
+{"text": "14/05/2026", "type": "DATE_TIME", "should_match": true, "comment": "in lange zin"}
+{"text": "07-05-1995", "type": "DATE_TIME", "should_match": true, "comment": "in code-block"}
+{"text": "12/01/2026", "type": "DATE_TIME", "should_match": true, "comment": "datum+tijd"}
+{"text": "14-03-85", "type": "DATE_TIME", "should_match": true, "comment": "korte jaartal mét label"}
+
+{"text": "123456782", "type": "NL_BSN", "should_match": true, "comment": "Klant A"}
+{"text": "987654321", "type": "NL_BSN", "should_match": true, "comment": "Klant B"}
+{"text": "111222333", "type": "NL_BSN", "should_match": true, "comment": "Klant C"}
+{"text": "1.234.567.82", "type": "NL_BSN", "should_match": true, "comment": "Edge: BSN met punten"}
+
+{"text": "j.vandermeulen@voorbeeld.nl", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "fatima.elamrani@example.com", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "pj.degroot@ziekenhuis-voorbeeld.nl", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "wei.liu@voorbeeld.nl", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "robin@voorbeeld.nl", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "sophie.janssens@voorbeeld.be", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "h.mueller@voorbeeld.de", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "anna.dejong@voorbeeld.nl", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "notulen@vereniging-test.nl", "type": "EMAIL_ADDRESS", "should_match": true}
+{"text": "jeroen+test@voorbeeld.nl", "type": "EMAIL_ADDRESS", "should_match": true, "comment": "Edge: plus-adres"}
+
+{"text": "+31 6 12345678", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "mobiel intl"}
+{"text": "020-5551234", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "vaste lijn"}
+{"text": "+31-6-98765432", "type": "NL_PHONE_NUMBER", "should_match": true}
+{"text": "010 2345678", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "vaste lijn met spaties"}
+{"text": "06.12.34.56.78", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "mobiel met punten"}
+{"text": "0345-123456", "type": "NL_PHONE_NUMBER", "should_match": true}
+{"text": "+32 475 12 34 56", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "BE"}
+{"text": "+49 30 12345678", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "DE"}
+{"text": "+33 1 42 34 56 78", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "FR"}
+{"text": "+44 20 7946 0958", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "UK"}
+{"text": "06-98765432", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "vrije tekst"}
+{"text": "010-2345678", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "vaste lijn streepje"}
+{"text": "06-87654321", "type": "NL_PHONE_NUMBER", "should_match": true}
+{"text": "0031612345678", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "Edge: 00-prefix"}
+{"text": "+49 221 1234567", "type": "NL_PHONE_NUMBER", "should_match": true, "comment": "DE in zin"}
+
+{"text": "1015 CJ", "type": "NL_POSTCODE", "should_match": true}
+{"text": "2514 EE", "type": "NL_POSTCODE", "should_match": true}
+{"text": "3012 AG", "type": "NL_POSTCODE", "should_match": true}
+{"text": "5211 AP", "type": "NL_POSTCODE", "should_match": true}
+{"text": "3011 GZ", "type": "NL_POSTCODE", "should_match": true}
+{"text": "1015 DK", "type": "NL_POSTCODE", "should_match": true}
+{"text": "1015CJ", "type": "NL_POSTCODE", "should_match": true, "comment": "Edge: zonder spatie"}
+
+{"text": "Amsterdam", "type": "LOCATION", "should_match": true}
+{"text": "Den Haag", "type": "LOCATION", "should_match": true}
+{"text": "Rotterdam", "type": "LOCATION", "should_match": true}
+{"text": "'s-Hertogenbosch", "type": "LOCATION", "should_match": true}
+{"text": "Brussel", "type": "LOCATION", "should_match": true}
+{"text": "Köln", "type": "LOCATION", "should_match": true}
+{"text": "Paris", "type": "LOCATION", "should_match": true}
+{"text": "London", "type": "LOCATION", "should_match": true}
+{"text": "Keizersgracht 123-3", "type": "LOCATION", "should_match": true, "comment": "straat+nr"}
+{"text": "Lange Voorhout 44", "type": "LOCATION", "should_match": true}
+{"text": "Coolsingel 75", "type": "LOCATION", "should_match": true}
+{"text": "Stationsplein 4", "type": "LOCATION", "should_match": true}
+{"text": "Korte Hoogstraat 12-II", "type": "LOCATION", "should_match": true, "comment": "met Romeinse toevoeging"}
+{"text": "Rue de la Loi 200", "type": "LOCATION", "should_match": true, "comment": "BE/FR adres"}
+{"text": "Bahnhofstraße 5", "type": "LOCATION", "should_match": true, "comment": "DE adres"}
+{"text": "1 rue de la République", "type": "LOCATION", "should_match": true, "comment": "FR adres"}
+{"text": "10 Downing Street", "type": "LOCATION", "should_match": true, "comment": "UK adres"}
+{"text": "50667 Köln", "type": "LOCATION", "should_match": true, "comment": "DE postcode + plaats"}
+{"text": "75001 Paris", "type": "LOCATION", "should_match": true, "comment": "FR postcode + plaats"}
+{"text": "1040 Brussel", "type": "LOCATION", "should_match": true, "comment": "BE postcode + plaats"}
+{"text": "SW1A 2AA", "type": "LOCATION", "should_match": true, "comment": "UK postcode"}
+
+{"text": "NL91ABNA0417164300", "type": "IBAN_CODE", "should_match": true}
+{"text": "NL20INGB0001234567", "type": "IBAN_CODE", "should_match": true}
+{"text": "NL44RABO0123456789", "type": "IBAN_CODE", "should_match": true}
+{"text": "NL63TRIO0212345678", "type": "IBAN_CODE", "should_match": true}
+{"text": "BE68539007547034", "type": "IBAN_CODE", "should_match": true}
+{"text": "DE89370400440532013000", "type": "IBAN_CODE", "should_match": true}
+{"text": "FR1420041010050500013M02606", "type": "IBAN_CODE", "should_match": true, "comment": "FR-IBAN"}
+{"text": "GB29NWBK60161331926819", "type": "IBAN_CODE", "should_match": true, "comment": "UK-IBAN"}
+{"text": "NL91 ABNA 0417 1643 00", "type": "IBAN_CODE", "should_match": true, "comment": "Edge: met spaties"}
+
+{"text": "ABNANL2A", "type": "BIC_CODE", "should_match": true}
+{"text": "INGBNL2A", "type": "BIC_CODE", "should_match": true}
+{"text": "RABONL2U", "type": "BIC_CODE", "should_match": true}
+{"text": "TRIONL2U", "type": "BIC_CODE", "should_match": true}
+{"text": "GKCCBEBB", "type": "BIC_CODE", "should_match": true}
+{"text": "COBADEFFXXX", "type": "BIC_CODE", "should_match": true, "comment": "11-char BIC"}
+{"text": "BNPAFRPP", "type": "BIC_CODE", "should_match": true}
+{"text": "NWBKGB2L", "type": "BIC_CODE", "should_match": true}
+
+{"text": "ABN AMRO", "type": "ORGANIZATION", "should_match": true}
+{"text": "Rabobank", "type": "ORGANIZATION", "should_match": true}
+{"text": "Triodos Bank", "type": "ORGANIZATION", "should_match": true}
+{"text": "Belfius", "type": "ORGANIZATION", "should_match": true}
+{"text": "Commerzbank", "type": "ORGANIZATION", "should_match": true}
+{"text": "BNP Paribas", "type": "ORGANIZATION", "should_match": true}
+{"text": "Barclays", "type": "ORGANIZATION", "should_match": true}
+{"text": "Acme Nederland", "type": "ORGANIZATION", "should_match": true, "tolerant": true}
+{"text": "TechCorp", "type": "ORGANIZATION", "should_match": true, "tolerant": true}
+
+{"text": "4111 1111 1111 1111", "type": "CREDIT_CARD", "should_match": true, "comment": "VISA"}
+{"text": "5500-0000-0000-0004", "type": "CREDIT_CARD", "should_match": true, "comment": "Mastercard"}
+{"text": "3782 822463 10005", "type": "CREDIT_CARD", "should_match": true, "comment": "AmEx 15-cijfer"}
+{"text": "11/28", "type": "CREDIT_CARD", "should_match": true, "comment": "VISA verloopt"}
+{"text": "03/29", "type": "CREDIT_CARD", "should_match": true, "comment": "MC vervaldatum"}
+{"text": "07/27", "type": "CREDIT_CARD", "should_match": true, "comment": "AmEx verloopt"}
+{"text": "123", "type": "CREDIT_CARD", "should_match": true, "comment": "VISA CVC", "tolerant": true}
+{"text": "456", "type": "CREDIT_CARD", "should_match": true, "comment": "MC beveiligingscode", "tolerant": true}
+
+{"text": "NX1234567", "type": "NL_ID_CARD", "should_match": true, "comment": "Paspoort"}
+{"text": "IE9876543", "type": "NL_ID_CARD", "should_match": true, "comment": "ID-kaart"}
+{"text": "5612345678", "type": "NL_RIJBEWIJS", "should_match": true}
+{"text": "34567890", "type": "NL_KVK", "should_match": true}
+{"text": "NL812345678B01", "type": "NL_BTW", "should_match": true}
+{"text": "BE0123.456.789", "type": "NL_BTW", "should_match": true, "comment": "BE BTW"}
+{"text": "106543210", "type": "NL_POLICY_NUMBER", "should_match": true}
+{"text": "01-012345", "type": "NL_AGB", "should_match": true}
+{"text": "19912345601", "type": "NL_BIG", "should_match": true}
+{"text": "85.07.21-123.45", "type": "BE_RIJKSREGISTER", "should_match": true}
+
+{"text": "1234567", "type": "NL_STUDENT_ID", "should_match": true, "comment": "HAN student bare"}
+{"text": "s7654321", "type": "NL_STUDENT_ID", "should_match": true, "comment": "HAN student s-prefix"}
+{"text": "P9876543", "type": "NL_EMPLOYEE_ID", "should_match": true, "comment": "HAN medewerker P-prefix"}
+{"text": "654321", "type": "NL_EMPLOYEE_ID", "should_match": true, "comment": "HAN medewerker bare"}
+{"text": "HBO-ICT-1A", "type": "EDU_CLASS", "should_match": true}
+{"text": "HBO-ICT-2C", "type": "EDU_CLASS", "should_match": true}
+{"text": "OOABDK1", "type": "EDU_COURSE_CODE", "should_match": true}
+{"text": "ICA-PROF", "type": "EDU_COURSE_CODE", "should_match": true}
+{"text": "34391", "type": "EDU_CROHO", "should_match": true}
+{"text": "3528 0123 4567 8901 2", "type": "NL_OV_CHIPKAART", "should_match": true}
+
+{"text": "jvdmeulen85", "type": "USERNAME", "should_match": true}
+{"text": "Zomer2026!", "type": "PASSWORD", "should_match": true}
+{"text": "Pa$$w0rd-Lente2026", "type": "PASSWORD", "should_match": true}
+{"text": "@jeroenvdm", "type": "SOCIAL_HANDLE", "should_match": true, "comment": "Twitter"}
+
+{"text": "145.97.12.233", "type": "IP_ADDRESS", "should_match": true}
+{"text": "2001:0db8:85a3:0000:0000:8a2e:0370:7334", "type": "IP_ADDRESS", "should_match": true}
+{"text": "00:1A:2B:3C:4D:5E", "type": "MAC_ADDRESS", "should_match": true}
+{"text": "linkedin.com/in/fatima-el-amrani-8812", "type": "URL", "should_match": true}
+{"text": "https://www.vandermeulen-advies.nl", "type": "URL", "should_match": true}
+{"text": "https://osiris.han.nl/student/1234567/dashboard", "type": "URL", "should_match": true}
+
+{"text": "Order 12-34-99", "type": "DATE_TIME", "should_match": false, "comment": "ordernummer, geen datum"}
+{"text": "Versie 1.2.3", "type": "DATE_TIME", "should_match": false, "comment": "softwareversie"}
+{"text": "Poort 8765", "type": "NL_PHONE_NUMBER", "should_match": false, "comment": "TCP poort"}
+{"text": "404", "type": "DATE_TIME", "should_match": false, "comment": "HTTP-statuscode"}
+{"text": "Hoofdstuk 14", "type": "DATE_TIME", "should_match": false, "comment": "hoofdstuknummer"}
+{"text": "Document 1985", "type": "DATE_TIME", "should_match": false, "comment": "documentnummer met jaartal"}
+{"text": "AB12", "type": "LOCATION", "should_match": false, "comment": "klas-code, geen kenteken"}
+{"text": "AB12", "type": "ORGANIZATION", "should_match": false, "comment": "klas-code, geen kenteken (spaCy gokte ORG)"}
+{"text": "1234 in", "type": "NL_POSTCODE", "should_match": false, "comment": "geen postcode (lowercase)"}
+{"text": "Pi", "type": "PERSON", "should_match": false, "comment": "wiskundige constante"}
+
+{"text": "@jeroenvdm.bsky.social", "type": "SOCIAL_HANDLE", "should_match": true, "comment": "BlueSky-handle"}
+{"text": "@jeroenvdm@mastodon.nl", "type": "SOCIAL_HANDLE", "should_match": true, "comment": "Mastodon-handle"}
+{"text": "52.0907° N, 5.1214° E", "type": "LOCATION", "should_match": true, "comment": "GPS-coördinaten"}
+{"text": "12-AB-3D", "type": "NL_KENTEKEN", "should_match": true, "comment": "voertuigkenteken sidecode 4"}
+{"text": "AB-123-C", "type": "NL_KENTEKEN", "should_match": true, "comment": "afwijkend kenteken met label-context"}
+{"text": "3528 0123 4567 8901 2", "type": "NL_OV_CHIPKAART", "should_match": true, "comment": "OV-chipkaart met 19 cijfers"}
+{"text": "1065 4321 0", "type": "NL_POLICY_NUMBER", "should_match": true, "comment": "polisnummer met spaties"}
+{"text": "1040 Brussel", "type": "LOCATION", "should_match": true, "comment": "BE-postcode + plaats"}
+{"text": "Lange Voorhout 44", "type": "LOCATION", "should_match": true, "comment": "straat met -hout suffix"}
+{"text": "Wim \"Pim\" Fortuyn-de Boer", "type": "PERSON", "should_match": true, "comment": "naam met bijnaam"}
+
+{"text": "Strikt-additief", "type": "PERSON", "should_match": false, "comment": "document-meta woord, geen naam"}
+{"text": "Postcode", "type": "LOCATION", "should_match": false, "comment": "veldlabel"}
+{"text": "Postcode", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel"}
+{"text": "Paspoortnummer", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel"}
+{"text": "Paspoortnummer", "type": "PERSON", "should_match": false, "comment": "veldlabel"}
+{"text": "IBAN", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel in quote"}
+{"text": "BIC", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel"}
+{"text": "Mastodon", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel social"}
+{"text": "Twitter/X", "type": "PERSON", "should_match": false, "comment": "veldlabel social"}
+{"text": "Backup-wachtwoord", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel"}
+{"text": "Medewerkernummer", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel"}
+{"text": "Voertuigkenteken", "type": "PERSON", "should_match": false, "comment": "veldlabel"}
+{"text": "s-prefix", "type": "PERSON", "should_match": false, "comment": "veldlabel-suffix"}
+{"text": "Klas-code", "type": "LOCATION", "should_match": false, "comment": "veldlabel"}
+{"text": "HAN-specifieke", "type": "LOCATION", "should_match": false, "comment": "compound dat met HAN begint"}
+{"text": "CVC", "type": "ORGANIZATION", "should_match": false, "comment": "veldlabel creditcard"}
+{"text": "VISA", "type": "ORGANIZATION", "should_match": false, "comment": "kaartmerk-label"}
+{"text": "(NL)", "type": "LOCATION", "should_match": false, "comment": "landcode tussen haakjes"}
+{"text": "(BE)", "type": "LOCATION", "should_match": false, "comment": "landcode tussen haakjes"}
+{"text": "(DE)", "type": "LOCATION", "should_match": false, "comment": "landcode tussen haakjes"}
+{"text": "(FR)", "type": "LOCATION", "should_match": false, "comment": "landcode tussen haakjes"}
+{"text": "(UK)", "type": "LOCATION", "should_match": false, "comment": "landcode tussen haakjes"}
+{"text": "Klant K", "type": "ORGANIZATION", "should_match": false, "comment": "K is sectie-letter, geen ORG"}
+{"text": "PAT-2026-001234", "type": "INTERNAL_CASE_NUMBER", "should_match": true, "comment": "Patiëntnummer met label-context"}
+{"text": "2026-OND-09812", "type": "INTERNAL_CASE_NUMBER", "should_match": true, "comment": "Dossiernummer NUM-LET-NUM"}
+{"text": "p9876543", "type": "NL_EMPLOYEE_ID", "should_match": true, "comment": "Medewerker-ID lowercase p in brightspace URL"}
+{"text": "code-blocks", "type": "LOCATION", "should_match": false, "comment": "IT-jargon - spaCy LOC FP"}
+{"text": "code-blocks", "type": "ORGANIZATION", "should_match": false, "comment": "IT-jargon - spaCy ORG FP"}
+{"text": "Anonimiseer-tool", "type": "ORGANIZATION", "should_match": false, "comment": "productnaam met -tool suffix"}
