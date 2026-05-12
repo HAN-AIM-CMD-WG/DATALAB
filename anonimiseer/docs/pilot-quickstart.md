@@ -28,10 +28,10 @@ De engine serveert zelf een browser-UI op `/playground`. Daar plak je
 tekst, kies je `pseudonymize` of `redact` en zie je direct wat er
 gedetecteerd wordt, inclusief highlights, mapping-tabel en raw JSON.
 
-Alleen engine starten, geen Docker of Open WebUI:
+Alleen engine starten, geen Docker of Open WebUI (vanuit de repo-root):
 
 ```bash
-cd /Users/wouter/Desktop/CURSOR/DATALAB/REPO/anonimiseer/packages/pii-engine
+cd anonimiseer/packages/pii-engine
 source .venv/bin/activate
 PII_ENGINE_SPACY_MODEL=nl_core_news_lg \
 PII_ENGINE_ENABLE_BSN=true \
@@ -79,7 +79,7 @@ de Open WebUI-container hem via `host.docker.internal` kan bereiken. Luister
 je alleen op `127.0.0.1`, dan ziet Docker hem niet.
 
 ```bash
-cd /Users/wouter/Desktop/CURSOR/DATALAB/REPO/anonimiseer/packages/pii-engine
+cd anonimiseer/packages/pii-engine
 source .venv/bin/activate
 PII_ENGINE_HOST=0.0.0.0 \
 PII_ENGINE_SPACY_MODEL=nl_core_news_lg \

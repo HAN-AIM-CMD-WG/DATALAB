@@ -1,6 +1,6 @@
 # Onderzoek — bronmateriaal
 
-Verkenning die aan dit project voorafging. Gekopieerd uit de oorspronkelijke werkmap `Desktop/CURSOR/DATALAB/ANONIMISER/` (bestaat daar nog als scratch-archief).
+Verkenning die aan dit project voorafging.
 
 | Bestand | Wat is het |
 |---|---|
