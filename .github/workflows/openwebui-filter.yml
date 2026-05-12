@@ -1,0 +1,45 @@
+name: openwebui-filter
+
+on:
+  push:
+    branches: [main, "feat/**"]
+    paths:
+      - "anonimiseer/apps/openwebui-filter/**"
+      - ".github/workflows/openwebui-filter.yml"
+  pull_request:
+    paths:
+      - "anonimiseer/apps/openwebui-filter/**"
+      - ".github/workflows/openwebui-filter.yml"
+
+defaults:
+  run:
+    working-directory: anonimiseer/apps/openwebui-filter
+
+jobs:
+  test:
+    name: Test filter
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Pytest
+        run: pytest -ra
+
+      - name: Syntax check (filter is uploaded as-is in Open WebUI)
+        run: python -m py_compile nl_pii_filter.py

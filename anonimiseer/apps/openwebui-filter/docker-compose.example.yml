@@ -1,0 +1,59 @@
+# Voorbeeld-stack voor lokaal testen: Open WebUI + pii-engine.
+#
+# Gebruik:
+#   1. Bouw eerst de pii-engine image:
+#        cd ../../packages/pii-engine && docker build -t pii-engine:0.1.0 .
+#   2. Start de stack:
+#        docker compose -f docker-compose.example.yml up -d
+#   3. Open http://localhost:3000 en log in.
+#   4. Upload nl_pii_filter.py via Admin -> Functions.
+#   5. Zet de valve `pii_engine_url` op http://pii-engine:8765.
+#
+# Deze file is een VOORBEELD, niet bedoeld voor productie. Zie de productie-
+# gids in ../deploy/ (TODO) voor TLS, persistentie en backup.
+
+services:
+  pii-engine:
+    image: pii-engine:0.1.0
+    container_name: anonimiseer-pii-engine
+    restart: unless-stopped
+    environment:
+      PII_ENGINE_HOST: "0.0.0.0"
+      PII_ENGINE_PORT: "8765"
+      PII_ENGINE_SPACY_MODEL: "nl_core_news_lg"
+      PII_ENGINE_ALLOW_BLANK_NLP_FALLBACK: "false"
+    networks:
+      - anonimiseer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: anonimiseer-open-webui
+    restart: unless-stopped
+    depends_on:
+      pii-engine:
+        condition: service_healthy
+    ports:
+      - "3000:8080"
+    environment:
+      # Laat OpenRouter/externe providers toe; vul key in via UI of .env.
+      ENABLE_OPENAI_API: "true"
+      OPENAI_API_BASE_URL: "https://openrouter.ai/api/v1"
+      # OPENAI_API_KEY: zet via runtime env of .env file.
+      WEBUI_AUTH: "true"
+    volumes:
+      - open-webui-data:/app/backend/data
+    networks:
+      - anonimiseer
+
+volumes:
+  open-webui-data:
+
+networks:
+  anonimiseer:
+    driver: bridge

@@ -1,0 +1,13 @@
+node_modules/
+out/
+release/
+dist/
+.vite/
+.cache/
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# Lokale env-overrides
+.env
+.env.local

@@ -1,0 +1,73 @@
+{
+  "$schema": "./ollama-catalog.schema.json",
+  "schemaVersion": 1,
+  "version": "2026-04-17",
+  "notes": "Curated lijst Ollama-modellen die *lokaal* draaien. Cloud-varianten (:cloud) worden bewust geweigerd. Pas dit bestand aan als er nieuwere modellen verschijnen en commit naar de repo zodat 'Catalog vernieuwen' in de app het oppikt.",
+  "models": [
+    {
+      "name": "qwen3.5:0.8b",
+      "label": "Qwen 3.5 — 0.8B",
+      "description": "Heel klein meertalig model (0.8B). Draait op vrijwel elke laptop. Beperkte kwaliteit; vooral voor experimenten.",
+      "sizeMb": 1024,
+      "minRamMb": 3072
+    },
+    {
+      "name": "qwen3.5:2b",
+      "label": "Qwen 3.5 — 2B",
+      "description": "Lichte allrounder uit de Qwen 3.5-familie. Behoorlijk in Nederlands. Geschikt voor 8 GB-laptops.",
+      "sizeMb": 2765,
+      "minRamMb": 6144
+    },
+    {
+      "name": "qwen3.5:4b",
+      "label": "Qwen 3.5 — 4B",
+      "description": "Sweet spot voor 8–16 GB laptops. Sterk meertalig, goede kwaliteit voor PII-/anonimisatie-ondersteuning.",
+      "sizeMb": 3482,
+      "minRamMb": 8192,
+      "recommended": true
+    },
+    {
+      "name": "qwen3.5:9b",
+      "label": "Qwen 3.5 — 9B",
+      "description": "Aanbevolen voor 16 GB+ machines. Topper voor lokale Nederlandse tekstanalyse op een werkstation-laptop.",
+      "sizeMb": 6758,
+      "minRamMb": 12288,
+      "recommended": true
+    },
+    {
+      "name": "qwen3.5:27b",
+      "label": "Qwen 3.5 — 27B",
+      "description": "Zware variant (256K context). Vraagt minimaal 32 GB RAM of een degelijke GPU; trager op CPU.",
+      "sizeMb": 17408,
+      "minRamMb": 32768
+    },
+    {
+      "name": "gemma4:e2b",
+      "label": "Gemma 4 — E2B (edge)",
+      "description": "Google Gemma 4, edge-variant met effectieve 2B-parameters. Multimodaal (tekst, beeld, audio). 128K context.",
+      "sizeMb": 7373,
+      "minRamMb": 10240
+    },
+    {
+      "name": "gemma4:e4b",
+      "label": "Gemma 4 — E4B (edge)",
+      "description": "Sterker dan E2B en nog steeds laptop-vriendelijk. Multimodaal en met optionele 'thinking mode'.",
+      "sizeMb": 9830,
+      "minRamMb": 14336
+    },
+    {
+      "name": "gemma4:26b",
+      "label": "Gemma 4 — 26B (MoE)",
+      "description": "Mixture-of-Experts met ~4B actieve parameters: frontier-kwaliteit met workstation-snelheid. 256K context.",
+      "sizeMb": 18432,
+      "minRamMb": 28672
+    },
+    {
+      "name": "gemma4:31b",
+      "label": "Gemma 4 — 31B (dense)",
+      "description": "Dense flagship voor lokaal. Beste kwaliteit in deze lijst, maar alleen serieus op een workstation met veel RAM/VRAM.",
+      "sizeMb": 20480,
+      "minRamMb": 40960
+    }
+  ]
+}
