@@ -242,8 +242,14 @@ function QuickStart(): JSX.Element {
       <li>
         <span className="font-medium">Stap 3 — Controleren.</span>{' '}
         De app toont wat hij heeft gevonden. Elke hit kun je <em>accepteren</em>,{' '}
-        <em>skippen</em> (niet vervangen) of op de <em>whitelist</em> zetten (nooit vervangen).
-        Dit is waar je zelf verantwoordelijk bent.
+        <em>overslaan</em> (niet vervangen) of op de <em>whitelist</em> zetten
+        (nooit vervangen, ook niet in andere bestanden). Via de categorie-filter
+        rechts kun je gericht door één type tegelijk lopen (bijvoorbeeld alleen
+        de organisatienamen). Mist de detector iets?{' '}
+        <em>Selecteer de tekst</em> in het venster en klik op{' '}
+        <em>Markeer handmatig</em> — kies via het pijltje eventueel een
+        specifieke categorie. Klik op een handmatige markering om hem weer te
+        verwijderen.
       </li>
       <li>
         <span className="font-medium">Stap 4 — Opslaan.</span>{' '}
@@ -377,11 +383,9 @@ function PseudoVsAnon(): JSX.Element {
           </p>
         </div>
       </div>
-      <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
-        <AlertTriangle className="mr-1 inline h-3 w-3" aria-hidden />
-        Beide modi vervangen alleen wat de detectie vindt.{' '}
-        <span className="font-medium">Controleer in stap 3 of je niks mist</span> — de app
-        helpt, jij blijft verantwoordelijk.
+      <p className="text-[11px] text-muted-foreground">
+        Beide modi vervangen alleen wat de detectie heeft gevonden. Loop in
+        stap 3 nog even door wat er gemarkeerd is — de app helpt, jij beslist.
       </p>
     </div>
   );
@@ -420,10 +424,10 @@ function OllamaGuide(): JSX.Element {
         </li>
       </ul>
 
-      <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-900 dark:text-amber-200">
-        <AlertTriangle className="mr-1 inline h-3 w-3" aria-hidden />
-        Kies een model dat bij je laptop past — 4B-modellen vragen minimaal 8 GB RAM,
-        7B-modellen 16 GB. De fit-indicator in Modellen beheren waarschuwt je hierbij.
+      <p className="text-[11px] text-muted-foreground">
+        Kies een model dat bij je laptop past — 4B-modellen vragen minimaal
+        8 GB RAM, 7B-modellen 16 GB. De fit-indicator in Modellen beheren
+        helpt je daarbij.
       </p>
     </div>
   );
@@ -443,7 +447,7 @@ function Troubleshoot(): JSX.Element {
         <p className="text-xs font-semibold">Laptop wordt traag of luidruchtig</p>
         <p className="mt-1">
           Waarschijnlijk draait er een zwaar model: SoNaR-BERT (~600 MB RAM, standaard
-          aan) of een Ollama LLM (enkele GB, alleen als je 'm aan hebt gezet).
+          aan) of een Ollama LLM (enkele GB, alleen als je deze hebt geactiveerd).
           Schakel ze uit in Modellen beheren als je ze niet nodig hebt. Eén analyse
           kan de eerste keer 30–60 seconden duren — daarna sneller dankzij caching.
         </p>
@@ -459,10 +463,12 @@ function Troubleshoot(): JSX.Element {
       <div className="rounded-md border border-border/60 bg-muted/30 p-3">
         <p className="text-xs font-semibold">Een naam wordt niet herkend</p>
         <p className="mt-1">
-          Zet in stap 3 de <em>drempelwaarde</em> lager (Geavanceerd), of selecteer de
-          naam zelf en voeg hem via <em>Aan mijn lijst toevoegen</em> toe. Standaard zijn
-          spaCy-large én SoNaR-BERT al actief; controleer in Modellen beheren dat je ze
-          niet per ongeluk hebt uitgezet.
+          Selecteer in stap 3 de naam in het tekstvenster en klik op{' '}
+          <em>Markeer handmatig</em> — hij wordt dan als persoonsnaam vervangen.
+          Werkt dat structureel niet voor één type? Zet in stap 2 (Geavanceerd)
+          de <em>drempelwaarde</em> iets lager. Standaard zijn spaCy-large én
+          SoNaR-BERT al actief; controleer in Modellen beheren dat je ze niet
+          per ongeluk hebt uitgezet.
         </p>
       </div>
     </div>

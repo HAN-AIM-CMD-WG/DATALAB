@@ -87,7 +87,7 @@ apps/electron-anonimiseer/
             ├── main.tsx
             ├── styles.css
             ├── components/
-            │   ├── DisclaimerBanner.tsx
+            │   ├── PreviewDisclaimer.tsx
             │   └── EngineStatus.tsx
             └── lib/
                 └── utils.ts     cn() helper voor Tailwind

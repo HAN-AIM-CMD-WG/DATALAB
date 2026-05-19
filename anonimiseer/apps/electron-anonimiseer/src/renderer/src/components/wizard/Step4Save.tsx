@@ -458,7 +458,7 @@ function LlmReviewPanel({
           <p className="mt-2 text-xs text-foreground">
             <strong>Tip:</strong> dit ziet eruit als een corrupte download van{' '}
             {model ? <code>{model}</code> : 'het model'} (Ollama-registry kent
-            de naam, maar kan 'm niet laden). Repareer met:
+            de naam, maar kan hem niet laden). Repareer met:
             <br />
             <code className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5">
               ollama rm {model ?? '<model>'} &amp;&amp; ollama pull {model ?? '<model>'}
@@ -470,7 +470,7 @@ function LlmReviewPanel({
         {isTimeout && (
           <p className="mt-2 text-xs text-foreground">
             <strong>Tip:</strong> de eerste keer dat een model laadt kan dit
-            30–60s duren. Probeer 'm opnieuw — daarna staat hij warm. Voor
+            30–60s duren. Probeer het opnieuw — daarna staat hij warm. Voor
             snellere reviews kies een lichter model (bv.{' '}
             <code>qwen2.5:1.5b-instruct</code>).
           </p>

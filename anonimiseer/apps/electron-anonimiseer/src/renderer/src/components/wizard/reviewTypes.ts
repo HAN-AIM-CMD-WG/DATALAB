@@ -49,3 +49,16 @@ export interface ReviewState {
 export function hitId(hit: AnalyzeHit): string {
   return `${hit.entity_type}:${hit.start}:${hit.end}`;
 }
+
+/** Prefix waarmee we id's van handmatig toegevoegde hits markeren, zodat
+ *  we ze in de UI anders kunnen tonen (badge, verwijder-knop) en bij een
+ *  her-analyse niet wegspoelen. */
+export const MANUAL_HIT_PREFIX = 'manual:';
+
+export function manualHitId(hit: Pick<AnalyzeHit, 'entity_type' | 'start' | 'end'>): string {
+  return `${MANUAL_HIT_PREFIX}${hit.entity_type}:${hit.start}:${hit.end}`;
+}
+
+export function isManualHitId(id: string): boolean {
+  return id.startsWith(MANUAL_HIT_PREFIX);
+}

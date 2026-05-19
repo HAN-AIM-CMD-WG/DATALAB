@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/HAN-AIM-CMD-WG/DATALAB?include_prereleases&label=download&color=blue)](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
 
-Status: **pilot v0.1.0** — beschikbaar als pre-release voor interne HAN-test (8 mei 2026).
+Status: **pilot v0.1.1** — beschikbaar als pre-release voor interne HAN-test (19 mei 2026).
 
 ---
 

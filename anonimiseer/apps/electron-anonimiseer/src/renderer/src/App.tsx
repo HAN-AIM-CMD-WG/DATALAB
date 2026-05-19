@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ShieldCheck, RotateCcw, Package, HelpCircle } from 'lucide-react';
 import { EngineStatus } from './components/EngineStatus';
 import { EngineOfflinePanel } from './components/EngineOfflinePanel';
-import { DisclaimerBanner } from './components/DisclaimerBanner';
 import { Onboarding } from './components/Onboarding';
+import { PreviewDisclaimer } from './components/PreviewDisclaimer';
 import { ModelManager } from './components/ModelManager';
 import { HelpPanel } from './components/HelpPanel';
 import { Wizard } from './components/wizard/Wizard';
@@ -50,7 +50,6 @@ export function App(): JSX.Element {
         onOpenModels={() => setShowModels(true)}
         onOpenHelp={() => setShowHelp(true)}
       />
-      <DisclaimerBanner />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
         {health.status === 'down' && <EngineOfflinePanel health={health} />}
         <Wizard appSettings={settings} />
@@ -83,7 +82,10 @@ function Header({
             <ShieldCheck className="h-5 w-5" aria-hidden />
           </div>
           <div>
-            <h1 className="text-base font-semibold leading-tight">Anonimiseer</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-semibold leading-tight">Anonimiseer</h1>
+              <PreviewDisclaimer />
+            </div>
             <p className="text-xs text-muted-foreground">
               Lokale PII-anonimisering · profiel{' '}
               <span className="font-medium text-foreground/80 capitalize">

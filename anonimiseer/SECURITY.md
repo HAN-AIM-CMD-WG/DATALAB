@@ -31,9 +31,9 @@ via `Security → Report a vulnerability` op de repo-pagina, of mail
 | --- | --- |
 | Data-verwerking | **Volledig lokaal**: PII-engine luistert standaard op `127.0.0.1`, geen uitgaande verbindingen. |
 | Telemetrie | Geen. Geen analytics, crash-reporting of "phone home". |
-| Auto-updates | Uitgeschakeld in v0.1.0. Updates vereisen handmatige download. |
+| Auto-updates | Uitgeschakeld tijdens de pilot. Updates vereisen handmatige download. |
 | Ollama-review (optioneel) | Praat alleen met `127.0.0.1:11434` (lokaal Ollama-daemon). Niets buiten de Mac. |
-| Code-signing | **Niet gesigneerd** voor v0.1.0 (pilot-fase). Gebruikers krijgen eenmalig een Gatekeeper/SmartScreen-waarschuwing. |
+| Code-signing | **Niet gesigneerd** tijdens de pilot. Gebruikers krijgen eenmalig een Gatekeeper/SmartScreen-waarschuwing. |
 | SHA-256-verificatie | Hashes staan in de [release-notes](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases/latest). |
 
 ## Bekende beperkingen (security-relevant)
