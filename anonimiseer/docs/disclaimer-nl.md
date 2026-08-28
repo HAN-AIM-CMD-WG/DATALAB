@@ -1,8 +1,8 @@
 # Disclaimer en verantwoordelijkheid
 
-Centrale plek voor alle Nederlandstalige waarschuwingsteksten die in de app, de browser-extensie, de Open WebUI-filter en op output-artefacten verschijnen. Verandert deze tekst? Dan wordt de first-run-disclaimer in de app opnieuw aan de gebruiker voorgelegd.
+Centrale plek voor alle Nederlandstalige waarschuwingsteksten die in de app, de Open WebUI-filter en op output-artefacten verschijnen. Verandert deze tekst? Dan wordt de first-run-disclaimer in de app opnieuw aan de gebruiker voorgelegd.
 
-## 1. First-run modal (Electron-app en browser-extensie)
+## 1. First-run modal (Electron-app)
 
 **Titel**: Belangrijk voor je begint
 

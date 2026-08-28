@@ -67,14 +67,19 @@ Docenten, onderzoekers en ondersteuners (HAN en daarbuiten) die willen werken me
 
 ## Wat zit er in deze repo
 
+Het product is de **desktop-app**. Die bestaat uit twee delen die samen worden uitgeleverd:
+
 | Onderdeel | Locatie | Beschrijving |
 |---|---|---|
-| **Electron-app** | [`apps/electron-anonimiseer/`](apps/electron-anonimiseer/) | Lokale desktop-tool met wizard-flow voor leken (fork van [A5 PII Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer), MIT). **Dit is wat eindgebruikers downloaden.** |
-| **PII-engine** | [`packages/pii-engine/`](packages/pii-engine/) | Python-microservice met Presidio NL + spaCy + SoNaR-BERT + 48 custom NL/EU recognizers. Wordt automatisch meegebundeld in de Electron-app. |
-| Open WebUI filter | [`apps/openwebui-filter/`](apps/openwebui-filter/) | Filter Function die PII wegstript voordat prompts naar OpenRouter gaan (server-side variant). |
-| Browser-extensie | [`apps/browser-extension/`](apps/browser-extension/) | Manifest V3 extensie voor ChatGPT, Claude, Gemini, Copilot (Fase 6, in voorbereiding). |
-| Native Messaging host | [`apps/native-host/`](apps/native-host/) | Brug tussen browser-extensie en lokale engine. |
-| Deploy | [`deploy/`](deploy/) | Docker Compose voor engine naast bestaande OpenWebUI. |
+| **Electron-app** | [`apps/electron-anonimiseer/`](apps/electron-anonimiseer/) | Lokale desktop-tool met wizard-flow voor leken. **Dit is wat eindgebruikers downloaden.** |
+| **PII-engine** | [`packages/pii-engine/`](packages/pii-engine/) | Python-sidecar met Presidio NL + spaCy + SoNaR-BERT + 48 custom NL/EU recognizers. Draait als lokaal proces op `127.0.0.1:8765` en wordt meegebundeld in de app. |
+
+Daarnaast staat er materiaal in de repo dat **niet in actieve ontwikkeling** is:
+
+| Onderdeel | Locatie | Status |
+|---|---|---|
+| Open WebUI filter | [`apps/openwebui-filter/`](apps/openwebui-filter/) | Werkend en getest, maar bevroren. Filter Function die PII wegstript voordat prompts naar OpenRouter gaan. Praat over HTTP met dezelfde engine. |
+| A5-referentie | [`apps/electron-anonimiseer-a5-reference/`](apps/electron-anonimiseer-a5-reference/) | Archief van de upstream [A5 PII Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer) (MIT), bewaard voor attributie. Niet gebruiken voor ontwikkeling. |
 | Onderzoek | [`docs/onderzoek/`](docs/onderzoek/) | Bronmateriaal en verkenningen. |
 
 ## Voor ontwikkelaars
@@ -91,10 +96,13 @@ cd apps/electron-anonimiseer
 npm install
 npm run dev
 
-# 3. Tests + scoring
-cd packages/pii-engine && pytest
-cd ../../  # repo root
-python score.py                            # 100% recall + precision verwacht
+# 3. Tests
+cd packages/pii-engine && pytest           # engine (unit + integratie)
+cd ../../apps/electron-anonimiseer && npm test   # app (pure logica)
+
+# 4. Regressie-scoring tegen de gouden testset (engine moet draaien)
+cd packages/pii-engine
+python scripts/score.py                    # recall + precision op docs/examples/
 ```
 
 ### Een release bouwen
@@ -109,7 +117,7 @@ Zie [`apps/electron-anonimiseer/RELEASE.md`](apps/electron-anonimiseer/RELEASE.m
 
 ## Licentie en attributie
 
-Dit project staat onder **MIT**. De Electron-app is gebaseerd op [AgenticA5/A5-PII-Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer) (ook MIT). Zie [`apps/electron-anonimiseer/NOTICE.md`](apps/electron-anonimiseer/NOTICE.md) voor volledige attributie van third-party dependencies.
+Dit project staat onder **MIT**. De Electron-app is opgezet vanaf nul, geïnspireerd op [AgenticA5/A5-PII-Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer) (ook MIT). Zie [`apps/electron-anonimiseer-a5-reference/NOTICE.md`](apps/electron-anonimiseer-a5-reference/NOTICE.md) voor de attributie van dat werk.
 
 ## Vragen of issues?
 

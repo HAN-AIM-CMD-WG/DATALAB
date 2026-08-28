@@ -1,15 +1,25 @@
 # Architectuur
 
-> Dit document is een levend uittreksel van het master-plan. Detailniveau groeit per fase.
-> Master-plan: zie Cursor plan-bestand `anonimiseer-tooling_electron_+_openwebui`.
-
 ## Kern-principe
 
-Één gedeelde **PII Engine** in Python (`packages/pii-engine/`) voedt drie front-ends:
+De **desktop-app** is het product. Die bestaat uit twee processen:
 
-1. **Electron-app** (sidecar, PyInstaller-gebundeld, offline-first)
-2. **Open WebUI filter** (microservice naast bestaande OpenWebUI-deployment)
-3. **Browser-extensie + hotkey-helper** (Fase 6, Native Messaging naar dezelfde sidecar)
+1. **Electron-app** (`apps/electron-anonimiseer/`) — UI, wizard-flow, bestandsafhandeling.
+2. **PII Engine** (`packages/pii-engine/`) — alle detectie- en anonimiseer-logica, als Python-sidecar op `127.0.0.1:8765`.
+
+De splitsing is geen keuze maar een gevolg: de detectie leunt op Presidio, spaCy en
+PyTorch, en die draaien niet binnen Node. De engine wordt daarom met PyInstaller
+gebundeld en door het main-proces opgestart en bewaakt
+([`engineProcess.ts`](../apps/electron-anonimiseer/src/main/engineProcess.ts)).
+
+Daaruit volgt de belangrijkste regel voor deze codebase: **alle PII-kennis hoort
+in de engine, de app blijft dom**. Wat de app wél zelf doet — het toepassen van
+al-goedgekeurde vervangingen op `.md`/`.txt` — is een bewuste uitzondering, zodat
+wat de gebruiker in stap 3 ziet letterlijk op disk belandt.
+
+De [Open WebUI-filter](../apps/openwebui-filter/) hangt als bevroren tweede client
+aan dezelfde HTTP-API. Die legt geen beperkingen op aan de app: hij deelt geen
+code en heeft zijn eigen tests.
 
 ## Detectie-pijplijn
 
@@ -50,12 +60,20 @@ Op zes plekken wordt expliciet aan de gebruiker duidelijk gemaakt dat dit een hu
 
 Zie [`disclaimer-nl.md`](disclaimer-nl.md) voor de exacte teksten.
 
-## Fases
+## Wat er staat
 
-0. Monorepo-setup + A5-subtree (huidige fase)
-1. PII Engine MVP + Model Manager
-2. Open WebUI filter
-3. Electron-app met wizard-UI
-4. LLM-versterking (optioneel)
-5. Documentatie + pilot
-6. Browser-extensie + hotkey-helper (optioneel, na pilot)
+| Onderdeel | Status |
+|---|---|
+| PII Engine + Model Manager | Werkend, gedekt door pytest/mypy/ruff in CI |
+| Electron-app met wizard-UI | Werkend, pilot v0.1.1 |
+| LLM-versterking via Ollama | Optioneel, aanwezig (`ollama_review.py`) |
+| Open WebUI filter | Werkend, bevroren |
+
+## Wat we bewust niet bouwen
+
+Een browser-extensie met Native Messaging-host stond eerder op de planning voor
+ChatGPT, Claude, Gemini en Copilot. Dat is geschrapt: een extensie is door de
+eindgebruiker uit te zetten of te omzeilen (andere browser, incognito, andere
+laptop) en is dus geen afdwingbare compliance-laag, terwijl hij wel per site
+onderhoud vraagt zodra die zijn DOM wijzigt. Wie afdwingbaarheid nodig heeft,
+gebruikt de Open WebUI-route.

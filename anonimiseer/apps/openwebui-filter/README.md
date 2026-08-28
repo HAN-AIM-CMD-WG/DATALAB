@@ -1,5 +1,10 @@
 # `openwebui-filter` — Nederlandse PII-filter voor Open WebUI
 
+> **Status: bevroren.** Dit onderdeel werkt en is gedekt door tests, maar er
+> wordt niet actief aan doorontwikkeld. De focus ligt op de
+> [desktop-app](../electron-anonimiseer/). Bugfixes zijn welkom; nieuwe features
+> niet gepland.
+
 > Open WebUI Filter Function die Nederlandse PII (BSN, telefoon, postcode,
 > studentnummer, persoonsnamen, e-mail, IBAN, ...) uit prompts strip voordat
 > ze naar een externe LLM-provider zoals **OpenRouter** gaan. Houdt een
