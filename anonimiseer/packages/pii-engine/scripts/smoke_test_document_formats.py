@@ -53,7 +53,7 @@ PII = {
     "naam": "Jos Verstappen",
     "telefoon": "06-12345678",
     "telefoon_aanspreekpunt": "+31 6 87654321",
-    "email": "josverstappen@hotmail.nl",
+    "email": "josverstappen@example.nl",
     "email_aanspreekpunt": "han.goedkeurder@example.com",
     "bsn": "111222333",  # Elfproef-geldig test-BSN
     "iban": "NL91ABNA0417164300",

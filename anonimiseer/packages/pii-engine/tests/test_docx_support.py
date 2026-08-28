@@ -152,14 +152,14 @@ class TestHyperlinkEmail:
         return _docx_bytes(doc)
 
     def test_hyperlink_email_visible_in_flat_text(self):
-        data = self._build_doc_with_email_hyperlink("josverstappen@hotmail.nl")
+        data = self._build_doc_with_email_hyperlink("josverstappen@example.nl")
         result = extract_docx(data)
-        assert "josverstappen@hotmail.nl" in result.flat_text
+        assert "josverstappen@example.nl" in result.flat_text
         # Niet dubbel — moet exact één keer voorkomen.
-        assert result.flat_text.count("josverstappen@hotmail.nl") == 1
+        assert result.flat_text.count("josverstappen@example.nl") == 1
 
     def test_hyperlink_email_replaced_cleanly(self):
-        email = "josverstappen@hotmail.nl"
+        email = "josverstappen@example.nl"
         data = self._build_doc_with_email_hyperlink(email)
         result = extract_docx(data)
 
@@ -208,7 +208,7 @@ class TestMergedCellPlusHyperlink:
         table.rows[1].cells[0].text = "E-mailadres"
         email_cell = table.rows[1].cells[1]
         email_para = email_cell.paragraphs[0]
-        _add_hyperlink_run(email_para, "josverstappen@hotmail.nl")
+        _add_hyperlink_run(email_para, "josverstappen@example.nl")
         _set_grid_span(email_cell, 2)
 
         data = _docx_bytes(doc)
@@ -216,17 +216,17 @@ class TestMergedCellPlusHyperlink:
 
         # Email moet exact één keer in flat_text staan — niet drie (1× per
         # bezochte cell × hyperlink+plain-run varianten).
-        assert result.flat_text.count("josverstappen@hotmail.nl") == 1, (
+        assert result.flat_text.count("josverstappen@example.nl") == 1, (
             f"email staat meerdere keren in flat_text: {result.flat_text!r}"
         )
 
-        idx = result.flat_text.index("josverstappen@hotmail.nl")
+        idx = result.flat_text.index("josverstappen@example.nl")
         replacements = [
             AcceptedReplacement(
                 start=idx,
-                end=idx + len("josverstappen@hotmail.nl"),
+                end=idx + len("josverstappen@example.nl"),
                 replacement="EMAIL_ADDRESS_1",
-                original="josverstappen@hotmail.nl",
+                original="josverstappen@example.nl",
             )
         ]
         out_bytes = apply_docx(data, replacements, result.blocks)
@@ -245,7 +245,7 @@ class TestMergedCellPlusHyperlink:
         joined = " | ".join(physical_cell_texts)
 
         # Origineel email-adres mag nergens meer in de output staan.
-        assert "josverstappen@hotmail.nl" not in joined, (
+        assert "josverstappen@example.nl" not in joined, (
             f"origineel email lekt naar output: {joined!r}"
         )
         # Geen mangled of dubbele placeholders.

@@ -55,7 +55,9 @@ Bestand controleren tegen de SHA-256 op de Releases-pagina:
 3. Bekijk de gemarkeerde gevallen vóór je ze opslaat.
 4. Exporteer een schone versie + (optioneel) een versleutelde mapping om later terug te draaien.
 
-Geen data verlaat je laptop. Geen account nodig. Geen netwerk vereist.
+**De inhoud van je documenten verlaat je laptop nooit.** Geen account nodig, geen telemetrie, geen automatische updates.
+
+Internet heb je alleen nodig als je zelf een taalmodel downloadt. Dat gebeurt nooit vanzelf en nooit met documentinhoud. Houd er rekening mee dat het aanbevolen SoNaR-model niet in de installer zit: de eerste keer dat je het inschakelt wordt het opgehaald (~400 MB).
 
 > **Belangrijk:** Anonimiseer is een **hulpmiddel**, geen garantie. Geen enkele automatische PII-detectie is 100% nauwkeurig. Loop de highlights altijd na vóór je een document deelt. Onder de AVG blijft de gebruiker zelf verwerkingsverantwoordelijke. Zie [`docs/disclaimer-nl.md`](docs/disclaimer-nl.md).
 
@@ -72,7 +74,7 @@ Het product is de **desktop-app**. Die bestaat uit twee delen die samen worden u
 | Onderdeel | Locatie | Beschrijving |
 |---|---|---|
 | **Electron-app** | [`apps/electron-anonimiseer/`](apps/electron-anonimiseer/) | Lokale desktop-tool met wizard-flow voor leken. **Dit is wat eindgebruikers downloaden.** |
-| **PII-engine** | [`packages/pii-engine/`](packages/pii-engine/) | Python-sidecar met Presidio NL + spaCy + SoNaR-BERT + 48 custom NL/EU recognizers. Draait als lokaal proces op `127.0.0.1:8765` en wordt meegebundeld in de app. |
+| **PII-engine** | [`packages/pii-engine/`](packages/pii-engine/) | Python-sidecar met Presidio + spaCy + SoNaR-BERT, aangevuld met ruim 30 eigen NL/EU-recognizers. Draait als lokaal proces op `127.0.0.1:8765` en wordt meegebundeld in de app. |
 
 Daarnaast staat er materiaal in de repo dat **niet in actieve ontwikkeling** is:
 
@@ -84,11 +86,16 @@ Daarnaast staat er materiaal in de repo dat **niet in actieve ontwikkeling** is:
 
 ## Voor ontwikkelaars
 
+Vereist Python 3.11 of 3.12 (niet nieuwer — daar zijn nog geen spaCy/Presidio-wheels voor) en Node 20. Alle paden hieronder zijn relatief aan de map `anonimiseer/`.
+
 ```bash
+git clone https://github.com/HAN-AIM-CMD-WG/DATALAB.git
+cd DATALAB/anonimiseer
+
 # 1. Engine in dev mode
 cd packages/pii-engine
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,sonar]"
+pip install -e ".[nl-small,dev]"           # nl-small levert het spaCy-model mee
 python -m pii_engine                       # → http://127.0.0.1:8765/health
 
 # 2. Electron app in dev mode (in een tweede terminal)
@@ -97,7 +104,8 @@ npm install
 npm run dev
 
 # 3. Tests
-cd packages/pii-engine && pytest           # engine (unit + integratie)
+cd packages/pii-engine
+pytest -m "not slow"                       # engine; zonder -m worden modellen gedownload
 cd ../../apps/electron-anonimiseer && npm test   # app (pure logica)
 
 # 4. Regressie-scoring tegen de gouden testset (engine moet draaien)
@@ -111,13 +119,15 @@ Zie [`apps/electron-anonimiseer/RELEASE.md`](apps/electron-anonimiseer/RELEASE.m
 
 ## Architectuur
 
-- **Detectie-pijplijn**: 48 recognizers (Presidio + custom NL) → post-filter (overlap, label-FP) → anonymizer (pseudoniem of redact). Zie [`docs/architecture.md`](docs/architecture.md).
+- **Detectie-pijplijn**: recognizers (Presidio + ruim 30 eigen NL/EU) → post-filter (overlap, label-FP) → anonymizer (pseudoniem of redact). Zie [`docs/architecture.md`](docs/architecture.md).
 - **Privacy**: alle verwerking lokaal; engine luistert alleen op `127.0.0.1`; geen telemetrie.
 - **Modelprofielen**: Basis (alleen spaCy), Plus (+ SoNaR-BERT, aanbevolen), Max (alle recognizers).
 
 ## Licentie en attributie
 
-Dit project staat onder **MIT**. De Electron-app is opgezet vanaf nul, geïnspireerd op [AgenticA5/A5-PII-Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer) (ook MIT). Zie [`apps/electron-anonimiseer-a5-reference/NOTICE.md`](apps/electron-anonimiseer-a5-reference/NOTICE.md) voor de attributie van dat werk.
+De **broncode in deze repo** staat onder [MIT](../LICENSE). De Electron-app is opgezet vanaf nul, geïnspireerd op [AgenticA5/A5-PII-Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer) (ook MIT). Zie [`apps/electron-anonimiseer-a5-reference/NOTICE.md`](apps/electron-anonimiseer-a5-reference/NOTICE.md) voor de attributie van dat werk.
+
+> **Let op — de gedistribueerde installer is niet volledig MIT.** De PDF-ondersteuning gebruikt [PyMuPDF](https://github.com/pymupdf/PyMuPDF), dat onder AGPL-3.0 valt (of onder een commerciële Artifex-licentie). De `.dmg` en `.exe` bevatten die code en zijn daarmee AGPL-3.0-verplicht: de volledige broncode van het geheel is beschikbaar in deze repo. We onderzoeken of PyMuPDF vervangen kan worden zodat de hele distributie MIT kan zijn. Zonder PDF-ondersteuning is de tool wél volledig MIT — DOCX, XLSX, Markdown en tekst gebruiken uitsluitend MIT-componenten.
 
 ## Vragen of issues?
 

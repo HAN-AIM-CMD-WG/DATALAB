@@ -78,7 +78,7 @@ class TestHyperlinkStrip:
         return _wb_bytes(wb)
 
     def test_hyperlink_target_stripped_after_replace(self):
-        email = "josverstappen@hotmail.nl"
+        email = "josverstappen@example.nl"
         data = self._build(email)
 
         # Sanity: in de originele input zit zowel de display-text als de
