@@ -28,15 +28,18 @@ cd anonimiseer/packages/pii-engine
 # Engine starten met aanbevolen profiel
 PII_ENGINE_ENABLE_BSN=true PII_ENGINE_ENABLE_SONAR=true pii-engine &
 
-# Document analyseren en met de verwachte spans vergelijken
-python score.py \
-  --document ../../docs/examples/test-document.md \
-  --expected ../../docs/examples/test-document.expected.jsonl
+# Document analyseren en met de gouden set vergelijken
+python scripts/score.py
 ```
 
-Verwacht resultaat: 100% recall + 100% precision met de strenge instelling +
-HAN-profiel + SoNaR aan. Wijkt dit af, dan is er een regressie in de
-recognizers of in `postfilter.py`.
+Verwacht resultaat met HAN-profiel + SoNaR aan: **≥ 99% recall** en **100% op de
+negatieve set**. Zakt een van beide, dan is er een regressie in de recognizers of
+in `postfilter.py`.
+
+De scorer meldt ook treffers die *niet* in de gouden set staan. Dat zijn geen
+harde fouten: meestal is het een tweede vermelding van dezelfde persoon (alleen
+de achternaam) die nog niet geannoteerd is. Loop ze door en vul de gouden set
+aan waar het klopt.
 
 ## Toevoegen aan de testset
 
@@ -45,4 +48,4 @@ Bij het toevoegen van nieuwe PII-categorieën:
 1. Voeg de testregels **onderaan** toe aan `test-document.md` (strikt-additief
    zodat bestaande regelnummers stabiel blijven).
 2. Voeg de bijbehorende spans toe aan `test-document.expected.jsonl`.
-3. Herhaal `python score.py …` — fix wat nog niet wordt gepakt.
+3. Herhaal `python scripts/score.py` — fix wat nog niet wordt gepakt.

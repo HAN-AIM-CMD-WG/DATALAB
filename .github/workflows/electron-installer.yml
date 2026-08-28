@@ -155,6 +155,10 @@ jobs:
         working-directory: anonimiseer/apps/electron-anonimiseer
         run: npm run typecheck
 
+      - name: Test (app-logica)
+        working-directory: anonimiseer/apps/electron-anonimiseer
+        run: npm test
+
       - name: Build installer (mac)
         if: matrix.target == 'mac'
         working-directory: anonimiseer/apps/electron-anonimiseer

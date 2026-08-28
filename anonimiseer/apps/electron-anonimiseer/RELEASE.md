@@ -28,8 +28,13 @@ met push-rechten op `HAN-AIM-CMD-WG/DATALAB`.
 ```bash
 cd packages/pii-engine
 pytest --ignore=tests/test_sonar.py     # 40/40 passed verwacht
-cd ../..
-python score.py                         # 100% recall + precision verwacht
+
+# Engine draaien in een tweede terminal, dan:
+python scripts/score.py --fail-under 0.99   # ≥99% recall, 100% negatieve set
+
+cd ../../apps/electron-anonimiseer
+npm test                                # app-logica
+npm run typecheck
 ```
 
 Update versienummer in:

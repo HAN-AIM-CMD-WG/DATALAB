@@ -23,8 +23,7 @@ import type {
   RunMappingEntry,
   RunTextFileInput,
 } from '@shared/api';
-import { effectiveDecision } from './Step3Review';
-import type { FileReview, ReviewState } from './reviewTypes';
+import { effectiveDecision, type FileReview, type ReviewState } from './reviewTypes';
 import type { AnonymizeMode } from './settingsTypes';
 import type { WizardFileEntry } from './wizardTypes';
 
@@ -51,18 +50,46 @@ function acceptedHits(file: FileReview, whitelist: string[]): AnalyzeHit[] {
   );
 }
 
+/**
+ * Filter overlappende hits weg en geef de rest in leesvolgorde terug.
+ *
+ * Overlap ontstaat vooral door handmatig markeren: de gebruiker sleept
+ * over "Anne de Vries" terwijl de detector "Anne" al had gevonden. Zou je
+ * beide vervangen, dan knip je in een stuk tekst dat er niet meer staat.
+ * De hit die het verst naar rechts begint wint.
+ */
+function selectNonOverlapping(hits: AnalyzeHit[]): AnalyzeHit[] {
+  const rightToLeft = hits.slice().sort((a, b) => b.start - a.start);
+  const kept: AnalyzeHit[] = [];
+  let lastStart = Infinity;
+  for (const hit of rightToLeft) {
+    if (hit.end > lastStart) continue;
+    kept.push(hit);
+    lastStart = hit.start;
+  }
+  return kept.reverse();
+}
+
+/**
+ * Vervangingen toepassen van achter naar voren, zodat de offsets van de
+ * nog niet verwerkte hits geldig blijven.
+ *
+ * De vervangingen zélf worden in leesvolgorde opgevraagd: anders krijgt
+ * de laatste naam in het document ``PERSON_1`` en telt de mapping voor
+ * een lezer averechts.
+ */
 function applyReplacementsToText(
   text: string,
   hits: AnalyzeHit[],
   replacementFor: (hit: AnalyzeHit) => string
 ): string {
-  const sorted = hits.slice().sort((a, b) => b.start - a.start);
+  const applicable = selectNonOverlapping(hits);
+  const replacements = applicable.map(replacementFor);
+
   let out = text;
-  let lastEnd = Infinity;
-  for (const hit of sorted) {
-    if (hit.end > lastEnd) continue;
-    out = out.slice(0, hit.start) + replacementFor(hit) + out.slice(hit.end);
-    lastEnd = hit.start;
+  for (let i = applicable.length - 1; i >= 0; i--) {
+    const hit = applicable[i];
+    out = out.slice(0, hit.start) + replacements[i] + out.slice(hit.end);
   }
   return out;
 }
@@ -165,7 +192,7 @@ export function buildRun(
       });
       continue;
     }
-    const replacements: DocumentReplacement[] = accepted.map((hit) => ({
+    const replacements: DocumentReplacement[] = selectNonOverlapping(accepted).map((hit) => ({
       start: hit.start,
       end: hit.end,
       replacement: replacementFor(hit),

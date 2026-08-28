@@ -62,3 +62,19 @@ export function manualHitId(hit: Pick<AnalyzeHit, 'entity_type' | 'start' | 'end
 export function isManualHitId(id: string): boolean {
   return id.startsWith(MANUAL_HIT_PREFIX);
 }
+
+/**
+ * Het besluit dat daadwerkelijk telt voor deze hit.
+ *
+ * De whitelist wint altijd: staat het origineel erop, dan wordt de hit
+ * overgeslagen ongeacht wat er eerder per hit is aangeklikt. Hits zonder
+ * expliciet besluit worden vervangen — veilig is de default.
+ */
+export function effectiveDecision(
+  hit: AnalyzeHit,
+  file: FileReview,
+  whitelist: string[]
+): HitDecision {
+  if (whitelist.includes(hit.original.toLowerCase())) return 'skip';
+  return file.decisions[hitId(hit)] ?? 'accept';
+}

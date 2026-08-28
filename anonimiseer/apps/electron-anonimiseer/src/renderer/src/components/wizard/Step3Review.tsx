@@ -20,6 +20,7 @@ import { statusIcon, statusNotice, type StatusTone } from '../../lib/statusStyle
 import { FileIcon } from './FileIcon';
 import { styleForEntity } from './entityPalette';
 import {
+  effectiveDecision,
   hitId,
   isManualHitId,
   manualHitId,
@@ -1480,16 +1481,4 @@ function Notice({
   );
 }
 
-/**
- * Kies het effectieve besluit voor een hit: whitelist > expliciete decision
- * > default 'accept'. Whitelist checkt op exact gelijke (lowercased) original.
- */
-export function effectiveDecision(
-  hit: AnalyzeHit,
-  file: FileReview,
-  whitelist: string[]
-): HitDecision {
-  if (whitelist.includes(hit.original.toLowerCase())) return 'skip';
-  return file.decisions[hitId(hit)] ?? 'accept';
-}
 
