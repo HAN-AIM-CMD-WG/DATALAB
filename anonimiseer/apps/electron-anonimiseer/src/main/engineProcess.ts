@@ -18,6 +18,7 @@
 
 import { app } from 'electron';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   cpSync,
   existsSync,
@@ -29,6 +30,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { clearEngineEndpoint, setEngineEndpoint } from './engineEndpoint';
 
 const HEALTH_POLL_INTERVAL_MS = 500;
 // Torch/transformers + spaCy-lg hebben op eerste koude start ~30-40 s nodig
@@ -134,25 +136,70 @@ function resolveEngineBinary(): string | null {
   return null;
 }
 
-async function waitForHealth(): Promise<void> {
-  const url = `http://${HEALTH_HOST}:${HEALTH_PORT}/health`;
+/**
+ * Wacht tot *onze eigen* engine antwoordt.
+ *
+ * Een 200 op ``/health`` is niet genoeg: elk lokaal proces kan poort 8765
+ * bezetten en `{"status":"ok"}` teruggeven. Daarom sturen we een nonce mee en
+ * eist de app een bewijs terug — een HMAC over die nonce met het token dat we
+ * bij het starten aan het kindproces hebben meegegeven. Een imitator kent dat
+ * token niet en kan het bewijs dus niet produceren.
+ *
+ * We sturen het token hierbij bewust *niet* mee: dan zou de imitator het
+ * cadeau krijgen. Pas als het bewijs klopt gebruiken we het token voor de
+ * echte aanroepen.
+ */
+async function waitForHealth(token: string): Promise<void> {
+  const base = `http://${HEALTH_HOST}:${HEALTH_PORT}`;
   const deadline = Date.now() + HEALTH_POLL_TIMEOUT_MS;
+  let lastProblem = 'engine reageerde niet';
+
   while (Date.now() < deadline) {
+    // Is het kindproces al gestorven, dan heeft doorpollen geen zin — sterker
+    // nog, dan pollen we mogelijk tegen iets anders dan onze engine.
+    if (engineChild === null) {
+      throw new Error(
+        'pii-engine sloot direct na het starten af. Zie de logregels van [pii-engine] hierboven.',
+      );
+    }
+    const nonce = randomBytes(16).toString('hex');
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 2000);
-      const res = await fetch(url, { signal: controller.signal });
+      const res = await fetch(`${base}/health?nonce=${nonce}`, {
+        signal: controller.signal,
+      });
       clearTimeout(timer);
       if (res.ok) {
-        return;
+        const body = (await res.json()) as { proof?: unknown };
+        if (proofMatches(token, nonce, body.proof)) {
+          return;
+        }
+        lastProblem =
+          `er luistert wél iets op ${base}, maar het is niet de engine van deze app ` +
+          '(geen geldig bewijs). Sluit andere programma\u2019s die deze poort gebruiken af.';
       }
     } catch {
-      // ignore, engine is nog aan het opstarten
+      // engine is nog aan het opstarten
     }
     await new Promise((r) => setTimeout(r, HEALTH_POLL_INTERVAL_MS));
   }
   throw new Error(
-    `pii-engine reageerde niet op ${url} binnen ${HEALTH_POLL_TIMEOUT_MS / 1000} s`,
+    `${lastProblem} (${HEALTH_POLL_TIMEOUT_MS / 1000} s gewacht op ${base}).`,
+  );
+}
+
+function proofMatches(token: string, nonce: string, proof: unknown): boolean {
+  if (typeof proof !== 'string' || proof.length === 0) return false;
+  const expected = createHmac('sha256', token).update(nonce).digest();
+  let received: Buffer;
+  try {
+    received = Buffer.from(proof, 'hex');
+  } catch {
+    return false;
+  }
+  return (
+    received.length === expected.length && timingSafeEqual(received, expected)
   );
 }
 
@@ -177,12 +224,19 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
   // Seed eerst de HF-cache zodat SoNaR-BERT direct beschikbaar is.
   seedHuggingFaceCache();
 
+  // Geheim dat alleen deze app en het kindproces kennen. Zie waitForHealth.
+  const token = randomBytes(32).toString('hex');
+
   console.log('[engineProcess] start engine:', binary);
   engineChild = spawn(binary, [], {
     env: {
       ...process.env,
       PII_ENGINE_HOST: HEALTH_HOST,
       PII_ENGINE_PORT: String(HEALTH_PORT),
+      PII_ENGINE_AUTH_TOKEN: token,
+      // De playground-UI van de engine heeft in de desktop-app geen functie en
+      // vergroot alleen het aanvalsoppervlak.
+      PII_ENGINE_ENABLE_PLAYGROUND: 'false',
       // In de bundle zit nl_core_news_lg als default voor de beste Nederlandse
       // namen-recall. Blijft overschrijfbaar via env voor development.
       PII_ENGINE_SPACY_MODEL:
@@ -210,7 +264,8 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
   });
 
   try {
-    await waitForHealth();
+    await waitForHealth(token);
+    setEngineEndpoint(`http://${HEALTH_HOST}:${HEALTH_PORT}`, token);
     console.log('[engineProcess] engine is gezond');
     return { started: true };
   } catch (err) {
@@ -221,6 +276,7 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
 }
 
 export function stopEngine(): void {
+  clearEngineEndpoint();
   if (engineChild === null) {
     return;
   }

@@ -18,6 +18,7 @@
 
 import { app, BrowserWindow, dialog, shell } from 'electron';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { registerEngineBridge } from './engineBridge';
 import { registerSettingsBridge } from './settingsStore';
 import { registerFileDialogBridge } from './fileDialog';
@@ -30,6 +31,40 @@ import { registerSystemBridge } from './systemBridge';
 import { startEngine, stopEngine } from './engineProcess';
 
 const isDev = !app.isPackaged;
+
+/** De enige URL waar het hoofdvenster naartoe mag navigeren. */
+function rendererBaseUrl(): string {
+  if (isDev && process.env.ELECTRON_RENDERER_URL) {
+    return process.env.ELECTRON_RENDERER_URL;
+  }
+  return pathToFileURL(join(__dirname, '../renderer/index.html')).toString();
+}
+
+function isRendererUrl(url: string): boolean {
+  return url.startsWith(rendererBaseUrl());
+}
+
+/**
+ * Open een link in de standaardbrowser, maar alleen als het een gewone
+ * webadres is.
+ *
+ * Zonder deze controle kan een `file://`-, `ms-msdt:`- of UNC-pad via
+ * ``shell.openExternal`` een programma starten of een netwerkshare benaderen.
+ * Dat is de klassieke route van een renderer-lek naar code-uitvoering.
+ */
+function openExternalIfSafe(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    console.warn('[main] geweigerd om extern te openen:', url);
+    return;
+  }
+  void shell.openExternal(url);
+}
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -56,19 +91,19 @@ function createWindow(): BrowserWindow {
 
   // Blokkeer navigatie naar externe URLs — openen we in de standaardbrowser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    openExternalIfSafe(url);
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowed =
-      url.startsWith('http://localhost:') ||
-      url.startsWith('file://') ||
-      url.startsWith('devtools://');
-    if (!allowed) {
-      event.preventDefault();
-      void shell.openExternal(url);
-    }
+    if (isRendererUrl(url)) return;
+    event.preventDefault();
+    openExternalIfSafe(url);
   });
+
+  // De app heeft geen camera, microfoon, locatie of notificaties nodig.
+  mainWindow.webContents.session.setPermissionRequestHandler(
+    (_contents, _permission, callback) => callback(false),
+  );
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);

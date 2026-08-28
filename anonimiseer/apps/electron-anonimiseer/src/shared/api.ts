@@ -370,11 +370,6 @@ export interface ModelsApi {
 export interface DocumentApi {
   /** Extract flat-text + blocks via engine; leest het bronbestand zelf. */
   extract(path: string): Promise<DocumentExtractResponse>;
-  /**
-   * Stuurt het bronbestand + vervangingen naar engine, schrijft
-   * de response atomisch naar ``outputPath``.
-   */
-  apply(req: DocumentApplyRequest): Promise<DocumentApplyResponse>;
 }
 
 export interface RunMappingEntry {

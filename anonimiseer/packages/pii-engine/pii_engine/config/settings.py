@@ -95,6 +95,16 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8765
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["http://localhost"])
+    auth_token: str = Field(
+        default="",
+        description=(
+            "Gedeeld geheim met de Electron-app. Staat dit gevuld, dan eisen alle "
+            "endpoints (behalve /health) een 'X-Engine-Token'-header met deze waarde, "
+            "en bewijst /health via een HMAC over de meegegeven nonce dat dit "
+            "daadwerkelijk de engine van de app is. Leeg = geen authenticatie, "
+            "bedoeld voor lokale ontwikkeling."
+        ),
+    )
 
     # Playground UI
     enable_playground: bool = Field(

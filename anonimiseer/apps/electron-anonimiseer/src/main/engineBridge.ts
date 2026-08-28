@@ -23,9 +23,8 @@ import type {
   ReviewFinding,
   ReviewResponse,
 } from '@shared/api';
+import { engineHeaders, engineUrl } from './engineEndpoint';
 
-const ENGINE_URL =
-  process.env.ANONIMISEER_ENGINE_URL ?? 'http://127.0.0.1:8765';
 const HEALTH_TIMEOUT_MS = 2500;
 const ANALYZE_TIMEOUT_MS = 30_000;
 // Wisselen van pipeline (vooral SoNaR-BERT inschakelen) kan tientallen
@@ -35,7 +34,7 @@ const CONFIG_TIMEOUT_MS = 120_000;
 const REVIEW_TIMEOUT_MS = 300_000;
 
 async function fetchHealth(): Promise<EngineHealth> {
-  const url = `${ENGINE_URL}/health`;
+  const url = `${engineUrl()}/health`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
@@ -45,7 +44,7 @@ async function fetchHealth(): Promise<EngineHealth> {
       return {
         status: 'down',
         reason: `HTTP ${response.status}`,
-        url: ENGINE_URL,
+        url: engineUrl(),
       };
     }
     const data = (await response.json()) as {
@@ -58,7 +57,7 @@ async function fetchHealth(): Promise<EngineHealth> {
       return {
         status: 'down',
         reason: `engine status ${data.status ?? 'onbekend'}`,
-        url: ENGINE_URL,
+        url: engineUrl(),
       };
     }
     return {
@@ -66,7 +65,7 @@ async function fetchHealth(): Promise<EngineHealth> {
       version: data.version ?? '0.0.0',
       recognizers: data.recognizers ?? 0,
       spacyModel: data.spacy_model ?? '—',
-      url: ENGINE_URL,
+      url: engineUrl(),
     };
   } catch (error) {
     clearTimeout(timer);
@@ -76,7 +75,7 @@ async function fetchHealth(): Promise<EngineHealth> {
           ? 'engine antwoordt niet binnen 2.5s'
           : error.message
         : 'onbekende fout';
-    return { status: 'down', reason, url: ENGINE_URL };
+    return { status: 'down', reason, url: engineUrl() };
   }
 }
 
@@ -84,9 +83,9 @@ async function postAnalyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
   try {
-    const response = await fetch(`${ENGINE_URL}/analyze`, {
+    const response = await fetch(`${engineUrl()}/analyze`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: engineHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({
         text: req.text,
         language: req.language ?? 'nl',
@@ -121,11 +120,14 @@ async function postAnalyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
 }
 
 async function fetchActive(): Promise<ActiveEngineResponse> {
-  const url = `${ENGINE_URL}/engine/active`;
+  const url = `${engineUrl()}/engine/active`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, {
+      headers: engineHeaders(),
+      signal: controller.signal,
+    });
     clearTimeout(timer);
     if (!response.ok) {
       return { ok: false, error: `engine antwoordt HTTP ${response.status}` };
@@ -200,9 +202,9 @@ async function postReview(
   try {
     const body: Record<string, unknown> = { text };
     if (model) body.model = model;
-    const response = await fetch(`${ENGINE_URL}/engine/review`, {
+    const response = await fetch(`${engineUrl()}/engine/review`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: engineHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -276,9 +278,9 @@ async function postEngineConfig(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONFIG_TIMEOUT_MS);
   try {
-    const response = await fetch(`${ENGINE_URL}${pathname}`, {
+    const response = await fetch(`${engineUrl()}${pathname}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: engineHeaders({ 'content-type': 'application/json' }),
       body: body ? JSON.stringify(body) : '{}',
       signal: controller.signal,
     });
@@ -316,7 +318,7 @@ async function postEngineConfig(
 
 export function registerEngineBridge(): void {
   ipcMain.handle('engine:health', async () => fetchHealth());
-  ipcMain.handle('engine:url', () => ENGINE_URL);
+  ipcMain.handle('engine:url', () => engineUrl());
   ipcMain.handle('engine:analyze', async (_event, req: AnalyzeRequest) =>
     postAnalyze(req)
   );

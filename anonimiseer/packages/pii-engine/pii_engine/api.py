@@ -12,14 +12,19 @@ alleen ``http://localhost`` toe; de Electron-app praat via native requests.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
+import secrets
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from pii_engine import (
     __version__,
@@ -62,6 +67,25 @@ from pii_engine.schemas import (
 
 logger = logging.getLogger(__name__)
 
+#: Alleen loopback. Blokkeert DNS-rebinding, waarbij een aanvallersdomein naar
+#: 127.0.0.1 wijst om same-origin met deze service te worden.
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
+
+#: Endpoints die zonder token bereikbaar blijven. Zie ``require_token``.
+_PUBLIC_PATHS = frozenset({"/health"})
+
+
+def _health_proof(token: str, nonce: str | None) -> str | None:
+    """Bewijs dat wij de engine zijn die bij dit token hoort.
+
+    De app stuurt een nonce mee en vergelijkt het antwoord met een eigen
+    HMAC-berekening. Een proces dat de poort heeft ingepikt kent het token
+    niet en kan dus geen geldig bewijs teruggeven.
+    """
+    if not token or not nonce:
+        return None
+    return hmac.new(token.encode(), nonce.encode(), hashlib.sha256).hexdigest()
+
 
 def create_app() -> FastAPI:
     settings = get_settings()
@@ -75,20 +99,46 @@ def create_app() -> FastAPI:
         version=__version__,
     )
 
+    # Zonder Host-controle is de engine kwetsbaar voor DNS-rebinding: een
+    # aanvallerspagina laat zijn domein naar 127.0.0.1 wijzen en is dan
+    # same-origin met deze service, waarmee alle CORS-regels vervallen.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allow_origins,
         allow_credentials=False,
         allow_methods=["POST", "GET"],
-        allow_headers=["content-type"],
+        allow_headers=["content-type", "x-engine-token"],
     )
 
+    @app.middleware("http")
+    async def require_token(request: Request, call_next: Any) -> Response:
+        """Laat alleen de client door die het gedeelde geheim kent.
+
+        ``/health`` blijft open: dat is juist het endpoint waarmee de app
+        controleert of zíj met de echte engine praat, en daar mag het token
+        nog niet overheen — anders geeft de app het geheim weg aan een
+        proces dat de poort heeft ingepikt.
+        """
+        token = get_settings().auth_token
+        if token and request.url.path not in _PUBLIC_PATHS:
+            provided = request.headers.get("x-engine-token", "")
+            if not secrets.compare_digest(provided, token):
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "ongeldig of ontbrekend X-Engine-Token"},
+                )
+        response: Response = await call_next(request)
+        return response
+
     @app.get("/health", response_model=HealthResponse, tags=["meta"])
-    def health() -> HealthResponse:
+    def health(nonce: str | None = None) -> HealthResponse:
         analyzer = get_default_analyzer()
         return HealthResponse(
             recognizers=sum(1 for _ in analyzer.registry.recognizers),
             spacy_model=settings.spacy_model,
+            proof=_health_proof(settings.auth_token, nonce),
         )
 
     @app.post("/analyze", response_model=AnalyzeResponse, tags=["pii"])

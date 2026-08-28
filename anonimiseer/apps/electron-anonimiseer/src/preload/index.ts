@@ -14,8 +14,6 @@ import type {
   AnonimiseerApi,
   AppSettings,
   DialogFileInfo,
-  DocumentApplyRequest,
-  DocumentApplyResponse,
   DocumentExtractResponse,
   EngineConfigPatch,
   EngineHealth,
@@ -86,8 +84,6 @@ const api: AnonimiseerApi = {
   document: {
     extract: (path: string): Promise<DocumentExtractResponse> =>
       ipcRenderer.invoke('document:extract', path) as Promise<DocumentExtractResponse>,
-    apply: (req: DocumentApplyRequest): Promise<DocumentApplyResponse> =>
-      ipcRenderer.invoke('document:apply', req) as Promise<DocumentApplyResponse>,
   },
   models: {
     list: (): Promise<ModelListResponse> =>

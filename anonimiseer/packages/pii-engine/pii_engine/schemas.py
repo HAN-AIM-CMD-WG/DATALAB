@@ -14,6 +14,14 @@ class HealthResponse(BaseModel):
     version: str = __version__
     recognizers: int
     spacy_model: str
+    proof: str | None = Field(
+        default=None,
+        description=(
+            "HMAC-SHA256 over de meegegeven ``nonce`` met het gedeelde geheim. "
+            "Alleen gevuld als er een auth-token is ingesteld én er een nonce is "
+            "meegestuurd. Hiermee stelt de app vast dat zij met háár engine praat."
+        ),
+    )
 
 
 class ActiveModelInfo(BaseModel):

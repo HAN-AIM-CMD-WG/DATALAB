@@ -15,8 +15,7 @@ import type {
   DocumentExtractResponse,
 } from '@shared/api';
 
-const ENGINE_URL =
-  process.env.ANONIMISEER_ENGINE_URL ?? 'http://127.0.0.1:8765';
+import { engineHeaders, engineUrl } from './engineEndpoint';
 const EXTRACT_TIMEOUT_MS = 60_000;
 const APPLY_TIMEOUT_MS = 60_000;
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -77,8 +76,9 @@ async function documentExtract(path: unknown): Promise<DocumentExtractResponse> 
       new Blob([new Uint8Array(buffer)], { type: MIME_BY_EXT[ext] }),
       filename
     );
-    const response = await fetch(`${ENGINE_URL}/document/extract`, {
+    const response = await fetch(`${engineUrl()}/document/extract`, {
       method: 'POST',
+      headers: engineHeaders(),
       body: form,
       signal: controller.signal,
     });
@@ -160,8 +160,9 @@ export async function documentApply(
         footer_note: req.footerNote ?? null,
       })
     );
-    const response = await fetch(`${ENGINE_URL}/document/apply`, {
+    const response = await fetch(`${engineUrl()}/document/apply`, {
       method: 'POST',
+      headers: engineHeaders(),
       body: form,
       signal: controller.signal,
     });
@@ -192,8 +193,5 @@ export async function documentApply(
 export function registerDocumentBridge(): void {
   ipcMain.handle('document:extract', async (_event, path: unknown) =>
     documentExtract(path)
-  );
-  ipcMain.handle('document:apply', async (_event, req: DocumentApplyRequest) =>
-    documentApply(req)
   );
 }

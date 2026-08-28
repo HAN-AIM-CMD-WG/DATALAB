@@ -16,7 +16,10 @@ from fastapi.testclient import TestClient
 def client() -> TestClient:
     from pii_engine.api import create_app
 
-    return TestClient(create_app())
+    # base_url op loopback: de engine accepteert via TrustedHostMiddleware
+    # bewust alleen 127.0.0.1/localhost, en de default van TestClient
+    # ("testserver") zou daarop stuklopen.
+    return TestClient(create_app(), base_url="http://127.0.0.1")
 
 
 def test_health(client: TestClient) -> None:

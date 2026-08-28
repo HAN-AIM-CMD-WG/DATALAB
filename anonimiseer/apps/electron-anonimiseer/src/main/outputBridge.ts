@@ -17,7 +17,7 @@
 
 import { BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { promises as fs } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import type {
   MappingSaveStatus,
   RunPayload,
@@ -27,6 +27,20 @@ import type {
 import { documentApply } from './documentBridge';
 
 const RUN_PREFIX = 'anonimiseer-';
+
+/**
+ * Run-mappen die deze app zelf heeft aangemaakt. Alleen paden hierbinnen
+ * mogen via ``output:revealPath`` aan het OS worden doorgegeven.
+ */
+const knownRunDirs = new Set<string>();
+
+function isInsideKnownRunDir(path: string): boolean {
+  const target = resolve(path);
+  for (const dir of knownRunDirs) {
+    if (target === dir || target.startsWith(dir + sep)) return true;
+  }
+  return false;
+}
 
 function timestampSlug(date: Date): string {
   const pad = (n: number): string => String(n).padStart(2, '0');
@@ -38,8 +52,17 @@ function timestampSlug(date: Date): string {
 
 async function atomicWrite(path: string, data: string | Buffer): Promise<void> {
   const tmp = `${path}.tmp`;
-  await fs.writeFile(tmp, data);
-  await fs.rename(tmp, path);
+  // 0o600: deze bestanden bevatten persoonsgegevens. Zonder mode krijgen ze
+  // 0644 en zijn ze leesbaar voor elke gebruiker op de machine.
+  await fs.writeFile(tmp, data, { mode: 0o600 });
+  try {
+    await fs.rename(tmp, path);
+  } catch (error) {
+    // Anders blijft er een tmp-bestand mét inhoud achter terwijl de gebruiker
+    // een foutmelding ziet en denkt dat er niets geschreven is.
+    await fs.unlink(tmp).catch(() => undefined);
+    throw error;
+  }
 }
 
 /**
@@ -218,7 +241,10 @@ async function writeRun(payload: RunPayload): Promise<WriteRunResponse> {
     `${RUN_PREFIX}${timestampSlug(new Date())}`
   );
   try {
-    await fs.mkdir(runDir, { recursive: true });
+    // 0o700: de map bevat een mapping en een audit-log met persoonsgegevens.
+    // Zonder mode is dat op een gedeelde machine leesbaar voor iedereen.
+    await fs.mkdir(runDir, { recursive: true, mode: 0o700 });
+    knownRunDirs.add(resolve(runDir));
   } catch (error) {
     return {
       ok: false,
@@ -326,8 +352,16 @@ export function registerOutputBridge(): void {
     writeRun(payload)
   );
 
-  ipcMain.handle('output:revealPath', async (_event, path: unknown) => {
+  // Toon het bestand in Finder/Explorer — niet openen. `shell.openPath` zou
+  // het pad met de standaard-applicatie uitvoeren, en dat is geen bevoegdheid
+  // die de renderer hoort te hebben. We tonen alleen paden binnen een map die
+  // deze app zelf heeft aangemaakt.
+  ipcMain.handle('output:revealPath', (_event, path: unknown) => {
     if (typeof path !== 'string' || !path) return;
-    await shell.openPath(path);
+    if (!isInsideKnownRunDir(path)) {
+      console.warn('[outputBridge] revealPath geweigerd voor', path);
+      return;
+    }
+    shell.showItemInFolder(path);
   });
 }

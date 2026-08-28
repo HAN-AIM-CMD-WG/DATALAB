@@ -36,8 +36,7 @@ const OLLAMA_KNOWN_PATHS: Partial<Record<NodeJS.Platform, string[]>> = {
 
 const OLLAMA_DOWNLOAD_URL = 'https://ollama.com/download';
 
-const ENGINE_URL =
-  process.env.ANONIMISEER_ENGINE_URL ?? 'http://127.0.0.1:8765';
+import { engineHeaders, engineUrl } from './engineEndpoint';
 const OLLAMA_URL =
   process.env.ANONIMISEER_OLLAMA_URL ?? 'http://127.0.0.1:11434';
 
@@ -65,7 +64,9 @@ function mapTask(raw: RawTask): ModelTask {
 
 async function listModels(): Promise<ModelListResponse> {
   try {
-    const res = await fetch(`${ENGINE_URL}/models`);
+    const res = await fetch(`${engineUrl()}/models`, {
+      headers: engineHeaders(),
+    });
     if (!res.ok) {
       return { ok: false, error: `engine ${res.status}` };
     }
@@ -106,9 +107,9 @@ async function installModel(descriptorId: unknown): Promise<ModelTaskResponse> {
     return { ok: false, error: 'descriptorId verplicht' };
   }
   try {
-    const res = await fetch(`${ENGINE_URL}/models/install`, {
+    const res = await fetch(`${engineUrl()}/models/install`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: engineHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({ descriptor_id: descriptorId }),
     });
     if (!res.ok) {
@@ -126,7 +127,10 @@ async function fetchTask(taskId: unknown): Promise<ModelTaskResponse> {
     return { ok: false, error: 'taskId verplicht' };
   }
   try {
-    const res = await fetch(`${ENGINE_URL}/models/tasks/${encodeURIComponent(taskId)}`);
+    const res = await fetch(
+      `${engineUrl()}/models/tasks/${encodeURIComponent(taskId)}`,
+      { headers: engineHeaders() },
+    );
     if (!res.ok) {
       return { ok: false, error: `engine ${res.status}` };
     }
@@ -267,7 +271,7 @@ async function ollamaRemove(name: unknown): Promise<{ ok: true } | { ok: false; 
   try {
     const res = await fetch(`${OLLAMA_URL}/api/delete`, {
       method: 'DELETE',
-      headers: { 'content-type': 'application/json' },
+      headers: engineHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({ name: name.trim() }),
     });
     if (!res.ok) {
@@ -289,7 +293,7 @@ async function ollamaPull(name: unknown): Promise<{ ok: true } | { ok: false; er
     // we lezen tot stream eindigt en kijken naar de laatste status.
     const res = await fetch(`${OLLAMA_URL}/api/pull`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: engineHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({ name, stream: false }),
     });
     if (!res.ok) {
