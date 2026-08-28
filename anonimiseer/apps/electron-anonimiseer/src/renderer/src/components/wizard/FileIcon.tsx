@@ -27,7 +27,7 @@ function pick(ext: string): {
 } {
   switch (ext) {
     case '.md':
-      return { Icon: FileCode, tone: 'bg-sky-500/10 text-sky-700 dark:text-sky-300' };
+      return { Icon: FileCode, tone: 'bg-info/10 text-info-foreground dark:text-info' };
     case '.txt':
       return {
         Icon: FileText,
@@ -36,17 +36,17 @@ function pick(ext: string): {
     case '.docx':
       return {
         Icon: FileType,
-        tone: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
+        tone: 'bg-info/10 text-info-foreground dark:text-info',
       };
     case '.pdf':
       return {
         Icon: FileType,
-        tone: 'bg-red-500/10 text-red-700 dark:text-red-300',
+        tone: 'bg-destructive/10 text-destructive',
       };
     case '.xlsx':
       return {
         Icon: FileSpreadsheet,
-        tone: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        tone: 'bg-success/10 text-success-foreground dark:text-success',
       };
     default:
       return { Icon: FileIcn, tone: 'bg-muted text-muted-foreground' };

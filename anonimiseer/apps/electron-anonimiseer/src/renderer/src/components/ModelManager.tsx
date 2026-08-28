@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Bot,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -8,15 +9,16 @@ import {
   Cpu,
   Download,
   ExternalLink,
+  GraduationCap,
   HardDrive,
   Info,
   Loader2,
   Package,
   Play,
   Power,
-  PowerOff,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   Trash2,
   X,
   XCircle,
@@ -32,6 +34,7 @@ import type {
   SystemInfo,
 } from '@shared/api';
 import { ollamaInstalled } from './ollamaCatalog';
+import { cn } from '../lib/utils';
 
 interface ModelManagerProps {
   open: boolean;
@@ -54,6 +57,8 @@ interface FitVerdict {
 interface PipelineAction {
   label: string;
   icon: 'power' | 'power-off';
+  /** 'toggle' = echte aan/uit (SoNaR); 'select' = kies-deze (spaCy-pipeline). */
+  variant: 'toggle' | 'select';
   busy: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -581,14 +586,14 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-6 backdrop-blur-sm">
-      <div className="my-auto w-full max-w-3xl rounded-2xl border border-border bg-background shadow-2xl">
+      <div className="my-auto w-full max-w-3xl rounded-2xl border border-border bg-background shadow-xl ring-1 ring-black/5">
         <header className="flex items-center justify-between border-b border-border/60 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Package className="h-5 w-5" aria-hidden />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Modellen beheren</h2>
+              <h2 className="font-heading text-lg font-semibold tracking-tight">Modellen beheren</h2>
               <p className="text-xs text-muted-foreground">
                 Download de modellen die Anonimiseer offline gebruikt. Eén keer ophalen — daarna werkt het zonder internet.
               </p>
@@ -604,9 +609,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
           </button>
         </header>
 
-        <div className="space-y-6 px-6 py-5">
-          <SystemPanel system={system} error={systemError} onReload={() => void reloadSystem()} />
-
+        <div className="space-y-8 px-6 py-6">
           <ActiveEnginePanel
             info={activeEngine}
             error={activeEngineError}
@@ -620,92 +623,141 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             ollamaReviewBusy={pipelineBusy === 'ollama-role:review'}
           />
 
-          <section>
-            <SectionHeader
-              title="Engine-modellen (spaCy + HuggingFace)"
-              onReload={() => {
-                void reload();
-                void reloadActive();
-              }}
-            />
+          <section className="space-y-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h3 className="font-heading text-sm font-semibold tracking-tight">
+                  Detectie-modellen
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Kies welke spaCy-pipeline draait en of SoNaR-BERT meedoet.
+                  Download wat je nodig hebt — daarna werkt alles offline.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void reload();
+                  void reloadActive();
+                }}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <RefreshCw className="h-3 w-3" aria-hidden /> Vernieuwen
+              </button>
+            </div>
             {error && (
-              <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
                 Kon modellen niet ophalen: {error}
               </p>
             )}
             {models === null && !error && (
-              <p className="mt-2 text-xs text-muted-foreground">Laden…</p>
+              <p className="text-xs text-muted-foreground">Laden…</p>
             )}
             {models && models.length === 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">Geen modellen geconfigureerd.</p>
+              <p className="text-xs text-muted-foreground">Geen modellen geconfigureerd.</p>
             )}
-            <ul className="mt-3 space-y-2">
-              {models?.map((m) => {
-                const isSpacy = m.kind === 'spacy';
-                const isSonar = m.kind === 'hf' && m.installTarget.includes('sonar');
-                // BERTje en vrienden zijn base-modellen zonder NER-hoofd.
-                // Ze kunnen niet zelfstandig entities vinden — ze vormen
-                // het fundament waar SoNaR-BERT op fine-tuned is.
-                const isBaseModel = m.kind === 'hf' && !isSonar;
-                const isActive = activeModelIds.has(m.id);
-                const sonarOnDifferentRepo =
-                  isSonar &&
-                  Boolean(activeEngine?.sonarEnabled) &&
-                  sonarRepoActive !== m.installTarget;
-                let activate: PipelineAction | null = null;
-                let roleNote: string | null = null;
-                if (isSpacy) {
-                  activate = {
-                    label: isActive ? 'Actief' : 'Gebruik',
-                    icon: 'power',
-                    busy: pipelineBusy === `activate:${m.id}`,
-                    disabled: !m.installed || isActive || pipelineBusy !== null,
-                    onClick: () => void activateSpacy(m),
-                  };
-                } else if (isSonar) {
-                  activate = {
-                    label: isActive ? 'Uitschakelen' : 'Inschakelen',
-                    icon: isActive ? 'power-off' : 'power',
-                    busy: pipelineBusy === `toggle:${m.id}`,
-                    disabled: !m.installed || pipelineBusy !== null || sonarOnDifferentRepo,
-                    onClick: () => void toggleSonar(m),
-                  };
-                } else if (isBaseModel) {
-                  roleNote =
-                    'Basis-model zonder NER-hoofd — niet zelfstandig bruikbaar. Fundament waar SoNaR-BERT hieronder op is fine-tuned.';
-                }
-                return (
-                  <ModelRow
-                    key={m.id}
-                    model={m}
-                    state={rowState[m.id]}
-                    fit={evaluateFit(m.minRamMb, system)}
-                    isActive={isActive}
-                    activate={activate}
-                    roleNote={roleNote}
-                    onInstall={() => void install(m)}
-                  />
+            {models &&
+              models.length > 0 &&
+              (() => {
+                const isSonarModel = (m: ModelInfo): boolean =>
+                  m.kind === 'hf' && m.installTarget.includes('sonar');
+                const renderRow = (m: ModelInfo): JSX.Element => {
+                  const isSpacy = m.kind === 'spacy';
+                  const isSonar = isSonarModel(m);
+                  // BERTje en vrienden zijn base-modellen zonder NER-hoofd.
+                  const isBaseModel = m.kind === 'hf' && !isSonar;
+                  const isActive = activeModelIds.has(m.id);
+                  const sonarOnDifferentRepo =
+                    isSonar &&
+                    Boolean(activeEngine?.sonarEnabled) &&
+                    sonarRepoActive !== m.installTarget;
+                  let activate: PipelineAction | null = null;
+                  let roleNote: string | null = null;
+                  if (isSpacy) {
+                    activate = {
+                      label: isActive ? 'In gebruik' : 'Activeren',
+                      icon: 'power',
+                      variant: 'select',
+                      busy: pipelineBusy === `activate:${m.id}`,
+                      disabled: !m.installed || isActive || pipelineBusy !== null,
+                      onClick: () => void activateSpacy(m),
+                    };
+                  } else if (isSonar) {
+                    activate = {
+                      label: isActive ? 'Uitschakelen' : 'Inschakelen',
+                      icon: isActive ? 'power-off' : 'power',
+                      variant: 'toggle',
+                      busy: pipelineBusy === `toggle:${m.id}`,
+                      disabled: !m.installed || pipelineBusy !== null || sonarOnDifferentRepo,
+                      onClick: () => void toggleSonar(m),
+                    };
+                  } else if (isBaseModel) {
+                    roleNote =
+                      'Basis-model zonder NER-hoofd — niet zelfstandig bruikbaar. Het is het fundament waarop SoNaR-BERT is getraind.';
+                  }
+                  return (
+                    <ModelRow
+                      key={m.id}
+                      model={m}
+                      state={rowState[m.id]}
+                      fit={evaluateFit(m.minRamMb, system)}
+                      isActive={isActive}
+                      activate={activate}
+                      roleNote={roleNote}
+                      onInstall={() => void install(m)}
+                    />
+                  );
+                };
+
+                const spacyModels = models.filter((m) => m.kind === 'spacy');
+                const sonarModels = models.filter(isSonarModel);
+                const baseModels = models.filter(
+                  (m) => m.kind === 'hf' && !isSonarModel(m)
                 );
-              })}
-            </ul>
-            <div className="mt-3 space-y-1.5 text-[11px] text-muted-foreground">
-              <p>
-                <span className="font-semibold text-foreground">Er staat altijd één primaire pipeline aan</span>{' '}
-                — dat is verplicht voor de detectie-motor. Klik{' '}
-                <span className="font-medium">Gebruik</span> bij een ander spaCy-model om te wisselen;{' '}
-                meerdere tegelijk zetten kan niet (zou dubbele hits geven).
-              </p>
-              <p>
-                <span className="font-semibold text-foreground">SoNaR-BERT is een extra laag ernaast</span>{' '}
-                die hits toevoegt die spaCy mist. Voor beste recall op Nederlandse teksten:{' '}
-                large-spaCy + SoNaR-BERT = de sweet spot (wat je nu hebt). Eerste analyse na inschakelen
-                duurt langer omdat het BERT-model in geheugen geladen wordt.
-              </p>
-              <p>
-                Twijfel je over wat welk model doet? Open{' '}
-                <span className="font-medium">Hulp &amp; uitleg</span> rechtsboven.
-              </p>
-            </div>
+
+                return (
+                  <div className="space-y-4">
+                    <ModelGroup
+                      tone="always"
+                      title="Basis-pipeline (spaCy)"
+                      badge="Draait altijd"
+                      description="Leest de tekst en vindt namen, plaatsen en organisaties. Er draait er altijd precies één — kies hieronder welke."
+                    >
+                      {spacyModels.map(renderRow)}
+                    </ModelGroup>
+
+                    {sonarModels.length > 0 && (
+                      <ModelGroup
+                        tone="optional"
+                        title="Extra laag (SoNaR-BERT)"
+                        badge="Optioneel · aanbevolen"
+                        description="Draait náást spaCy en vangt Nederlandse namen die spaCy mist. Laat 'm aan voor de beste recall; uitzetten kan om RAM te besparen."
+                      >
+                        {sonarModels.map(renderRow)}
+                      </ModelGroup>
+                    )}
+
+                    {baseModels.length > 0 && (
+                      <ModelGroup
+                        tone="advanced"
+                        title="Fundament-modellen"
+                        badge="Geavanceerd"
+                        description="Niet zelfstandig bruikbaar — dit is de basis waarop SoNaR-BERT is getraind. Meestal hoef je hier niets mee."
+                      >
+                        {baseModels.map(renderRow)}
+                      </ModelGroup>
+                    )}
+                  </div>
+                );
+              })()}
+            <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>
+                Twijfel je wat een model precies doet? Open{' '}
+                <span className="font-medium text-foreground">Hulp</span> rechtsboven
+                voor uitleg en voorbeelden.
+              </span>
+            </p>
           </section>
 
           <OllamaAdvancedPanel
@@ -747,6 +799,8 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             onToggleRole={(role, enabled) => void toggleOllamaRole(role, enabled)}
             pipelineBusy={ollamaPipelineBusy}
           />
+
+          <SystemPanel system={system} error={systemError} onReload={() => void reloadSystem()} />
         </div>
       </div>
     </div>
@@ -777,16 +831,19 @@ function ActiveEnginePanel({
   ollamaReviewBusy: boolean;
 }): JSX.Element {
   return (
-    <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+    <section className="rounded-xl border border-border/70 bg-card p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden />
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary" aria-hidden>
+            <Cpu className="h-3.5 w-3.5" />
+          </span>
           <div>
-            <h3 className="text-sm font-semibold">Wat gebruikt Anonimiseer nu?</h3>
-            <p className="text-[11px] text-muted-foreground">
-              Eén primaire spaCy-pipeline (altijd aan, je kiest welke) plus optioneel
-              SoNaR-BERT ernaast voor extra recall. Keuzes worden meteen actief —
-              geen herstart nodig.
+            <h3 className="font-heading text-sm font-semibold tracking-tight">
+              Actieve configuratie
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Wat Anonimiseer nu gebruikt om PII te vinden. Wijzigingen worden
+              meteen actief — geen herstart nodig.
             </p>
           </div>
         </div>
@@ -817,17 +874,18 @@ function ActiveEnginePanel({
 
       {message && (
         <p
-          className={`mt-2 rounded-md px-2 py-1 text-[11px] ${
+          className={cn(
+            'mt-3 flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px]',
             message.kind === 'ok'
-              ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
-              : 'border border-destructive/30 bg-destructive/10 text-destructive'
-          }`}
+              ? 'border-border/60 bg-muted/50 text-foreground/80'
+              : 'border-destructive/30 bg-destructive/10 text-destructive'
+          )}
         >
           {message.kind === 'ok' ? (
-            <CheckCircle2 className="inline h-3 w-3" aria-hidden />
+            <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
           ) : (
-            <XCircle className="inline h-3 w-3" aria-hidden />
-          )}{' '}
+            <XCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          )}
           {message.text}
         </p>
       )}
@@ -843,60 +901,69 @@ function ActiveEnginePanel({
       )}
 
       {info && (
-        <div className="mt-3 space-y-2 text-[11px]">
+        <div className="mt-4 space-y-3 text-xs">
           <ul className="space-y-1.5">
             {info.activeModels.map((m) => (
               <li
                 key={m.id}
-                className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-background/60 px-2 py-1.5"
+                className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-background/60 px-3 py-2"
               >
-                <CheckCircle2 className="h-3 w-3 text-emerald-600" aria-hidden />
-                <span className="font-medium">{m.label}</span>
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                <span className="font-medium text-foreground">{m.label}</span>
                 <span className="text-muted-foreground">
-                  · {m.kind === 'spacy' ? 'spaCy' : 'HuggingFace'} ·{' '}
                   {m.role === 'nlp'
-                    ? 'tokenisatie + basis-NER'
-                    : 'aanvullende NER'}
+                    ? 'Hoofdmodel — vindt namen, plaatsen en organisaties'
+                    : 'Extra laag — vindt wat het hoofdmodel mist'}
                 </span>
-                <span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">
+                <span className="ml-auto truncate font-mono text-[10px] text-muted-foreground/80">
                   {m.id}
                 </span>
               </li>
             ))}
           </ul>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-muted/40 px-3 py-2 text-muted-foreground">
             <span>
-              <span className="font-medium text-foreground">Drempelwaarde:</span>{' '}
-              {info.scoreThreshold.toFixed(2)}
+              Drempelwaarde{' '}
+              <span className="font-semibold text-foreground">{info.scoreThreshold.toFixed(2)}</span>
             </span>
+            <span className="h-3 w-px bg-border" aria-hidden />
             <span>
-              <span className="font-medium text-foreground">Recognizers:</span>{' '}
-              {info.recognizers.length}
+              <span className="font-semibold text-foreground">{info.recognizers.length}</span>{' '}
+              herkenningsregels
             </span>
-            <span>
-              <span className="font-medium text-foreground">SoNaR-BERT:</span>{' '}
-              {info.sonarEnabled ? 'aan' : 'uit'}
-              {info.sonarEnabled ? (
-                <span className="ml-1 opacity-70">(extra Nederlandse NER)</span>
-              ) : (
-                <span className="ml-1 opacity-70">
-                  (zet aan in Engine-modellen hieronder voor extra Nederlandse NER)
-                </span>
-              )}
+            <span className="h-3 w-px bg-border" aria-hidden />
+            <span className="inline-flex items-center gap-1.5">
+              SoNaR-BERT
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]',
+                  info.sonarEnabled
+                    ? 'border-border/70 bg-background text-foreground/70'
+                    : 'border-border/60 bg-muted/40 text-muted-foreground'
+                )}
+              >
+                {info.sonarEnabled && (
+                  <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />
+                )}
+                {info.sonarEnabled ? 'Aan' : 'Uit'}
+              </span>
             </span>
+            {info.recognizers.length > 0 && (
+              <details className="group ml-auto w-full sm:w-auto">
+                <summary className="inline-flex cursor-pointer select-none list-none items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    className="h-3 w-3 transition-transform group-open:rotate-90"
+                    aria-hidden
+                  />
+                  Technische details bekijken
+                </summary>
+                <p className="mt-1.5 w-full break-words font-mono text-[10px] leading-relaxed text-muted-foreground/80">
+                  {info.recognizers.join(', ')}
+                </p>
+              </details>
+            )}
           </div>
-
-          {info.recognizers.length > 0 && (
-            <details className="text-muted-foreground">
-              <summary className="cursor-pointer text-[11px]">
-                Toon alle {info.recognizers.length} recognizers
-              </summary>
-              <p className="mt-1 break-words font-mono text-[10px] opacity-80">
-                {info.recognizers.join(', ')}
-              </p>
-            </details>
-          )}
 
           <HanEduProfileBlock
             enabled={info.hanEduEnabled}
@@ -915,6 +982,89 @@ function ActiveEnginePanel({
   );
 }
 
+/** iOS-stijl aan/uit-schakelaar: je ziet in één oogopslag wat aan staat. */
+function ToggleSwitch({
+  checked,
+  onChange,
+  busy = false,
+  disabled = false,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  busy?: boolean;
+  disabled?: boolean;
+  label: string;
+}): JSX.Element {
+  const isDisabled = disabled || busy;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      disabled={isDisabled}
+      className={cn(
+        'relative inline-flex h-[22px] w-[40px] shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+        checked ? 'bg-primary' : 'bg-muted-foreground/30',
+        isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      )}
+    >
+      <span
+        className={cn(
+          'inline-flex h-[18px] w-[18px] transform items-center justify-center rounded-full bg-white shadow-sm transition-transform',
+          checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
+        )}
+      >
+        {busy && <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden />}
+      </span>
+    </button>
+  );
+}
+
+/** Instellingsrij: titel + uitleg links, schakelaar met Aan/Uit-tekst rechts. */
+function SettingRow({
+  icon,
+  title,
+  description,
+  state,
+  control,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  description: string;
+  state: boolean;
+  control: React.ReactNode;
+}): JSX.Element {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+      <div className="flex min-w-0 items-start gap-2.5">
+        {icon && (
+          <span className="mt-px text-muted-foreground" aria-hidden>
+            {icon}
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-foreground">{title}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className={cn(
+            'w-6 text-right text-[11px] font-semibold',
+            state ? 'text-primary' : 'text-muted-foreground'
+          )}
+        >
+          {state ? 'Aan' : 'Uit'}
+        </span>
+        {control}
+      </div>
+    </div>
+  );
+}
+
 function HanEduProfileBlock({
   enabled,
   onToggle,
@@ -925,38 +1075,20 @@ function HanEduProfileBlock({
   busy: boolean;
 }): JSX.Element {
   return (
-    <div className="rounded-md border border-border/50 bg-background/60 p-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium">
-            HAN-/onderwijsprofiel{' '}
-            <span
-              className={
-                enabled
-                  ? 'rounded-full border border-lime-500/40 bg-lime-500/10 px-1.5 py-0.5 text-[10px] text-lime-700 dark:text-lime-200'
-                  : 'rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground'
-              }
-            >
-              {enabled ? 'actief' : 'uit'}
-            </span>
-          </p>
-          <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-            Extra herkenners voor studentnummers, personeelsnummers, klas- en
-            groepscodes, cursus- en CROHO-codes en namen direct achter
-            mentor-/docent-/SLB-/examinator-labels. Zet uit voor gebruik buiten
-            het hoger onderwijs.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="shrink-0 rounded-md border border-border/60 bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={() => onToggle(!enabled)}
-          disabled={busy}
-        >
-          {enabled ? 'Uitschakelen' : 'Inschakelen'}
-        </button>
-      </div>
-    </div>
+    <SettingRow
+      icon={<GraduationCap className="h-4 w-4" aria-hidden />}
+      title="HAN-/onderwijsprofiel"
+      description="Herkent ook studentnummers, personeelsnummers, klas- en cursuscodes en namen na mentor-/docent-labels. Zet uit buiten het hoger onderwijs."
+      state={enabled}
+      control={
+        <ToggleSwitch
+          checked={enabled}
+          onChange={onToggle}
+          busy={busy}
+          label="HAN-/onderwijsprofiel aan of uit"
+        />
+      }
+    />
   );
 }
 
@@ -980,115 +1112,77 @@ function OllamaStatusBlock({
     borderlineEnabled: false,
   };
   const reviewClickable = Boolean(state.model && state.daemonRunning && state.modelPresent);
+  const extras = [
+    state.extraNerEnabled && 'extra zoekronde',
+    state.borderlineEnabled && 'twijfelgevallen',
+  ].filter(Boolean) as string[];
   return (
-    <div className="rounded-md border border-border/50 bg-background/60 p-2">
-      <p className="text-[11px] font-medium">
-        Lokaal LLM (Ollama){' '}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <Bot className="h-3.5 w-3.5" aria-hidden />
+          Lokaal taalmodel
+        </span>
         {state.model ? (
-          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-200">
+          <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-1.5 py-0.5 font-mono text-[10px] text-foreground/75">
+            <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />
             {state.model}
           </span>
         ) : (
-          <span className="text-muted-foreground font-normal">— geen model gekozen</span>
+          <span className="text-[11px] text-muted-foreground">geen model gekozen</span>
         )}
-      </p>
+      </div>
+
       {state.model ? (
         <>
-          <div className="mt-1.5 flex flex-wrap gap-2 text-[11px]">
-            <RoleBadge
-              label="Privacy-controle"
-              on={state.reviewEnabled}
-              hint="LLM controleert na anonimisering of er nog PII achterblijft. Klik om aan/uit te zetten."
-              onToggle={
-                reviewClickable
-                  ? () => onToggleReview(!state.reviewEnabled)
-                  : undefined
-              }
-              busy={reviewBusy}
-            />
-            <RoleBadge
-              label="Extra-NER"
-              on={state.extraNerEnabled}
-              hint="LLM scant mee in stap 3 voor extra hits (vervolgronde)."
-            />
-            <RoleBadge
-              label="Borderline"
-              on={state.borderlineEnabled}
-              hint="LLM oordeelt alleen over twijfelgevallen (vervolgronde)."
-            />
-          </div>
-          {state.reviewEnabled && reviewClickable && (
-            <p className="mt-1.5 text-[10px] text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="inline h-3 w-3" aria-hidden /> Bij stap 4
-              vraagt {state.model} een second-opinion na anonimisatie.
+          <SettingRow
+            icon={<ShieldCheck className="h-4 w-4" aria-hidden />}
+            title="Privacy-nacontrole"
+            description={
+              reviewClickable
+                ? `Na het anonimiseren controleert ${state.model} of er nog persoonsgegevens zijn blijven staan.`
+                : 'Beschikbaar zodra het model én de Ollama-daemon actief zijn (zie paneel hieronder).'
+            }
+            state={state.reviewEnabled}
+            control={
+              <ToggleSwitch
+                checked={state.reviewEnabled}
+                onChange={onToggleReview}
+                busy={reviewBusy}
+                disabled={!reviewClickable}
+                label="Privacy-nacontrole door LLM aan of uit"
+              />
+            }
+          />
+
+          {extras.length > 0 && (
+            <p className="px-0.5 text-[11px] text-muted-foreground">
+              Ook aan (beheer in het Ollama-paneel): {extras.join(' · ')}.
             </p>
           )}
+
           {state.daemonRunning ? (
             state.modelPresent ? null : (
-              <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
-                <AlertTriangle className="inline h-3 w-3" aria-hidden />{' '}
+              <p className="flex items-start gap-1.5 px-0.5 text-[11px] text-warning-foreground dark:text-warning">
+                <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
                 Model staat niet (meer) in <span className="font-mono">ollama list</span>.
                 Pull hem opnieuw of kies een ander.
               </p>
             )
           ) : (
-            <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
-              <AlertTriangle className="inline h-3 w-3" aria-hidden />{' '}
+            <p className="flex items-start gap-1.5 px-0.5 text-[11px] text-warning-foreground dark:text-warning">
+              <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
               Ollama-daemon draait niet. Start hem via het paneel hieronder.
             </p>
           )}
         </>
       ) : (
-        <p className="mt-1 text-[10px] text-muted-foreground/80">
-          Open het paneel <span className="font-medium">Geavanceerd: Ollama</span>{' '}
-          hieronder, download een model en druk op <span className="font-medium">Activeer</span>.
+        <p className="px-0.5 text-[11px] text-muted-foreground/80">
+          Open <span className="font-medium">Geavanceerd: Ollama</span> hieronder,
+          download een model en druk op <span className="font-medium">Activeer</span>.
         </p>
       )}
     </div>
-  );
-}
-
-function RoleBadge({
-  label,
-  on,
-  hint,
-  onToggle,
-  busy,
-}: {
-  label: string;
-  on: boolean;
-  hint: string;
-  onToggle?: () => void;
-  busy?: boolean;
-}): JSX.Element {
-  const baseClass = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] transition-colors ${
-    on
-      ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
-      : 'border border-border/50 bg-muted/40 text-muted-foreground'
-  }`;
-  const Icon = busy ? Loader2 : on ? Power : PowerOff;
-  const iconClass = busy ? 'h-3 w-3 animate-spin' : 'h-3 w-3';
-  if (onToggle) {
-    return (
-      <button
-        type="button"
-        title={hint}
-        onClick={onToggle}
-        disabled={busy}
-        className={`${baseClass} cursor-pointer hover:bg-emerald-500/20 disabled:cursor-wait disabled:opacity-60`}
-      >
-        <Icon className={iconClass} aria-hidden />
-        {label}: {on ? 'aan' : 'uit'}
-        <span className="sr-only">— klik om {on ? 'uit' : 'aan'} te zetten</span>
-      </button>
-    );
-  }
-  return (
-    <span title={hint} className={baseClass}>
-      <Icon className={iconClass} aria-hidden />
-      {label}
-      <span className="sr-only">{on ? ' aan' : ' uit'}</span>
-    </span>
   );
 }
 
@@ -1102,23 +1196,20 @@ function SystemPanel({
   onReload: () => void;
 }): JSX.Element {
   return (
-    <section className="rounded-lg border border-border/60 bg-muted/20 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2">
-          <Cpu className="mt-0.5 h-4 w-4 text-muted-foreground" aria-hidden />
-          <div>
-            <h3 className="text-sm font-semibold">Deze computer</h3>
-            <p className="text-[11px] text-muted-foreground">
-              Snelle hardware-check zodat we kunnen waarschuwen als een model te zwaar is.
-            </p>
-          </div>
+    <section className="rounded-lg border border-border/50 bg-muted/15 px-3.5 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <Cpu className="h-3.5 w-3.5" aria-hidden />
+          Deze computer
         </div>
         <button
           type="button"
           onClick={onReload}
-          className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Hardware opnieuw detecteren"
         >
-          <RefreshCw className="h-3 w-3" aria-hidden /> Vernieuwen
+          <RefreshCw className="h-3 w-3" aria-hidden />
+          <span className="sr-only">Vernieuwen</span>
         </button>
       </div>
       {error && (
@@ -1128,19 +1219,19 @@ function SystemPanel({
         <p className="mt-2 text-[11px] text-muted-foreground">Detecteren…</p>
       )}
       {system && (
-        <dl className="mt-3 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-3">
+        <dl className="mt-2 grid grid-cols-1 gap-x-5 gap-y-1.5 text-xs sm:grid-cols-3">
           <SystemStat
-            icon={<Cpu className="h-3 w-3" aria-hidden />}
+            icon={<Cpu className="h-3.5 w-3.5" aria-hidden />}
             label="CPU"
             value={`${system.cpuModel} (${system.cpuCores} cores)`}
           />
           <SystemStat
-            icon={<HardDrive className="h-3 w-3" aria-hidden />}
+            icon={<HardDrive className="h-3.5 w-3.5" aria-hidden />}
             label="RAM"
-            value={`${gb(system.totalMemMb)} GB totaal · ${gb(system.freeMemMb)} GB vrij`}
+            value={`${gb(system.totalMemMb)} GB · ${gb(system.freeMemMb)} GB vrij`}
           />
           <SystemStat
-            icon={<Zap className="h-3 w-3" aria-hidden />}
+            icon={<Zap className="h-3.5 w-3.5" aria-hidden />}
             label="GPU"
             value={
               system.gpu
@@ -1151,7 +1242,7 @@ function SystemPanel({
                         }`
                       : ''
                   }`
-                : 'Geen aparte GPU gevonden — CPU wordt gebruikt.'
+                : 'Geen aparte GPU — CPU wordt gebruikt.'
             }
           />
         </dl>
@@ -1170,13 +1261,17 @@ function SystemStat({
   value: string;
 }): JSX.Element {
   return (
-    <div className="rounded-md border border-border/40 bg-background/60 px-2 py-1.5">
-      <div className="flex items-center gap-1 text-muted-foreground">
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-muted-foreground/70" aria-hidden>
         {icon}
-        <span className="font-medium">{label}</span>
-      </div>
-      <div className="mt-0.5 truncate text-foreground" title={value}>
-        {value}
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+          {label}
+        </dt>
+        <dd className="truncate text-foreground" title={value}>
+          {value}
+        </dd>
       </div>
     </div>
   );
@@ -1187,9 +1282,9 @@ function FitLine({ fit }: { fit: FitVerdict }): JSX.Element {
     fit.level === 'too-large'
       ? 'text-destructive'
       : fit.level === 'tight'
-      ? 'text-amber-700 dark:text-amber-400'
+      ? 'text-warning-foreground dark:text-warning'
       : fit.level === 'fits'
-      ? 'text-emerald-700 dark:text-emerald-400'
+      ? 'text-success-foreground dark:text-success'
       : 'text-muted-foreground';
   const Icon =
     fit.level === 'too-large'
@@ -1206,23 +1301,45 @@ function FitLine({ fit }: { fit: FitVerdict }): JSX.Element {
   );
 }
 
-function SectionHeader({
+/** Groepskop boven een set modellen: maakt de rol (altijd-aan / optioneel) meteen duidelijk. */
+function ModelGroup({
   title,
-  onReload,
+  badge,
+  tone,
+  description,
+  children,
 }: {
   title: string;
-  onReload: () => void;
+  badge: string;
+  tone: 'always' | 'optional' | 'advanced';
+  description: string;
+  children: React.ReactNode;
 }): JSX.Element {
+  const badgeClass =
+    tone === 'always'
+      ? 'border-primary/30 bg-primary/10 text-primary'
+      : tone === 'optional'
+      ? 'border-border/70 bg-background text-foreground/70'
+      : 'border-border/60 bg-muted/40 text-muted-foreground';
   return (
-    <div className="flex items-center justify-between">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <button
-        type="button"
-        onClick={onReload}
-        className="inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        <RefreshCw className="h-3 w-3" aria-hidden /> Vernieuwen
-      </button>
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="text-xs font-semibold uppercase tracking-[0.06em] text-foreground/80">
+          {title}
+        </h4>
+        <span
+          className={cn(
+            'rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]',
+            badgeClass
+          )}
+        >
+          {badge}
+        </span>
+      </div>
+      <p className="mb-2 mt-0.5 text-[11px] leading-snug text-muted-foreground">
+        {description}
+      </p>
+      <ul className="space-y-2">{children}</ul>
     </div>
   );
 }
@@ -1249,13 +1366,16 @@ function ModelRow({
   const isRunning = state?.busy ?? false;
   const isInstalled = model.installed && !isRunning;
 
+  const showActiveBadge = isActive && activate?.variant !== 'toggle';
+
   return (
     <li
-      className={`rounded-lg border p-3 ${
+      className={cn(
+        'rounded-xl border p-3.5 transition-all',
         isActive
-          ? 'border-emerald-500/40 bg-emerald-500/5'
-          : 'border-border/60 bg-card/40'
-      }`}
+          ? 'border-primary/40 bg-primary/[0.04] ring-1 ring-inset ring-primary/15'
+          : 'border-border/60 bg-card/40 hover:border-border'
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -1265,11 +1385,7 @@ function ModelRow({
             <span className="text-[11px] text-muted-foreground">
               · {model.kind === 'spacy' ? 'spaCy' : 'HuggingFace'} · ~{model.sizeMb} MB
             </span>
-            {isActive && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                <CheckCircle2 className="h-3 w-3" aria-hidden /> Actief
-              </span>
-            )}
+            {showActiveBadge && <ActiveBadge />}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{model.description}</p>
           {roleNote && (
@@ -1290,29 +1406,38 @@ function ModelRow({
             </p>
           )}
         </div>
-        <div className="flex flex-col items-stretch gap-1.5">
-          {activate && model.installed && (
+        <div className="flex flex-col items-end gap-2">
+          {activate && model.installed && activate.variant === 'toggle' && (
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'text-[11px] font-semibold',
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                {isActive ? 'Aan' : 'Uit'}
+              </span>
+              <ToggleSwitch
+                checked={isActive}
+                onChange={() => activate.onClick()}
+                busy={activate.busy}
+                disabled={activate.disabled}
+                label={`${model.label} aan of uit`}
+              />
+            </div>
+          )}
+          {activate && model.installed && activate.variant === 'select' && !isActive && (
             <button
               type="button"
               onClick={activate.onClick}
               disabled={activate.disabled}
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-                isActive
-                  ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
-                  : 'border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
-              }`}
-              title={
-                isActive
-                  ? 'Dit model wordt op dit moment gebruikt.'
-                  : 'Wissel direct over naar dit model.'
-              }
+              className="inline-flex items-center justify-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15 disabled:opacity-60"
+              title="Wissel direct over naar dit model."
             >
               {activate.busy ? (
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-              ) : activate.icon === 'power' ? (
-                <Power className="h-3 w-3" aria-hidden />
               ) : (
-                <PowerOff className="h-3 w-3" aria-hidden />
+                <Power className="h-3 w-3" aria-hidden />
               )}
               {activate.label}
             </button>
@@ -1343,6 +1468,16 @@ function ModelRow({
   );
 }
 
+/** Duidelijke "ingeschakeld"-markering in merkkleur. */
+function ActiveBadge(): JSX.Element {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-primary-foreground">
+      <CheckCircle2 className="h-3 w-3" aria-hidden />
+      Ingeschakeld
+    </span>
+  );
+}
+
 function StatusBadge({
   installed,
   task,
@@ -1357,7 +1492,7 @@ function StatusBadge({
     return <XCircle className="h-3.5 w-3.5 text-destructive" aria-hidden />;
   }
   if (installed) {
-    return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden />;
+    return <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-hidden />;
   }
   return <CircleDashed className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />;
 }
@@ -1593,7 +1728,7 @@ function OllamaPresenceCard({
 
   if (!presence.installed) {
     return (
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-100 space-y-2">
+      <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning-foreground dark:text-warning space-y-2">
         <p className="font-medium">Ollama is niet gevonden op deze computer.</p>
         <p>
           Ollama is een gratis, lokaal draaiende LLM-runtime van een externe partij. Wij
@@ -1605,7 +1740,7 @@ function OllamaPresenceCard({
             type="button"
             onClick={onInstall}
             disabled={actionBusy === 'install'}
-            className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:bg-warning/90 disabled:opacity-60"
           >
             {actionBusy === 'install' ? (
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
@@ -1621,14 +1756,14 @@ function OllamaPresenceCard({
 
   if (!presence.daemonRunning) {
     return (
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-100 space-y-2">
+      <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning-foreground dark:text-warning space-y-2">
         <p className="font-medium">Ollama is geïnstalleerd, maar de service draait niet.</p>
         <p className="opacity-80">CLI-pad: <span className="font-mono">{presence.cliPath}</span></p>
         <button
           type="button"
           onClick={onStart}
           disabled={actionBusy === 'start'}
-          className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:bg-warning/90 disabled:opacity-60"
         >
           {actionBusy === 'start' ? (
             <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
@@ -1642,10 +1777,11 @@ function OllamaPresenceCard({
   }
 
   return (
-    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-900 dark:text-emerald-100">
-      <p className="font-medium">
-        <CheckCircle2 className="inline h-3.5 w-3.5" aria-hidden /> Ollama draait
-        ({presence.cliPath ?? 'systeem-pad'}).
+    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/60 p-3 text-xs text-muted-foreground">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success" aria-hidden />
+      <p>
+        <span className="font-medium text-foreground">Ollama draait</span> ·{' '}
+        <span className="font-mono text-[11px]">{presence.cliPath ?? 'systeem-pad'}</span>
       </p>
     </div>
   );
@@ -1686,16 +1822,18 @@ function OllamaInstalledList({
             return (
               <li
                 key={m.name}
-                className={`flex items-center justify-between gap-2 py-1.5 ${
-                  isActive ? 'rounded px-1 ring-1 ring-emerald-500/40' : ''
-                }`}
+                className={cn(
+                  'flex items-center justify-between gap-2 py-1.5',
+                  isActive && 'rounded-md px-2 ring-1 ring-primary/25 bg-primary/[0.03]'
+                )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1 truncate text-xs">
+                  <p className="flex items-center gap-1.5 truncate text-xs">
                     {m.name}
                     {isActive && (
-                      <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700 dark:text-emerald-200">
-                        Actief
+                      <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-foreground/70">
+                        <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />
+                        In gebruik
                       </span>
                     )}
                     {isEmbedding && (
@@ -1714,11 +1852,12 @@ function OllamaInstalledList({
                     type="button"
                     onClick={() => onActivate(m.name)}
                     disabled={activating || isActive || isEmbedding || Boolean(pipelineBusy)}
-                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] disabled:opacity-50 ${
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors disabled:opacity-50',
                       isActive
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
-                        : 'border-border/50 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-700'
-                    }`}
+                        ? 'border-border/70 bg-muted/50 text-muted-foreground'
+                        : 'border-border/50 text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary'
+                    )}
                     title={
                       isEmbedding
                         ? 'Embedding-model — kan geen tekst genereren, dus niet bruikbaar als LLM-rol.'
@@ -1734,7 +1873,7 @@ function OllamaInstalledList({
                     ) : (
                       <Power className="h-3 w-3" aria-hidden />
                     )}
-                    {isActive ? 'Actief' : isEmbedding ? 'Niet bruikbaar' : 'Activeer'}
+                    {isActive ? 'In gebruik' : isEmbedding ? 'Niet bruikbaar' : 'Activeer'}
                   </button>
                   <button
                     type="button"
@@ -1816,7 +1955,7 @@ function OllamaRolesCard({
   ];
 
   return (
-    <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
+    <div className="rounded-md border border-border/60 bg-card/40 p-3">
       <p className="text-xs font-medium">
         Rollen voor{' '}
         <span className="font-mono">{state.model ?? '—'}</span>
@@ -1837,10 +1976,10 @@ function OllamaRolesCard({
           return (
             <li
               key={role.key}
-              className="flex items-start gap-3 rounded border border-border/50 bg-background/60 p-2"
+              className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/60 p-2.5"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium">
+                <p className="text-xs font-medium text-foreground">
                   {role.label}
                   {!role.availableNow && (
                     <span className="ml-1 text-[10px] text-muted-foreground">
@@ -1848,7 +1987,7 @@ function OllamaRolesCard({
                     </span>
                   )}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
                   {role.description}
                 </p>
                 {role.disabledReason && (
@@ -1857,38 +1996,29 @@ function OllamaRolesCard({
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => onToggleRole(role.key, !role.enabled)}
-                disabled={hardDisabled}
-                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] disabled:opacity-40 ${
-                  role.enabled
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
-                    : 'border-border/50 text-muted-foreground hover:bg-muted'
-                }`}
-                title={
-                  role.availableNow
-                    ? role.enabled
-                      ? 'Uitschakelen'
-                      : 'Inschakelen'
-                    : role.disabledReason ?? 'Nog niet beschikbaar'
-                }
-              >
-                {busy ? (
-                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                ) : role.enabled ? (
-                  <Power className="h-3 w-3" aria-hidden />
-                ) : (
-                  <PowerOff className="h-3 w-3" aria-hidden />
-                )}
-                {role.enabled ? 'Aan' : 'Uit'}
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <span
+                  className={cn(
+                    'w-6 text-right text-[11px] font-semibold',
+                    role.enabled ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  {role.enabled ? 'Aan' : 'Uit'}
+                </span>
+                <ToggleSwitch
+                  checked={role.enabled}
+                  onChange={(next) => onToggleRole(role.key, next)}
+                  busy={busy}
+                  disabled={hardDisabled}
+                  label={`${role.label} aan of uit`}
+                />
+              </div>
             </li>
           );
         })}
       </ul>
       {!state.daemonRunning && (
-        <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-[10px] text-warning-foreground dark:text-warning">
           <AlertTriangle className="inline h-3 w-3" aria-hidden /> De Ollama-daemon
           draait niet — de rollen blijven uit tot je hem start.
         </p>
@@ -2019,7 +2149,7 @@ function OllamaPullCard({
             const machineRec = pickRecommendedForMachine(catalogEntries, system);
             if (!machineRec) return null;
             return (
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+              <p className="text-[11px] text-success-foreground dark:text-success">
                 <CheckCircle2 className="inline h-3 w-3" aria-hidden /> Voor jouw
                 machine ({system ? `${gb(system.totalMemMb)} GB RAM` : '—'}) is{' '}
                 <span className="font-medium">{machineRec.label}</span> een
@@ -2091,7 +2221,7 @@ function OllamaPullCard({
               </p>
               {ollamaFit && <FitLine fit={ollamaFit} />}
               {ollamaInstalled(selectedEntry.name, ollama.models) && (
-                <p className="mt-1 text-emerald-700 dark:text-emerald-400">
+                <p className="mt-1 text-success-foreground dark:text-success">
                   <CheckCircle2 className="inline h-3 w-3" aria-hidden /> Al lokaal
                   aanwezig — opnieuw pullen werkt als update.
                 </p>

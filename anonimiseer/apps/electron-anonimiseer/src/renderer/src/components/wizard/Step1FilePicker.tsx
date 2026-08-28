@@ -224,7 +224,7 @@ function FileRow({
     <li
       className={cn(
         'flex items-center gap-3 px-3 py-2.5',
-        entry.error ? 'bg-red-500/5' : 'bg-background'
+        entry.error ? 'bg-destructive/5' : 'bg-background'
       )}
     >
       <FileIcon extension={entry.info.extension} />
@@ -238,12 +238,12 @@ function FileRow({
           </span>
         </div>
         {entry.error ? (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-red-700 dark:text-red-300">
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-destructive">
             <AlertTriangle className="h-3 w-3" aria-hidden />
             {entry.error}
           </p>
         ) : (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300">
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-success-foreground dark:text-success">
             <CheckCircle2 className="h-3 w-3" aria-hidden />
             Klaar om te anonimiseren
           </p>

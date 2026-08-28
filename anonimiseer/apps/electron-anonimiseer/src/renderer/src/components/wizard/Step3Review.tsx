@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { AnalyzeHit } from '@shared/api';
 import { cn } from '../../lib/utils';
+import { statusIcon, statusNotice, type StatusTone } from '../../lib/statusStyles';
 import { FileIcon } from './FileIcon';
 import { styleForEntity } from './entityPalette';
 import {
@@ -507,12 +508,12 @@ function StatusDot({ status }: { status: FileReview['status'] }): JSX.Element {
     return <Loader2 className="h-3 w-3 animate-spin" aria-hidden />;
   }
   if (status === 'error') {
-    return <AlertTriangle className="h-3 w-3 text-red-500" aria-hidden />;
+    return <AlertTriangle className={cn('h-3 w-3', statusIcon('destructive'))} aria-hidden />;
   }
   if (status === 'unsupported') {
-    return <FileWarning className="h-3 w-3 text-amber-500" aria-hidden />;
+    return <FileWarning className={cn('h-3 w-3', statusIcon('warning'))} aria-hidden />;
   }
-  return <Check className="h-3 w-3 text-emerald-500" aria-hidden />;
+  return <Check className={cn('h-3 w-3', statusIcon('success'))} aria-hidden />;
 }
 
 function FileView({
@@ -538,7 +539,7 @@ function FileView({
   if (file.status === 'unsupported') {
     return (
       <Notice
-        tone="amber"
+        tone="warning"
         icon={<FileWarning className="h-4 w-4" aria-hidden />}
         title="Bestandstype nog niet ondersteund"
         body={`${file.name} (${file.extension}) kunnen we niet automatisch verwerken. Verwijder het bestand in stap 1 of negeer deze waarschuwing — het wordt dan overgeslagen bij het opslaan.`}
@@ -560,7 +561,7 @@ function FileView({
   if (file.status === 'error') {
     return (
       <Notice
-        tone="red"
+        tone="destructive"
         icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
         title={`Kon ${file.name} niet verwerken`}
         body={file.error ?? 'Onbekende fout.'}
@@ -1463,20 +1464,13 @@ function Notice({
   title,
   body,
 }: {
-  tone: 'red' | 'amber';
+  tone: Extract<StatusTone, 'destructive' | 'warning'>;
   icon: JSX.Element;
   title: string;
   body: string;
 }): JSX.Element {
   return (
-    <div
-      className={cn(
-        'flex items-start gap-3 rounded-xl border p-4 text-sm',
-        tone === 'red'
-          ? 'border-red-500/30 bg-red-500/10 text-red-900 dark:text-red-100'
-          : 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-100'
-      )}
-    >
+    <div className={statusNotice(tone, 'p-4')}>
       <span className="mt-0.5 flex-none">{icon}</span>
       <div className="space-y-1">
         <p className="font-medium">{title}</p>

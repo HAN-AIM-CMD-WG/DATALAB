@@ -21,6 +21,14 @@ import type {
   WriteRunResponse,
 } from '@shared/api';
 import { cn } from '../../lib/utils';
+import {
+  statusBadge,
+  statusIcon,
+  statusIconBg,
+  statusNotice,
+  statusPanel,
+  type StatusTone,
+} from '../../lib/statusStyles';
 import { buildRun } from './anonymizeLocal';
 import type { ReviewState } from './reviewTypes';
 import {
@@ -203,7 +211,7 @@ export function Step4Save({
       <Summary run={run} settings={settings} review={review} />
 
       {!hasProcessable && (
-        <Notice tone="amber" icon={<FileWarning className="h-4 w-4" aria-hidden />}>
+        <Notice tone="warning" icon={<FileWarning className="h-4 w-4" aria-hidden />}>
           <strong>Niets om op te slaan.</strong> Geen van de gekozen bestanden
           is klaar om opgeslagen te worden. Ga terug naar stap 1/3 en zorg dat
           er minstens één bestand succesvol is geanalyseerd.
@@ -215,7 +223,7 @@ export function Step4Save({
           <OutputPicker dir={outputParent} onPick={pickFolder} />
 
           {settings.mode === 'pseudonymize' && encAvailable === false && (
-            <Notice tone="amber" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
+            <Notice tone="warning" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
               <strong>Let op — mapping niet versleuteld opslaanbaar.</strong> De
               OS-keychain is niet beschikbaar op dit systeem, dus we kunnen de
               mapping niet veilig versleutelen. Je bestanden worden wel
@@ -231,7 +239,7 @@ export function Step4Save({
           <ResponsibilitySection checked={agreed} onChange={setAgreed} />
 
           {result && !result.ok && (
-            <Notice tone="red" icon={<AlertTriangle className="h-4 w-4" aria-hidden />}>
+            <Notice tone="destructive" icon={<AlertTriangle className="h-4 w-4" aria-hidden />}>
               <strong>Opslaan mislukt.</strong> {result.error}
             </Notice>
           )}
@@ -417,9 +425,9 @@ function LlmReviewPanel({
   const headerLabel = `LLM-review${model ? ` (${model})` : ''}`;
   if (state.status === 'idle' || state.status === 'running') {
     return (
-      <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4">
+      <div className={statusPanel('info', 'p-4')}>
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-600" aria-hidden />
+          <Loader2 className={cn('h-4 w-4 animate-spin', statusIcon('info'))} aria-hidden />
           {headerLabel} — second-opinion vragen…
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -440,9 +448,9 @@ function LlmReviewPanel({
     );
     const isTimeout = errLower.includes('timed out') || errLower.includes('timeout');
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+      <div className={statusPanel('warning', 'p-4')}>
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden />
+          <AlertTriangle className={cn('h-4 w-4', statusIcon('warning'))} aria-hidden />
           {headerLabel} niet uitgevoerd
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{state.error}</p>
@@ -483,10 +491,10 @@ function LlmReviewPanel({
   }
   const tone =
     state.verdict === 'clean'
-      ? 'border-emerald-500/30 bg-emerald-500/5'
+      ? statusPanel('success')
       : state.verdict === 'suspect'
-        ? 'border-amber-500/30 bg-amber-500/5'
-        : 'border-border/60 bg-muted/30';
+        ? statusPanel('warning')
+        : 'rounded-xl border border-border/60 bg-muted/30';
   const Icon =
     state.verdict === 'clean'
       ? CheckCircle2
@@ -501,17 +509,17 @@ function LlmReviewPanel({
         : 'Geen geldig oordeel — lees de samenvatting hieronder';
   const iconClass =
     state.verdict === 'clean'
-      ? 'text-emerald-600'
+      ? statusIcon('success')
       : state.verdict === 'suspect'
-        ? 'text-amber-600'
+        ? statusIcon('warning')
         : 'text-muted-foreground';
   return (
-    <div className={cn('rounded-xl border p-4', tone)}>
+    <div className={cn(tone, 'p-4')}>
       <div className="flex items-start gap-2">
         <Icon className={cn('mt-0.5 h-4 w-4 flex-none', iconClass)} aria-hidden />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-blue-500" aria-hidden />
+            <Sparkles className={cn('h-3.5 w-3.5', statusIcon('info'))} aria-hidden />
             {headerLabel}
           </div>
           <p className="mt-0.5 text-sm text-foreground">{verdictLabel}</p>
@@ -523,11 +531,11 @@ function LlmReviewPanel({
               {state.findings.map((f, idx) => (
                 <li
                   key={`${f.snippet}-${idx}`}
-                  className="rounded-md border border-amber-500/20 bg-background/60 px-2 py-1.5"
+                  className="rounded-md border border-warning/20 bg-background/60 px-2 py-1.5"
                 >
                   <div className="flex items-start gap-1.5">
                     <XCircle
-                      className="mt-0.5 h-3 w-3 flex-none text-amber-600"
+                      className={cn('mt-0.5 h-3 w-3 flex-none', statusIcon('warning'))}
                       aria-hidden
                     />
                     <div className="min-w-0">
@@ -579,7 +587,7 @@ function ResponsibilitySection({
       />
       <div className="space-y-1 text-sm">
         <div className="flex items-center gap-1.5 font-medium text-foreground">
-          <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-500" aria-hidden />
+          <ShieldCheck className={cn('h-4 w-4', statusIcon('success'))} aria-hidden />
           Ik blijf zelf verantwoordelijk voor het resultaat
         </div>
         <p className="text-xs text-muted-foreground">
@@ -612,7 +620,7 @@ function SuccessView({
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <div className={cn('flex h-10 w-10 flex-none items-center justify-center rounded-lg', statusIconBg('success'))}>
           <CheckCircle2 className="h-5 w-5" aria-hidden />
         </div>
         <div>
@@ -647,12 +655,12 @@ function SuccessView({
               key={f.sourceName}
               className={cn(
                 'flex items-center gap-2',
-                f.status === 'error' && 'text-red-600 dark:text-red-400'
+                f.status === 'error' && statusIcon('destructive')
               )}
             >
               {f.status === 'written' ? (
                 <CheckCircle2
-                  className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                  className={cn('h-3.5 w-3.5', statusIcon('success'))}
                   aria-hidden
                 />
               ) : (
@@ -675,14 +683,14 @@ function SuccessView({
       </div>
 
       {mode === 'pseudonymize' && result.mapping.status === 'skipped-no-encryption' && (
-        <Notice tone="amber" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
+        <Notice tone="warning" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
           <strong>Mapping niet opgeslagen.</strong> {result.mapping.reason}{' '}
           Je bestanden zijn wel gepseudonimiseerd, maar niet omkeerbaar.
         </Notice>
       )}
 
       {errors.length > 0 && (
-        <Notice tone="red" icon={<AlertTriangle className="h-4 w-4" aria-hidden />}>
+        <Notice tone="destructive" icon={<AlertTriangle className="h-4 w-4" aria-hidden />}>
           <strong>{errors.length} bestand{errors.length === 1 ? '' : 'en'}</strong>{' '}
           konden niet geschreven worden. Zie de lijst hierboven voor details.
         </Notice>
@@ -725,19 +733,12 @@ function Notice({
   icon,
   children,
 }: {
-  tone: 'red' | 'amber';
+  tone: Extract<StatusTone, 'destructive' | 'warning'>;
   icon: JSX.Element;
   children: React.ReactNode;
 }): JSX.Element {
   return (
-    <div
-      className={cn(
-        'flex items-start gap-3 rounded-xl border p-3 text-sm',
-        tone === 'red'
-          ? 'border-red-500/30 bg-red-500/10 text-red-900 dark:text-red-100'
-          : 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-100'
-      )}
-    >
+    <div className={statusNotice(tone)}>
       <span className="mt-0.5 flex-none">{icon}</span>
       <div className="flex-1">{children}</div>
     </div>

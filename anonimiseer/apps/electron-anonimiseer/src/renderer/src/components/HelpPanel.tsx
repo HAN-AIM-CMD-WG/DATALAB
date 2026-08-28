@@ -13,6 +13,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 /**
  * Help-venster met uitleg in lekentaal + concrete voorbeelden.
@@ -126,14 +127,14 @@ export function HelpPanel({ open, onClose }: HelpPanelProps): JSX.Element | null
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="my-auto w-full max-w-3xl rounded-2xl border border-border bg-background shadow-2xl">
+      <div className="my-auto w-full max-w-3xl rounded-2xl border border-border bg-background shadow-xl ring-1 ring-black/5">
         <header className="flex items-center justify-between border-b border-border/60 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <BookOpen className="h-5 w-5" aria-hidden />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Hulp &amp; uitleg</h2>
+              <h2 className="font-heading text-lg font-semibold tracking-tight">Hulp &amp; uitleg</h2>
               <p className="text-xs text-muted-foreground">
                 Kort, in gewone taal, met concrete voorbeelden. Niets verlaat je computer.
               </p>
@@ -150,6 +151,8 @@ export function HelpPanel({ open, onClose }: HelpPanelProps): JSX.Element | null
         </header>
 
         <div className="space-y-3 px-6 py-5">
+          <WhatIsPii />
+
           <LocalOnlyBadge />
 
           {sections.map((s) => (
@@ -173,9 +176,51 @@ export function HelpPanel({ open, onClose }: HelpPanelProps): JSX.Element | null
   );
 }
 
+function WhatIsPii(): JSX.Element {
+  const examples = [
+    'Namen',
+    'E-mailadressen',
+    'Telefoonnummers',
+    'Adressen',
+    'BSN',
+    'IBAN',
+    'Geboortedatum',
+    'Studentnummers',
+  ];
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <ShieldCheck className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-heading text-sm font-semibold tracking-tight">Wat is PII?</h3>
+          <p className="mt-1 text-xs leading-relaxed text-foreground/80">
+            <span className="font-medium">PII</span> staat voor{' '}
+            <em>Personally Identifiable Information</em>: alle gegevens waarmee je een
+            persoon kunt herkennen of terugvinden. Anonimiseer spoort die gegevens in je
+            document op en vervangt ze, zodat je het kunt delen zonder iemands privacy te
+            schenden. Jij houdt de eindcontrole.
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {examples.map((ex) => (
+              <span
+                key={ex}
+                className="rounded-full border border-border/70 bg-background px-2 py-0.5 text-[11px] text-foreground/70"
+              >
+                {ex}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LocalOnlyBadge(): JSX.Element {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 text-[11px] text-emerald-800 dark:text-emerald-200">
+    <div className="flex items-start gap-2 rounded-md border border-success/30 bg-success/5 p-2 text-[11px] text-success-foreground dark:text-success">
       <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
       <span>
         Alle detectie en anonimisering gebeurt op <span className="font-medium">deze laptop</span>.
@@ -196,20 +241,25 @@ function HelpSection({
   onToggle: () => void;
 }): JSX.Element {
   return (
-    <section className="rounded-lg border border-border/60 bg-card/30">
+    <section
+      className={cn(
+        'overflow-hidden rounded-xl border bg-card/40 transition-colors',
+        isOpen ? 'border-border shadow-[0_1px_3px_rgba(0,0,0,0.05)]' : 'border-border/60'
+      )}
+    >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
       >
-        <div className="flex items-center gap-2">
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
-          )}
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={cn(
+              'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
+              isOpen ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+            )}
+          >
             {section.icon}
           </span>
           <div>
@@ -217,6 +267,11 @@ function HelpSection({
             <p className="text-[11px] text-muted-foreground">{section.subtitle}</p>
           </div>
         </div>
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        )}
       </button>
       {isOpen && (
         <div className="border-t border-border/60 px-4 py-4 text-xs leading-relaxed text-foreground/90">
@@ -301,7 +356,7 @@ function PipelineExplanation(): JSX.Element {
         </p>
       </div>
 
-      <p className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 text-emerald-900 dark:text-emerald-200">
+      <p className="rounded-md border border-success/30 bg-success/5 p-2 text-success-foreground dark:text-success">
         <CheckCircle2 className="mr-1 inline h-3 w-3" aria-hidden />
         <span className="font-medium">Standaard na installatie:</span>{' '}
         spaCy-large + SoNaR-BERT allebei actief — de sweet spot voor Nederlandse NER.
@@ -356,8 +411,8 @@ function PseudoVsAnon(): JSX.Element {
         <p className="mt-1 font-mono text-[11px]">{original}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
-          <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
+        <div className="rounded-md border border-success/30 bg-success/5 p-3">
+          <p className="text-[11px] font-semibold text-success-foreground dark:text-success">
             Pseudonimiseren
           </p>
           <p className="mt-1 font-mono text-[11px]">{pseudo}</p>
@@ -400,8 +455,8 @@ function OllamaGuide(): JSX.Element {
       </p>
 
       <ul className="space-y-2">
-        <li className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-3">
-          <p className="font-semibold">Review-laag <span className="text-[10px] font-normal text-emerald-700 dark:text-emerald-300">· aanbevolen · nu beschikbaar</span></p>
+        <li className="rounded-md border border-success/30 bg-success/5 p-3">
+          <p className="font-semibold">Review-laag <span className="text-[10px] font-normal text-success-foreground dark:text-success">· aanbevolen · nu beschikbaar</span></p>
           <p className="mt-1">
             Ná de anonimisering laat je het LLM de geanonimiseerde tekst lezen met de
             vraag: "is er nog PII overgebleven?" Een extra vangnet dat de detectie zelf

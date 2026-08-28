@@ -134,7 +134,7 @@ export function Step2Settings({
           />
         </div>
         {settings.sensitivity === 'streng' && (
-          <p className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning-foreground dark:text-warning">
             <Info className="mt-0.5 h-3.5 w-3.5 flex-none" aria-hidden />
             <span>
               <strong>Let op:</strong> bij &laquo;streng&raquo; kunnen zwakkere
@@ -209,7 +209,7 @@ export function Step2Settings({
           })}
         </ul>
         {!canContinue && (
-          <p className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+          <p className="flex items-center gap-2 text-xs text-warning-foreground dark:text-warning">
             <Info className="h-3.5 w-3.5" aria-hidden />
             Kies minstens één categorie — anders heeft Anonimiseer niets om naar te zoeken.
           </p>
@@ -435,9 +435,9 @@ function SensitivityCard({
         <p
           className={cn(
             'text-[11px] font-medium uppercase tracking-wide',
-            id === 'streng' && 'text-amber-700 dark:text-amber-300',
+            id === 'streng' && 'text-warning-foreground dark:text-warning',
             id === 'standaard' && 'text-primary',
-            id === 'voorzichtig' && 'text-emerald-700 dark:text-emerald-300'
+            id === 'voorzichtig' && 'text-success-foreground dark:text-success'
           )}
         >
           {tagline}
@@ -511,7 +511,7 @@ function EntitiesPreview({ settings }: { settings: WizardSettings }): JSX.Elemen
       <div>
         <span className="font-medium">Entiteiten ({entities.length}):</span>{' '}
         {entities.length === 0 ? (
-          <span className="text-amber-700 dark:text-amber-300">(geen — kies eerst een categorie)</span>
+          <span className="text-warning-foreground dark:text-warning">(geen — kies eerst een categorie)</span>
         ) : (
           <div className="mt-1 flex flex-wrap gap-1">
             {entities.map((e) => (

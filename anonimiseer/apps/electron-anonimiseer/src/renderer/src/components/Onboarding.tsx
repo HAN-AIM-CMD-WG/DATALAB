@@ -234,7 +234,7 @@ function ResponsibilityStep({
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300">
+        <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-warning/15 text-warning-foreground dark:text-warning">
           <AlertTriangle className="h-5 w-5" aria-hidden />
         </div>
         <div>
@@ -271,7 +271,7 @@ function ResponsibilityStep({
         className={cn(
           'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
           accepted
-            ? 'border-emerald-500/40 bg-emerald-500/5'
+            ? 'border-success/40 bg-success/5'
             : 'border-border/70 hover:bg-muted/40'
         )}
       >

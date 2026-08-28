@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck, RotateCcw, Package, HelpCircle } from 'lucide-react';
+import { ShieldCheck, RotateCcw, HelpCircle } from 'lucide-react';
 import { EngineStatus } from './components/EngineStatus';
 import { EngineOfflinePanel } from './components/EngineOfflinePanel';
 import { Onboarding } from './components/Onboarding';
@@ -82,8 +82,10 @@ function Header({
             <ShieldCheck className="h-5 w-5" aria-hidden />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold leading-tight">Anonimiseer</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="font-heading text-base font-semibold leading-tight tracking-tight">
+                Anonimiseer
+              </h1>
               <PreviewDisclaimer />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -95,7 +97,8 @@ function Header({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <EngineStatus state={state} />
+          <EngineStatus state={state} onOpenModels={onOpenModels} />
+          <span className="mx-0.5 h-4 w-px bg-border/70" aria-hidden />
           <button
             type="button"
             onClick={onOpenHelp}
@@ -105,15 +108,6 @@ function Header({
           >
             <HelpCircle className="h-3.5 w-3.5" aria-hidden />
             <span className="hidden sm:inline">Hulp</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenModels}
-            title="Modellen beheren (downloads, versies)"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Modellen beheren"
-          >
-            <Package className="h-3.5 w-3.5" aria-hidden />
           </button>
           <button
             type="button"

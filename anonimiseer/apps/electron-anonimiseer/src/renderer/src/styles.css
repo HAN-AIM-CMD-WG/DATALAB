@@ -2,50 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Officiële HAN-webfont (gelicenseerd, op te vragen via huisstijl@han.nl /
+ * Cordeo-merkportaal). Plaats de webfont-bestanden in src/renderer/src/assets/fonts
+ * en activeer onderstaand blok; de family-naam 'HAN Sans' staat vooraan in
+ * --font-sans, dus zodra dit @font-face geladen wordt, pakt de hele app 'm
+ * automatisch. Tot die tijd valt de app terug op een schone systeem-sans.
+ */
+/*
+@font-face {
+  font-family: 'HAN Sans';
+  src: url('./assets/fonts/han-sans.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
 @layer base {
+  /*
+   * HAN-huisstijl (https://blog3.han.nl/huisstijl/huisstijlindex/kleuren/)
+   * Primair: HAN Rood #e50056 = hsl(337 100% 45%), HAN Wit, HAN Zwart.
+   * Neutralen: Alabaster #f8f8f8, Mercury #e3e3e3, Gray #919191,
+   * Boulder #757575, Mineshaft #454545 — als pure grijswaarden (hue 0, sat 0%).
+   */
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 47% 11.2%;
+    --foreground: 0 0% 15%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47% 11.2%;
+    --card-foreground: 0 0% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47% 11.2%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 44%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47% 11.2%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 337 100% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 97%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 15%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --destructive-foreground: 0 0% 100%;
+    /* HAN secundair palet: Groen #7ac48e, Oranje #f5a846, Blauw #6ac3ed */
+    --success: 136 39% 62%;
+    --success-foreground: 0 0% 15%;
+    --warning: 34 90% 62%;
+    --warning-foreground: 0 0% 15%;
+    --info: 199 78% 67%;
+    --info-foreground: 0 0% 15%;
+    --border: 0 0% 89%;
+    --input: 0 0% 89%;
+    --ring: 337 100% 45%;
     --radius: 0.5rem;
+    --font-sans: 'HAN Sans', -apple-system, BlinkMacSystemFont, 'Inter',
+      'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --font-heading: var(--font-sans);
   }
 
   .dark {
-    --background: 222.2 47% 8%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 47% 10%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 47% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 20%;
-    --input: 217.2 32.6% 20%;
-    --ring: 224.3 76.3% 48%;
+    --background: 0 0% 8%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 337 95% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 136 39% 55%;
+    --success-foreground: 0 0% 10%;
+    --warning: 34 90% 58%;
+    --warning-foreground: 0 0% 10%;
+    --info: 199 78% 60%;
+    --info-foreground: 0 0% 10%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 337 95% 56%;
   }
 
   html,
@@ -56,8 +95,16 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI',
-      'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-sans);
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
   }
 }
