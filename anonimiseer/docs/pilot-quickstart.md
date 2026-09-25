@@ -144,7 +144,7 @@ De filter werkt alleen op modellen waar je hem expliciet aan hangt:
 Voor de sandbox heb je geen Ollama nodig — je kunt gratis een OpenRouter-key
 invoeren onder **Admin Panel → Settings → Connections** en daar modellen
 toevoegen. Of zet snel een tijdelijke `glm4:9b` of `qwen3:14b` via Ollama
-(zie `openwebui-src/beheer-setup.md`).
+(zie de interne beheerdocumentatie van de Open WebUI-omgeving; vraag het Datalab).
 
 ### A5. Test-prompts
 
@@ -210,7 +210,7 @@ naast de bestaande Open WebUI op de SURF-workspace.
 
 ### B1. PII-engine deployen op SRC
 
-Op de workspace (via SSH, zie `openwebui-src/beheer-setup.md`):
+Op de workspace (via SSH, zie de interne beheerdocumentatie van de Open WebUI-omgeving):
 
 ```bash
 # Eenmalig: clone de anonimiseer-repo
