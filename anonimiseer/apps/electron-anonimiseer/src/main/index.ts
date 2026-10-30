@@ -77,6 +77,8 @@ function createWindow(): BrowserWindow {
     title: 'Anonimiseer',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      // The sandboxed preload cannot call app.getVersion() itself.
+      additionalArguments: [`--anonimiseer-version=${app.getVersion()}`],
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

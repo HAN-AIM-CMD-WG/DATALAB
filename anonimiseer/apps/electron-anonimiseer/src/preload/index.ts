@@ -28,9 +28,17 @@ import type {
   WriteRunResponse,
 } from '@shared/api';
 
+const VERSION_ARG = '--anonimiseer-version=';
+
+/** Passed by the main process; ``npm_package_version`` only exists under npm. */
+function appVersion(): string {
+  const arg = process.argv.find((a) => a.startsWith(VERSION_ARG));
+  return arg ? arg.slice(VERSION_ARG.length) : 'onbekend';
+}
+
 const api: AnonimiseerApi = {
   version: {
-    app: process.env.npm_package_version ?? '0.1.0',
+    app: appVersion(),
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node,

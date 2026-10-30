@@ -70,18 +70,22 @@ async function driveApp(inputs) {
   const packaged = process.env.E2E_EXECUTABLE;
   const userData = path.join(TMP, packaged ? 'userdata-packaged' : 'userdata');
   fs.rmSync(userData, { recursive: true, force: true });
+  // Started from Finder, the app has no npm_* variables; started from here it would.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('npm_')));
   const app = await _electron.launch(
     packaged
-      ? { executablePath: packaged, args: [`--user-data-dir=${userData}`], timeout: 120_000 }
+      ? { executablePath: packaged, args: [`--user-data-dir=${userData}`], env, timeout: 120_000 }
       : {
           executablePath: require(path.join(APP, 'node_modules', 'electron')),
           args: [APP, `--user-data-dir=${userData}`],
           cwd: APP,
+          env,
           timeout: 60_000,
         },
   );
   const consoleErrors = [];
   const page = await app.firstWindow();
+  const shownVersion = await page.evaluate(() => window.anonimiseer.version.app);
   page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
   page.on('pageerror', (e) => consoleErrors.push(e.message));
 
@@ -129,7 +133,7 @@ async function driveApp(inputs) {
       if (dir && fs.existsSync(path.join(OUTDIR, dir, 'DISCLAIMER.txt'))) {
         await page.waitForTimeout(1000);
         await shot(page, 'step4-result');
-        return { runDir: path.join(OUTDIR, dir), consoleErrors };
+        return { runDir: path.join(OUTDIR, dir), consoleErrors, shownVersion };
       }
       await page.waitForTimeout(500);
     }
@@ -198,11 +202,17 @@ function checks(runDir) {
 (async () => {
   const inputs = prepareInputs();
   log(process.env.E2E_EXECUTABLE ? `packaged app: ${process.env.E2E_EXECUTABLE}` : 'dev build (out/)');
-  const { runDir, consoleErrors } = await driveApp(inputs);
+  const { runDir, consoleErrors, shownVersion } = await driveApp(inputs);
   log(`run directory: ${runDir}`);
 
   const results = checks(runDir);
   results.push({ name: 'no errors in the renderer console', ok: consoleErrors.length === 0, problems: consoleErrors });
+  const version = require(path.join(APP, 'package.json')).version;
+  results.push({
+    name: 'app shows its own version',
+    ok: shownVersion === version,
+    problems: [`shows ${shownVersion}, package.json says ${version}`],
+  });
   console.log('');
   for (const r of results) {
     console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : `: ${r.problems.join(', ')}`}`);
