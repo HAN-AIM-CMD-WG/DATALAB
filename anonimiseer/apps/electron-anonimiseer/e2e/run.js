@@ -127,20 +127,49 @@ async function driveApp(inputs) {
     }
     await page.getByRole('button', { name: 'Opslaan', exact: true }).click();
 
-    const deadline = Date.now() + 120_000;
-    while (Date.now() < deadline) {
-      const dir = fs.readdirSync(OUTDIR).find((d) => d.startsWith('anonimiseer-'));
-      if (dir && fs.existsSync(path.join(OUTDIR, dir, 'DISCLAIMER.txt'))) {
-        await page.waitForTimeout(1000);
-        await shot(page, 'step4-result');
-        return { runDir: path.join(OUTDIR, dir), consoleErrors, shownVersion };
-      }
-      await page.waitForTimeout(500);
-    }
-    throw new Error('no run directory appeared within 120 s');
+    const runDir = await waitForDir(page, 'anonimiseer-2', 'DISCLAIMER.txt');
+    await page.waitForTimeout(1000);
+    await shot(page, 'step4-result');
+
+    // Put the pseudonyms back with this run's mapping.
+    const pseudonymised = ['test-document.anon.md', 'intake.anon.docx'].map((f) => path.join(runDir, f));
+    await app.evaluate(
+      ({ dialog }, { mapping, files, outdir }) => {
+        dialog.showOpenDialog = async (...args) => {
+          const opts = args.find((a) => a && Array.isArray(a.properties)) || { properties: [] };
+          if (opts.properties.includes('openDirectory')) return { canceled: false, filePaths: [outdir] };
+          const exts = (opts.filters || []).flatMap((f) => f.extensions);
+          return { canceled: false, filePaths: exts.includes('bin') ? [mapping] : files };
+        };
+      },
+      { mapping: path.join(runDir, 'mapping.bin'), files: pseudonymised, outdir: OUTDIR },
+    );
+    await page.getByRole('button', { name: 'Pseudoniemen terugzetten' }).click();
+    const panel = page.getByRole('dialog', { name: 'Pseudoniemen terugzetten' });
+    await panel.getByRole('button', { name: /Kies mapping/ }).click();
+    await panel.getByText(/vervangingen?,? /).waitFor({ timeout: 10_000 });
+    await panel.getByRole('button', { name: /Kies bestanden/ }).click();
+    await panel.getByRole('button', { name: 'Kies map', exact: true }).click();
+    await panel.getByRole('checkbox').check();
+    await panel.getByRole('button', { name: 'Terugzetten', exact: true }).click();
+    const restoreDir = await waitForDir(page, 'anonimiseer-teruggezet-', 'intake.teruggezet.docx');
+    await panel.getByText(/teruggezet/).first().waitFor();
+    await shot(page, 'restore-result');
+
+    return { runDir, restoreDir, consoleErrors, shownVersion };
   } finally {
     await app.close();
   }
+}
+
+async function waitForDir(page, prefix, marker) {
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
+    const dir = fs.readdirSync(OUTDIR).find((d) => d.startsWith(prefix));
+    if (dir && fs.existsSync(path.join(OUTDIR, dir, marker))) return path.join(OUTDIR, dir);
+    await page.waitForTimeout(500);
+  }
+  throw new Error(`no ${prefix}* directory with ${marker} appeared within 120 s`);
 }
 
 // ------------------------------------------------------------------ checks
@@ -202,10 +231,29 @@ function checks(runDir) {
 (async () => {
   const inputs = prepareInputs();
   log(process.env.E2E_EXECUTABLE ? `packaged app: ${process.env.E2E_EXECUTABLE}` : 'dev build (out/)');
-  const { runDir, consoleErrors, shownVersion } = await driveApp(inputs);
+  const { runDir, restoreDir, consoleErrors, shownVersion } = await driveApp(inputs);
   log(`run directory: ${runDir}`);
 
   const results = checks(runDir);
+  const mode = (p) => (fs.statSync(p).mode & 0o777).toString(8);
+  results.push({
+    name: 'restore: folder 0700 and every file 0600',
+    ok: mode(restoreDir) === '700' && fs.readdirSync(restoreDir).every((f) => mode(path.join(restoreDir, f)) === '600'),
+    problems: [restoreDir, ...fs.readdirSync(restoreDir)].map((f) => `${path.basename(f)}: ${mode(path.resolve(restoreDir, f))}`),
+  });
+  const restoredMd = fs.readFileSync(path.join(restoreDir, 'test-document.teruggezet.md'), 'utf8');
+  results.push({
+    name: 'restore: Markdown is identical to the original',
+    ok: restoredMd === fs.readFileSync(DEV_DOC, 'utf8'),
+    problems: ['restored text differs from docs/examples/test-document.md'],
+  });
+  const wordText = (file) => docxPart(file, 'word/document.xml').replace(/\s+/g, ' ').trim();
+  const restoredWord = wordText(path.join(restoreDir, 'intake.teruggezet.docx'));
+  results.push({
+    name: 'restore: Word text is identical to the original, without the watermark',
+    ok: restoredWord === wordText(path.join(INPUT, 'intake.docx')),
+    problems: [restoredWord.slice(0, 200)],
+  });
   results.push({ name: 'no errors in the renderer console', ok: consoleErrors.length === 0, problems: consoleErrors });
   const version = require(path.join(APP, 'package.json')).version;
   results.push({

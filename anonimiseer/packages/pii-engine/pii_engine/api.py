@@ -39,6 +39,7 @@ from pii_engine import (
 from pii_engine.analyzer import get_default_analyzer
 from pii_engine.anonymizer import PseudonymMapping, anonymize_with_mode
 from pii_engine.config import get_settings
+from pii_engine.documents import restore
 from pii_engine.model_status import pipeline_status
 from pii_engine.postfilter import filter_overlaps
 from pii_engine.schemas import (
@@ -53,6 +54,7 @@ from pii_engine.schemas import (
     DocumentApplyPayload,
     DocumentBlock,
     DocumentExtractResponse,
+    DocumentRestorePayload,
     EngineConfigRequest,
     HealthResponse,
     InstallModelRequest,
@@ -61,6 +63,8 @@ from pii_engine.schemas import (
     ModelInfo,
     ModelListResponse,
     OllamaEngineState,
+    RestoreTextRequest,
+    RestoreTextResponse,
     ReviewFindingSchema,
     ReviewRequest,
     ReviewResponse,
@@ -287,6 +291,48 @@ def create_app() -> FastAPI:
             content=result_bytes,
             media_type=media_type,
             headers={"X-Anonimiseer-Unreplaced": str(unreplaced)},
+        )
+
+    @app.post("/restore/text", response_model=RestoreTextResponse, tags=["restore"])
+    def restore_text(req: RestoreTextRequest) -> RestoreTextResponse:
+        """Zet pseudoniemen in een tekst terug; het resultaat bevat weer persoonsgegevens."""
+
+        text, restored, unknown = restore.restore_text(
+            req.text, {e.pseudonym: e.original for e in req.mapping}
+        )
+        return RestoreTextResponse(text=text, restored=restored, unknown=unknown)
+
+    @app.post("/document/restore", tags=["restore"])
+    async def document_restore(
+        file: UploadFile = File(...),
+        payload: str = Form(...),
+    ) -> Response:
+        """Zet pseudoniemen in een DOCX of XLSX terug en haal het watermerk weg."""
+
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="bestand heeft geen naam")
+        data = await _read_upload(file)
+        try:
+            parsed = DocumentRestorePayload.model_validate(json.loads(payload))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"ongeldige payload: {exc}") from exc
+        try:
+            result = restore.restore_document(
+                data, file.filename, {e.pseudonym: e.original for e in parsed.mapping}
+            )
+        except restore.RestoreError as exc:
+            raise HTTPException(status_code=415, detail=str(exc)) from exc
+        except Exception as exc:  # pragma: no cover
+            logger.exception("Terugzetten mislukt")
+            raise HTTPException(status_code=500, detail=f"terugzetten mislukt: {exc}") from exc
+        ext = Path(file.filename).suffix.lower()
+        return Response(
+            content=result.data,
+            media_type=_MIME_MAP.get(ext, "application/octet-stream"),
+            headers={
+                "X-Anonimiseer-Restored": str(result.restored),
+                "X-Anonimiseer-Unknown": str(result.unknown),
+            },
         )
 
     @app.get("/engine/active", response_model=ActiveEngineResponse, tags=["meta"])

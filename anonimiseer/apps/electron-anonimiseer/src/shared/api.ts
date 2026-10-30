@@ -501,6 +501,43 @@ export interface OutputApi {
   revealPath(path: string): Promise<void>;
 }
 
+/**
+ * The mapping stays in the main process; the renderer only learns how many
+ * entries it has. ``verified`` is false for files from Anonimiseer 0.1, which
+ * cannot be checked for changes.
+ */
+export type RestoreMappingResponse =
+  | { ok: true; entries: number; createdAt: string | null; verified: boolean }
+  | { ok: false; error: string };
+
+export interface RestoreSourceFile {
+  path: string;
+  name: string;
+}
+
+export interface RestoreResultFile {
+  sourceName: string;
+  outputPath: string | null;
+  /** Pseudonyms put back. */
+  restored: number;
+  /** Pseudonyms not in this mapping, usually from another run. */
+  unknown: number;
+  error?: string;
+}
+
+export type RestoreRunResponse =
+  | { ok: true; runDir: string; files: RestoreResultFile[] }
+  | { ok: false; error: string };
+
+export interface RestoreApi {
+  /** Pick and open a mapping.bin; ``null`` when the dialog was cancelled. */
+  openMapping(): Promise<RestoreMappingResponse | null>;
+  /** Pick pseudonymised files (.md, .txt, .docx, .xlsx). */
+  pickFiles(): Promise<RestoreSourceFile[]>;
+  /** Restore with the open mapping into a new folder inside ``outputParent``. */
+  run(req: { files: string[]; outputParent: string }): Promise<RestoreRunResponse>;
+}
+
 export interface AnonimiseerApi {
   version: VersionInfo;
   engine: EngineApi;
@@ -512,6 +549,7 @@ export interface AnonimiseerApi {
   models: ModelsApi;
   system: SystemApi;
   catalog: CatalogApi;
+  restore: RestoreApi;
 }
 
 declare global {

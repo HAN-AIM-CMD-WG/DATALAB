@@ -26,6 +26,7 @@ import { registerFileBridge } from './fileBridge';
 import { registerOutputBridge } from './outputBridge';
 import { registerDocumentBridge } from './documentBridge';
 import { registerCatalogBridge } from './catalogBridge';
+import { registerRestoreBridge } from './restoreBridge';
 import { registerModelsBridge } from './modelsBridge';
 import { registerSystemBridge } from './systemBridge';
 import { startEngine, stopEngine } from './engineProcess';
@@ -127,6 +128,7 @@ app.whenReady().then(async () => {
   registerModelsBridge();
   registerSystemBridge();
   registerCatalogBridge();
+  registerRestoreBridge();
 
   // In productie: start de meegebundelde pii-engine sidecar voordat we het
   // hoofdvenster tonen. Als het starten faalt tonen we een heldere dialog en

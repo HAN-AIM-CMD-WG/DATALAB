@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ShieldCheck, RotateCcw, HelpCircle } from 'lucide-react';
+import { ShieldCheck, RotateCcw, HelpCircle, Undo2 } from 'lucide-react';
 import { EngineStatus } from './components/EngineStatus';
 import { EngineOfflinePanel } from './components/EngineOfflinePanel';
 import { Onboarding } from './components/Onboarding';
 import { PreviewDisclaimer } from './components/PreviewDisclaimer';
 import { ModelManager } from './components/ModelManager';
 import { HelpPanel } from './components/HelpPanel';
+import { RestorePanel } from './components/RestorePanel';
 import { Wizard } from './components/wizard/Wizard';
 import { useEngineHealth } from './hooks/useEngineHealth';
 import { useSettings } from './hooks/useSettings';
@@ -16,6 +17,7 @@ export function App(): JSX.Element {
   const { settings, update, reload } = useSettings();
   const [showModels, setShowModels] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showRestore, setShowRestore] = useState(false);
 
   // Initial load: hou leeg totdat settings beschikbaar zijn om flitser
   // tussen onboarding en main UI te voorkomen.
@@ -49,6 +51,7 @@ export function App(): JSX.Element {
         }}
         onOpenModels={() => setShowModels(true)}
         onOpenHelp={() => setShowHelp(true)}
+        onOpenRestore={() => setShowRestore(true)}
       />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
         {health.status === 'down' && <EngineOfflinePanel health={health} />}
@@ -57,6 +60,7 @@ export function App(): JSX.Element {
       <Footer />
       <ModelManager open={showModels} onClose={() => setShowModels(false)} />
       <HelpPanel open={showHelp} onClose={() => setShowHelp(false)} />
+      <RestorePanel open={showRestore} onClose={() => setShowRestore(false)} />
     </div>
   );
 }
@@ -67,12 +71,14 @@ function Header({
   onResetOnboarding,
   onOpenModels,
   onOpenHelp,
+  onOpenRestore,
 }: {
   state: ReturnType<typeof useEngineHealth>;
   settings: AppSettings;
   onResetOnboarding: () => Promise<void>;
   onOpenModels: () => void;
   onOpenHelp: () => void;
+  onOpenRestore: () => void;
 }): JSX.Element {
   return (
     <header className="border-b border-border/60 bg-card/60 backdrop-blur">
@@ -99,6 +105,16 @@ function Header({
         <div className="flex items-center gap-2">
           <EngineStatus state={state} onOpenModels={onOpenModels} />
           <span className="mx-0.5 h-4 w-px bg-border/70" aria-hidden />
+          <button
+            type="button"
+            onClick={onOpenRestore}
+            title="Pseudoniemen terugzetten met de mapping van een eerdere run"
+            className="flex h-7 items-center gap-1 rounded-md border border-border/50 px-2 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Pseudoniemen terugzetten"
+          >
+            <Undo2 className="h-3.5 w-3.5" aria-hidden />
+            <span className="hidden sm:inline">Terugzetten</span>
+          </button>
           <button
             type="button"
             onClick={onOpenHelp}

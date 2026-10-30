@@ -22,6 +22,9 @@ import type {
   OllamaCatalogResponse,
   OllamaPresence,
   ReadTextResponse,
+  RestoreMappingResponse,
+  RestoreRunResponse,
+  RestoreSourceFile,
   ReviewResponse,
   RunPayload,
   SystemInfo,
@@ -137,6 +140,14 @@ const api: AnonimiseerApi = {
       refresh: (): Promise<OllamaCatalogResponse> =>
         ipcRenderer.invoke('catalog:ollama:refresh') as Promise<OllamaCatalogResponse>,
     },
+  },
+  restore: {
+    openMapping: (): Promise<RestoreMappingResponse | null> =>
+      ipcRenderer.invoke('restore:openMapping') as Promise<RestoreMappingResponse | null>,
+    pickFiles: (): Promise<RestoreSourceFile[]> =>
+      ipcRenderer.invoke('restore:pickFiles') as Promise<RestoreSourceFile[]>,
+    run: (req: { files: string[]; outputParent: string }): Promise<RestoreRunResponse> =>
+      ipcRenderer.invoke('restore:run', req) as Promise<RestoreRunResponse>,
   },
 };
 

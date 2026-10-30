@@ -285,3 +285,24 @@ class DocumentApplyPayload(BaseModel):
             " zien dat dit een geautomatiseerde anonimisatie is."
         ),
     )
+
+
+class RestoreTextRequest(BaseModel):
+    """Zet de pseudoniemen in een tekst terug naar de originelen."""
+
+    text: str
+    mapping: list[MappingEntry]
+
+
+class RestoreTextResponse(BaseModel):
+    text: str
+    restored: int = Field(..., description="Aantal teruggezette pseudoniemen.")
+    unknown: int = Field(
+        ..., description="Pseudoniemen die niet in deze mapping staan (van een andere run)."
+    )
+
+
+class DocumentRestorePayload(BaseModel):
+    """JSON-payload naast het gepseudonimiseerde bestand bij /document/restore."""
+
+    mapping: list[MappingEntry]
