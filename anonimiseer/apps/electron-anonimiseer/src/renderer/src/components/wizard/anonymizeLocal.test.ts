@@ -135,6 +135,29 @@ describe('buildRun — tekstbestanden', () => {
     expect(result.mapping).toHaveLength(1);
   });
 
+  it.each([
+    ['de detector vond alleen de achternaam', [hit('de Vries', 5), hit('Anne de Vries', 0)]],
+    ['de korte hit staat eerst', [hit('Anne', 0), hit('Anne de Vries', 0)]],
+    ['twee hits overlappen half', [hit('Anne de', 0), hit('de Vries', 5)]],
+  ])('laat bij overlap niets van de naam staan (%s)', (_label, hits) => {
+    const result = buildRun(
+      [entry('/tmp/a.md', 'a.md')],
+      state([
+        review({
+          path: '/tmp/a.md',
+          text: 'Anne de Vries belt.',
+          hits: hits.map((h) => ({ ...h, id: hitId(h) })),
+        }),
+      ]),
+      'pseudonymize'
+    );
+
+    expect(textFiles(result)[0].anonymizedText).toBe('PERSON_1 belt.');
+    expect(result.mapping).toEqual([
+      { entity_type: 'PERSON', original: 'Anne de Vries', pseudonym: 'PERSON_1' },
+    ]);
+  });
+
   it('nummert pseudoniemen in leesvolgorde, ook als de hits door elkaar staan', () => {
     const anne = hit('Anne', 0);
     const bram = hit('Bram', 11);
@@ -211,9 +234,10 @@ describe('buildRun — documenten', () => {
     ]);
   });
 
-  it('stuurt geen overlappende vervangingen naar de engine', () => {
-    const volledig = hit('Anne de Vries', 6);
-    const deel = hit('Anne', 6);
+  it.each([
+    ['de korte hit valt binnen de lange', [hit('Anne de Vries', 6), hit('Anne', 6)]],
+    ['de detector vond alleen de achternaam', [hit('de Vries', 11), hit('Anne de Vries', 6)]],
+  ])('stuurt geen overlappende vervangingen naar de engine (%s)', (_label, hits) => {
     const result = buildRun(
       [entry('/tmp/brief.docx', 'brief.docx', '.docx')],
       state([
@@ -223,7 +247,7 @@ describe('buildRun — documenten', () => {
           extension: '.docx',
           kind: 'document',
           text: 'Beste Anne de Vries,',
-          hits: [volledig, deel].map((h) => ({ ...h, id: hitId(h) })),
+          hits: hits.map((h) => ({ ...h, id: hitId(h) })),
           blocks: [{ id: 'p1', kind: 'paragraph', start: 0, end: 20 }],
         }),
       ]),

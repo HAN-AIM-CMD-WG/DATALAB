@@ -51,23 +51,33 @@ function acceptedHits(file: FileReview, whitelist: string[]): AnalyzeHit[] {
 }
 
 /**
- * Filter overlappende hits weg en geef de rest in leesvolgorde terug.
+ * Voeg overlappende hits samen en geef ze in leesvolgorde terug.
  *
  * Overlap ontstaat vooral door handmatig markeren: de gebruiker sleept
- * over "Anne de Vries" terwijl de detector "Anne" al had gevonden. Zou je
- * beide vervangen, dan knip je in een stuk tekst dat er niet meer staat.
- * De hit die het verst naar rechts begint wint.
+ * over "Anne de Vries" terwijl de detector "de Vries" al had gevonden.
+ * Beide vervangen kan niet (je knipt in tekst die er niet meer staat), en
+ * één laten vallen laat de rest van de naam staan. Daarom wordt het één
+ * hit over het hele bereik, met het type van de langste.
  */
-function selectNonOverlapping(hits: AnalyzeHit[]): AnalyzeHit[] {
-  const rightToLeft = hits.slice().sort((a, b) => b.start - a.start);
-  const kept: AnalyzeHit[] = [];
-  let lastStart = Infinity;
-  for (const hit of rightToLeft) {
-    if (hit.end > lastStart) continue;
-    kept.push(hit);
-    lastStart = hit.start;
+function mergeOverlapping(hits: AnalyzeHit[], text: string): AnalyzeHit[] {
+  const sorted = hits.slice().sort((a, b) => a.start - b.start || b.end - a.end);
+  const merged: AnalyzeHit[] = [];
+  for (const hit of sorted) {
+    const last = merged[merged.length - 1];
+    if (!last || hit.start >= last.end) {
+      merged.push(hit);
+      continue;
+    }
+    const longest = hit.end - hit.start > last.end - last.start ? hit : last;
+    const end = Math.max(last.end, hit.end);
+    merged[merged.length - 1] = {
+      ...longest,
+      start: last.start,
+      end,
+      original: text.slice(last.start, end),
+    };
   }
-  return kept.reverse();
+  return merged;
 }
 
 /**
@@ -83,7 +93,7 @@ function applyReplacementsToText(
   hits: AnalyzeHit[],
   replacementFor: (hit: AnalyzeHit) => string
 ): string {
-  const applicable = selectNonOverlapping(hits);
+  const applicable = mergeOverlapping(hits, text);
   const replacements = applicable.map(replacementFor);
 
   let out = text;
@@ -192,7 +202,7 @@ export function buildRun(
       });
       continue;
     }
-    const replacements: DocumentReplacement[] = selectNonOverlapping(accepted).map((hit) => ({
+    const replacements: DocumentReplacement[] = mergeOverlapping(accepted, review_.text).map((hit) => ({
       start: hit.start,
       end: hit.end,
       replacement: replacementFor(hit),
