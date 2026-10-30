@@ -3,9 +3,12 @@
 `run.js` drives the real app with Playwright through onboarding and all four wizard steps,
 then checks what landed on disk:
 
-- no personal data left in the anonymised Markdown (against `docs/examples`),
+- no personal data left in the anonymised Markdown (against `docs/examples`), including the
+  birth dates and the link to a person, which are masked by default,
 - no personal data left in the Word text or its document properties,
 - the run directory is `0700` and every file in it `0600`,
+- the audit log holds file names, not full paths, and reports no replacement that failed
+  to land,
 - no errors in the renderer console.
 
 `crashtest.sh` kills a packaged app with `SIGKILL` and checks that the engine goes down with
