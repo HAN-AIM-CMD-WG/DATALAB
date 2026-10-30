@@ -10,7 +10,7 @@ detection that covers values in several cells is split, one part per cell.
 from __future__ import annotations
 
 import pytest
-from presidio_analyzer import RecognizerResult
+from presidio_analyzer import AnalysisExplanation, RecognizerResult
 
 from pii_engine.postfilter import filter_overlaps
 from pii_engine.recognizers.nl_address import NlAddressRecognizer
@@ -74,6 +74,55 @@ def test_span_trimming_at_line_boundaries(
     text: str, entity: str, fragment: str, expected: list[str]
 ) -> None:
     assert _trimmed(text, entity, fragment) == expected
+
+
+def _hit(text: str, fragment: str, entity: str, recognizer: str) -> RecognizerResult:
+    start = text.index(fragment)
+    # Like the real SonarRecognizer, which only gets Presidio's metadata.
+    explanation = (
+        None
+        if recognizer == "SonarRecognizer"
+        else AnalysisExplanation(recognizer=recognizer, original_score=0.9)
+    )
+    return RecognizerResult(
+        entity_type=entity,
+        start=start,
+        end=start + len(fragment),
+        score=0.9,
+        analysis_explanation=explanation,
+        recognition_metadata={"recognizer_name": recognizer},
+    )
+
+
+def test_ner_overlapping_a_postcode_keeps_the_city() -> None:
+    text = "Adres: Keizersgracht 123-3, 1015 CJ Amsterdam"
+    results = [
+        _hit(text, "1015 CJ", "NL_POSTCODE", "NlPostcodeRecognizer"),
+        _hit(text, "CJ Amsterdam", "LOCATION", "SonarRecognizer"),
+        _hit(text, "CJ Amsterdam", "ORGANIZATION", "SpacyRecognizer"),
+    ]
+    found = sorted((text[r.start : r.end], r.entity_type) for r in filter_overlaps(results, text))
+    assert found == [("1015 CJ", "NL_POSTCODE"), ("Amsterdam", "LOCATION")]
+
+
+def test_ner_overlapping_an_email_keeps_the_name_without_brackets() -> None:
+    text = "Van: Tim de Wit <t.dewit@example.com>"
+    results = [
+        _hit(text, "t.dewit@example.com", "EMAIL_ADDRESS", "EmailRecognizer"),
+        _hit(text, "Tim de Wit <t.dewit", "PERSON", "SonarRecognizer"),
+    ]
+    found = sorted(text[r.start : r.end] for r in filter_overlaps(results, text))
+    assert found == ["Tim de Wit", "t.dewit@example.com"]
+
+
+def test_ner_address_around_a_postcode_is_split() -> None:
+    text = "Molenweg 12b, 8011 RM Zwolle"
+    results = [
+        _hit(text, "8011 RM", "NL_POSTCODE", "NlPostcodeRecognizer"),
+        _hit(text, text, "LOCATION", "SonarRecognizer"),
+    ]
+    found = sorted(text[r.start : r.end] for r in filter_overlaps(results, text))
+    assert found == ["8011 RM", "Molenweg 12b", "Zwolle"]
 
 
 def test_address_recognizer_stays_within_a_line() -> None:

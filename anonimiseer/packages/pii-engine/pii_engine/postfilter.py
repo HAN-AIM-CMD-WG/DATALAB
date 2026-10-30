@@ -743,7 +743,85 @@ def _trim_part(
         end=new_end,
         score=result.score,
         analysis_explanation=result.analysis_explanation,
+        recognition_metadata=result.recognition_metadata,
     )
+
+
+def _recognizer_name(r: RecognizerResult) -> str:
+    # SonarRecognizer sets no explanation; Presidio records the name in the metadata.
+    expl = getattr(r, "analysis_explanation", None)
+    name = getattr(expl, "recognizer", "") if expl is not None else ""
+    return name or (getattr(r, "recognition_metadata", None) or {}).get("recognizer_name", "")
+
+
+_PIECE_TRIM = _TRIM_CHARS + "<>\"'“”‘’"
+
+
+def _cut_around_strong(results: list[RecognizerResult], text: str) -> list[RecognizerResult]:
+    """Keep the parts of a NER detection that lie outside a strong NL-specific one.
+
+    NER often runs a city into the postcode before it (``CJ Amsterdam`` over
+    ``1015 CJ``) or takes a whole address including the postcode. Dropping the
+    NER detection would leak the city, whose own detection may already be
+    gone: Presidio drops a detection contained in a higher-scoring one of the
+    same type. Each remaining part needs a capital and must not be a label.
+    """
+    strong = [r for r in results if _priority(r.entity_type) < 10]
+    out: list[RecognizerResult] = []
+    for r in results:
+        if r.entity_type not in _PUNCT_SENSITIVE_TYPES:
+            out.append(r)
+            continue
+        pieces = [(r.start, r.end)]
+        for s in strong:
+            cut: list[tuple[int, int]] = []
+            for a, b in pieces:
+                if s.end <= a or b <= s.start:
+                    cut.append((a, b))
+                    continue
+                if a < s.start:
+                    cut.append((a, s.start))
+                if s.end < b:
+                    cut.append((s.end, b))
+            pieces = cut
+        if pieces == [(r.start, r.end)]:
+            out.append(r)
+            continue
+        for a, b in pieces:
+            raw = text[a:b]
+            stripped = raw.strip().strip(_PIECE_TRIM).strip()
+            if not any(c.isupper() for c in stripped) or stripped.lower() in _LABEL_WORDS_ANY:
+                continue
+            start = a + raw.index(stripped)
+            out.append(
+                RecognizerResult(
+                    entity_type=r.entity_type,
+                    start=start,
+                    end=start + len(stripped),
+                    score=r.score,
+                    analysis_explanation=r.analysis_explanation,
+                    recognition_metadata=r.recognition_metadata,
+                )
+            )
+    return out
+
+
+def _prefer_sonar_labels(results: list[RecognizerResult]) -> list[RecognizerResult]:
+    """On the exact same span, SoNaR's label beats spaCy's: it is the stronger Dutch NER."""
+    sonar = {
+        (r.start, r.end)
+        for r in results
+        if r.entity_type in _PUNCT_SENSITIVE_TYPES and _recognizer_name(r) == "SonarRecognizer"
+    }
+    return [
+        r
+        for r in results
+        if not (
+            r.entity_type in _PUNCT_SENSITIVE_TYPES
+            and _recognizer_name(r) == "SpacyRecognizer"
+            and (r.start, r.end) in sonar
+        )
+    ]
 
 
 def _is_ner_noise(fixed: RecognizerResult, text: str) -> bool:
@@ -830,7 +908,7 @@ def filter_overlaps(
                 )
             else:
                 trimmed.append(r)
-        deduped = trimmed
+        deduped = _prefer_sonar_labels(_cut_around_strong(trimmed, text))
 
     # Containment + partial-overlap filter. Twee regels:
     #
@@ -838,10 +916,10 @@ def filter_overlaps(
     #     prioriteit → drop inner.
     #  2. ``a`` en ``b`` overlappen *deels*; de zwakker gerangschikte
     #     (hoger nummer) wordt gedropt als de sterkere een NL-specifiek
-    #     entity is (prio < 10) en de zwakkere een NER-categorie of
-    #     DATE_TIME is. Dit dekt "CJ Amsterdam" als ORG over "1015 CJ" als
-    #     NL_POSTCODE en ``IBAN NL20INGB…`` als DATE_TIME over ``NL20INGB…``
-    #     als IBAN_CODE.
+    #     entity is (prio < 10) en de zwakkere DATE_TIME is, zoals
+    #     ``IBAN NL20INGB…`` als DATE_TIME over ``NL20INGB…`` als IBAN_CODE.
+    #     NER-hits zijn hierboven al rond zulke entities geknipt
+    #     (``_cut_around_strong``).
     keep: list[bool] = [True] * len(deduped)
     for i, inner in enumerate(deduped):
         if not keep[i]:
@@ -895,9 +973,8 @@ def filter_overlaps(
 
             # Regel 2: partiële overlap. Alleen ingrijpen als outer een
             # sterke NL-specifieke entity is (prio < 10) en inner een
-            # NER/DATE_TIME-categorie (prio >= 20). Zo knippen we de
-            # "CJ Amsterdam"-ORG niet af tegen een willekeurige PERSON
-            # die overlapt met een andere PERSON.
+            # NER/DATE_TIME-categorie (prio >= 20), niet bij twee PERSON-
+            # hits die elkaar overlappen.
             if _overlaps(inner, outer) and outer_prio < 10 and inner_prio >= 20:
                 keep[i] = False
                 break
