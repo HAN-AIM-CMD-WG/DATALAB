@@ -17,7 +17,7 @@
 
 import { BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { promises as fs } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import type {
   MappingSaveStatus,
   RunPayload,
@@ -83,7 +83,11 @@ function buildFooterNote(payload: RunPayload): string {
   );
 }
 
-function buildDisclaimer(payload: RunPayload, mapping: MappingSaveStatus): string {
+function buildDisclaimer(
+  payload: RunPayload,
+  mapping: MappingSaveStatus,
+  results: RunResultFile[]
+): string {
   const { context } = payload;
   const lines: string[] = [];
   lines.push('DISCLAIMER — ANONIMISEER');
@@ -113,6 +117,18 @@ function buildDisclaimer(payload: RunPayload, mapping: MappingSaveStatus): strin
   lines.push('volledig door vóór je het deelt, publiceert of naar een externe dienst');
   lines.push('(bijv. een LLM-API) stuurt.');
   lines.push('');
+  const incomplete = results.filter((r) => (r.unreplaced ?? 0) > 0);
+  if (incomplete.length > 0) {
+    lines.push('--- NIET ALLES VERVANGEN ---');
+    lines.push('');
+    lines.push('In deze bestanden staan nog gegevens die je had aangevinkt om te');
+    lines.push('vervangen. Haal ze er zelf uit, of verwerk het bestand opnieuw:');
+    for (const r of incomplete) {
+      const name = r.outputPath ? basename(r.outputPath) : r.sourceName;
+      lines.push(`  - ${name}: ${r.unreplaced} niet vervangen`);
+    }
+    lines.push('');
+  }
   if (context.mode === 'pseudonymize') {
     lines.push('--- MAPPING ---');
     lines.push('');
@@ -162,16 +178,18 @@ function auditLines(payload: RunPayload, results: RunResultFile[]): string {
       filesSkipped: payload.skipped.length + results.filter((r) => r.status !== 'written').length,
     })
   );
+  // File names only: a full path often contains the user's account name and
+  // the folder of a case, which the log does not need.
   for (const f of payload.files) {
     const res = results.find((r) => r.sourceName === f.sourceName);
     lines.push(
       JSON.stringify({
         type: 'file',
         sourceName: f.sourceName,
-        sourcePath: f.sourcePath,
-        outputPath: res?.outputPath ?? null,
+        outputName: res?.outputPath ? basename(res.outputPath) : null,
         status: res?.status ?? 'error',
         error: res?.error,
+        unreplaced: res?.unreplaced,
         stats: f.stats,
       })
     );
@@ -181,8 +199,7 @@ function auditLines(payload: RunPayload, results: RunResultFile[]): string {
       JSON.stringify({
         type: 'file',
         sourceName: s.sourceName,
-        sourcePath: s.sourcePath,
-        outputPath: null,
+        outputName: null,
         status: 'skipped',
         reason: s.reason,
       })
@@ -284,6 +301,7 @@ async function writeRun(payload: RunPayload): Promise<WriteRunResponse> {
             sourceName: file.sourceName,
             outputPath: applyResult.outputPath,
             status: 'written',
+            unreplaced: applyResult.unreplaced,
           });
         }
       }
@@ -298,7 +316,7 @@ async function writeRun(payload: RunPayload): Promise<WriteRunResponse> {
   }
 
   const mapping = await saveMapping(runDir, payload);
-  const disclaimer = buildDisclaimer(payload, mapping);
+  const disclaimer = buildDisclaimer(payload, mapping, results);
   const disclaimerPath = join(runDir, 'DISCLAIMER.txt');
   const auditPath = join(runDir, 'audit.jsonl');
 

@@ -43,8 +43,24 @@ async function readFileGuarded(path: string): Promise<Buffer> {
 
 async function atomicWrite(path: string, data: Buffer): Promise<void> {
   const tmp = `${path}.tmp`;
-  await fs.writeFile(tmp, data);
-  await fs.rename(tmp, path);
+  // 0o600: an anonymised document can still hold personal data the
+  // detection missed; without a mode it would be readable by every user.
+  await fs.writeFile(tmp, data, { mode: 0o600 });
+  try {
+    await fs.rename(tmp, path);
+  } catch (error) {
+    await fs.unlink(tmp).catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
+ * An engine without the post-apply check sends no header. Treat that as
+ * unverified rather than clean, so the user is still warned.
+ */
+function parseUnreplaced(header: string | null): number {
+  const value = header === null ? NaN : Number.parseInt(header, 10);
+  return Number.isFinite(value) && value >= 0 ? value : 1;
 }
 
 async function documentExtract(path: unknown): Promise<DocumentExtractResponse> {
@@ -177,7 +193,12 @@ export async function documentApply(
     const arrayBuffer = await response.arrayBuffer();
     const outBuffer = Buffer.from(arrayBuffer);
     await atomicWrite(req.outputPath, outBuffer);
-    return { ok: true, outputPath: req.outputPath, bytesWritten: outBuffer.length };
+    return {
+      ok: true,
+      outputPath: req.outputPath,
+      bytesWritten: outBuffer.length,
+      unreplaced: parseUnreplaced(response.headers.get('x-anonimiseer-unreplaced')),
+    };
   } catch (error) {
     clearTimeout(timer);
     const reason =

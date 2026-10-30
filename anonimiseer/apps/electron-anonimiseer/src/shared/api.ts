@@ -226,7 +226,16 @@ export interface DocumentApplyRequest {
 }
 
 export type DocumentApplyResponse =
-  | { ok: true; outputPath: string; bytesWritten: number }
+  | {
+      ok: true;
+      outputPath: string;
+      bytesWritten: number;
+      /**
+       * Accepted replacements whose text is still in the output, as counted
+       * by the engine. Above zero, the file still holds personal data.
+       */
+      unreplaced: number;
+    }
   | { ok: false; error: string };
 
 export interface ModelInfo {
@@ -451,6 +460,8 @@ export interface RunResultFile {
   outputPath: string | null;
   status: 'written' | 'skipped' | 'error';
   error?: string;
+  /** See ``DocumentApplyResponse.unreplaced``; absent for plain text. */
+  unreplaced?: number;
 }
 
 export type MappingSaveStatus =

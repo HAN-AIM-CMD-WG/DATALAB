@@ -616,17 +616,28 @@ function SuccessView({
 
   const written = result.files.filter((f) => f.status === 'written');
   const errors = result.files.filter((f) => f.status === 'error');
+  const incomplete = written.filter((f) => (f.unreplaced ?? 0) > 0);
+  const allGood = errors.length === 0 && incomplete.length === 0;
 
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3">
-        <div className={cn('flex h-10 w-10 flex-none items-center justify-center rounded-lg', statusIconBg('success'))}>
-          <CheckCircle2 className="h-5 w-5" aria-hidden />
+        <div
+          className={cn(
+            'flex h-10 w-10 flex-none items-center justify-center rounded-lg',
+            statusIconBg(allGood ? 'success' : 'warning')
+          )}
+        >
+          {allGood ? (
+            <CheckCircle2 className="h-5 w-5" aria-hidden />
+          ) : (
+            <AlertTriangle className="h-5 w-5" aria-hidden />
+          )}
         </div>
         <div>
           <h2 className="text-xl font-semibold tracking-tight">
-            Klaar! {written.length}{' '}
-            bestand{written.length === 1 ? '' : 'en'} opgeslagen.
+            {allGood ? 'Klaar! ' : 'Opgeslagen, maar niet alles is gelukt: '}
+            {written.length} bestand{written.length === 1 ? '' : 'en'} opgeslagen.
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Open de map en controleer de resultaten voordat je ze deelt.
@@ -655,10 +666,11 @@ function SuccessView({
               key={f.sourceName}
               className={cn(
                 'flex items-center gap-2',
-                f.status === 'error' && statusIcon('destructive')
+                f.status === 'error' && statusIcon('destructive'),
+                (f.unreplaced ?? 0) > 0 && statusIcon('warning')
               )}
             >
-              {f.status === 'written' ? (
+              {f.status === 'written' && (f.unreplaced ?? 0) === 0 ? (
                 <CheckCircle2
                   className={cn('h-3.5 w-3.5', statusIcon('success'))}
                   aria-hidden
@@ -669,6 +681,11 @@ function SuccessView({
               <span className="truncate">
                 {f.outputPath ?? f.sourceName}
                 {f.error && <span className="ml-1 opacity-80">— {f.error}</span>}
+                {(f.unreplaced ?? 0) > 0 && (
+                  <span className="ml-1 opacity-80">
+                    — {f.unreplaced} niet vervangen
+                  </span>
+                )}
               </span>
             </li>
           ))}
@@ -686,6 +703,18 @@ function SuccessView({
         <Notice tone="warning" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
           <strong>Mapping niet opgeslagen.</strong> {result.mapping.reason}{' '}
           Je bestanden zijn wel gepseudonimiseerd, maar niet omkeerbaar.
+        </Notice>
+      )}
+
+      {incomplete.length > 0 && (
+        <Notice tone="warning" icon={<AlertTriangle className="h-4 w-4" aria-hidden />}>
+          <strong>
+            In {incomplete.length} bestand{incomplete.length === 1 ? '' : 'en'} staan nog
+            gegevens die je had aangevinkt om te vervangen.
+          </strong>{' '}
+          Dat kan gebeuren bij tekst die over meerdere cellen of regels loopt, of
+          bij PDF&apos;s. Open {incomplete.length === 1 ? 'dit bestand' : 'deze bestanden'}{' '}
+          en haal de gegevens er zelf uit, of verwerk het bestand opnieuw.
         </Notice>
       )}
 

@@ -10,6 +10,7 @@
 const { _electron } = require('playwright-core');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const APP = path.resolve(__dirname, '..');
@@ -172,6 +173,17 @@ function checks(runDir) {
   add('Word: no personal data left in the text', originals.body.filter((o) => body.includes(o)));
   const props = docxPart(docx, 'docProps/core.xml');
   add('Word: no personal data left in the document properties', originals.properties.filter((o) => props.includes(o)));
+
+  const auditText = fs.readFileSync(path.join(runDir, 'audit.jsonl'), 'utf8');
+  add(
+    'audit log holds file names, not full paths',
+    [INPUT, OUTDIR, os.homedir()].filter((p) => auditText.includes(p)),
+  );
+  const audit = auditText.split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  add(
+    'every accepted replacement was applied',
+    audit.filter((a) => a.type === 'file' && a.unreplaced > 0).map((a) => `${a.sourceName}: ${a.unreplaced}`),
+  );
   return results;
 }
 
