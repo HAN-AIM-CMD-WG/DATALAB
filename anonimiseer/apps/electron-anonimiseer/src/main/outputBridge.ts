@@ -15,7 +15,7 @@
  * halverwege heb je óf een volledig bestand óf niks — nooit een halve.
  */
 
-import { BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { promises as fs } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import type {
@@ -25,6 +25,8 @@ import type {
   WriteRunResponse,
 } from '@shared/api';
 import { documentApply } from './documentBridge';
+import { encryptionProblem, sealMapping } from './mappingStore';
+import { atomicWrite } from './safeWrite';
 
 const RUN_PREFIX = 'anonimiseer-';
 
@@ -48,27 +50,27 @@ function isInsideKnownRunDir(path: string): boolean {
   return false;
 }
 
+export function isPickedFolder(path: string): boolean {
+  return pickedFolders.has(resolve(path));
+}
+
+/**
+ * A new run folder inside ``parent``, which must be a folder the user picked.
+ * 0o700: it holds files with personal data, on a machine that may be shared.
+ */
+export async function createRunDir(parent: string, label = ''): Promise<string> {
+  const runDir = join(parent, `${RUN_PREFIX}${label}${timestampSlug(new Date())}`);
+  await fs.mkdir(runDir, { recursive: true, mode: 0o700 });
+  knownRunDirs.add(resolve(runDir));
+  return runDir;
+}
+
 function timestampSlug(date: Date): string {
   const pad = (n: number): string => String(n).padStart(2, '0');
   return (
     `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-` +
     `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
   );
-}
-
-async function atomicWrite(path: string, data: string | Buffer): Promise<void> {
-  const tmp = `${path}.tmp`;
-  // 0o600: deze bestanden bevatten persoonsgegevens. Zonder mode krijgen ze
-  // 0644 en zijn ze leesbaar voor elke gebruiker op de machine.
-  await fs.writeFile(tmp, data, { mode: 0o600 });
-  try {
-    await fs.rename(tmp, path);
-  } catch (error) {
-    // Anders blijft er een tmp-bestand mét inhoud achter terwijl de gebruiker
-    // een foutmelding ziet en denkt dat er niets geschreven is.
-    await fs.unlink(tmp).catch(() => undefined);
-    throw error;
-  }
 }
 
 /**
@@ -140,14 +142,15 @@ function buildDisclaimer(
     lines.push('');
     if (mapping.status === 'saved') {
       lines.push('De mapping tussen originele waarden en hun pseudoniemen staat in');
-      lines.push('mapping.bin en is versleuteld met de OS-keychain (Electron');
-      lines.push('safeStorage). Alleen dezelfde gebruiker op deze machine kan de');
-      lines.push('mapping weer openen via Anonimiseer. Wil je de mapping meenemen naar');
-      lines.push('een andere machine, exporteer hem dan via Anonimiseer — een kopie van');
-      lines.push('mapping.bin alleen werkt daar niet.');
+      lines.push('mapping.bin. Die is versleuteld met een sleutel van het besturings-');
+      lines.push('systeem (Electron safeStorage) en beveiligd tegen wijzigingen. Alleen');
+      lines.push('dezelfde gebruiker op deze computer kan de pseudoniemen ermee');
+      lines.push('terugzetten, via "Pseudoniemen terugzetten" in Anonimiseer. Op een');
+      lines.push('andere computer werkt mapping.bin niet.');
     } else if (mapping.status === 'skipped-no-encryption') {
-      lines.push('LET OP: er kon geen mapping bewaard worden omdat de OS-keychain');
-      lines.push('niet beschikbaar is. De pseudoniemen zijn daardoor niet omkeerbaar.');
+      lines.push('LET OP: er kon geen mapping bewaard worden omdat er geen veilige');
+      lines.push('versleuteling beschikbaar is. De pseudoniemen zijn daardoor niet');
+      lines.push('omkeerbaar.');
       lines.push(`Reden: ${mapping.reason}`);
     } else if (mapping.status === 'error') {
       lines.push(`LET OP: het opslaan van de mapping is mislukt: ${mapping.error}`);
@@ -220,11 +223,11 @@ async function saveMapping(
 ): Promise<MappingSaveStatus> {
   if (payload.context.mode !== 'pseudonymize') return { status: 'not-applicable' };
   if (payload.mapping.length === 0) return { status: 'not-applicable' };
-  if (!safeStorage.isEncryptionAvailable()) {
+  const problem = encryptionProblem();
+  if (problem) {
     return {
       status: 'skipped-no-encryption',
-      reason:
-        'OS-keychain (safeStorage) is niet beschikbaar op dit systeem. De mapping zou plaintext op schijf komen en dat weigeren we.',
+      reason: `${problem} De mapping zou dan onbeschermd op schijf komen en dat weigeren we.`,
     };
   }
   try {
@@ -238,9 +241,8 @@ async function saveMapping(
       null,
       2
     );
-    const encrypted = safeStorage.encryptString(payloadJson);
     const path = join(runDir, 'mapping.bin');
-    await atomicWrite(path, encrypted);
+    await atomicWrite(path, await sealMapping(payloadJson));
     return { status: 'saved', path };
   } catch (error) {
     return {
@@ -255,22 +257,16 @@ async function writeRun(payload: RunPayload): Promise<WriteRunResponse> {
   if (typeof payload?.outputParent !== 'string' || !payload.outputParent) {
     return { ok: false, error: 'geen doelmap opgegeven' };
   }
-  if (!pickedFolders.has(resolve(payload.outputParent))) {
+  if (!isPickedFolder(payload.outputParent)) {
     return { ok: false, error: 'kies de doelmap opnieuw via "Kies map"' };
   }
   if (!Array.isArray(payload.files) || !Array.isArray(payload.skipped)) {
     return { ok: false, error: 'ongeldige payload-structuur' };
   }
 
-  const runDir = join(
-    payload.outputParent,
-    `${RUN_PREFIX}${timestampSlug(new Date())}`
-  );
+  let runDir: string;
   try {
-    // 0o700: de map bevat een mapping en een audit-log met persoonsgegevens.
-    // Zonder mode is dat op een gedeelde machine leesbaar voor iedereen.
-    await fs.mkdir(runDir, { recursive: true, mode: 0o700 });
-    knownRunDirs.add(resolve(runDir));
+    runDir = await createRunDir(payload.outputParent);
   } catch (error) {
     return {
       ok: false,
@@ -372,9 +368,7 @@ export function registerOutputBridge(): void {
     return result.filePaths[0];
   });
 
-  ipcMain.handle('output:encryptionAvailable', () =>
-    safeStorage.isEncryptionAvailable()
-  );
+  ipcMain.handle('output:encryptionAvailable', () => encryptionProblem() === null);
 
   ipcMain.handle('output:writeRun', async (_event, payload: RunPayload) =>
     writeRun(payload)

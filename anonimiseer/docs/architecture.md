@@ -30,7 +30,12 @@ Per tekstblok, met vroege-exit op hoge confidence:
 3. **Zero-shot GLiNER** (optioneel): `E3-JSI/gliner-multi-pii-domains-v1` met NL-support voor runtime-configureerbare entiteiten.
 4. **LLM-pass** (optioneel): Ollama endpoint met GEITje-7B-ultra of Llama-3.1-8B, alleen op blokken waar vorige stappen weinig vonden.
 5. **Merge + de-duplicatie** met confidence-weging.
-6. **Pseudonimisering**: consistente per-document mapping, AES-256-GCM versleutelde `mapping.enc`, sleutel uit gebruikerswachtwoord (PBKDF2).
+6. **Pseudonimisering**: één consistente mapping voor alle bestanden van een run, opgeslagen
+   als `mapping.bin`. Versleuteld met een sleutel van het besturingssysteem (Electron
+   safeStorage: Keychain op macOS, DPAPI op Windows, Secret Service op Linux) en beveiligd
+   met een HMAC-SHA256 tegen wijzigingen. Terugzetten ("Pseudoniemen terugzetten") kan alleen
+   voor dezelfde gebruiker op dezelfde computer. Op Linux zonder keyring slaat de app geen
+   mapping op.
 
 ## Model Manager
 

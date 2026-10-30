@@ -16,6 +16,7 @@ import type {
 } from '@shared/api';
 
 import { engineHeaders, engineUrl } from './engineEndpoint';
+import { atomicWrite } from './safeWrite';
 const EXTRACT_TIMEOUT_MS = 60_000;
 const APPLY_TIMEOUT_MS = 60_000;
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -39,19 +40,6 @@ async function readFileGuarded(path: string): Promise<Buffer> {
     throw new Error(`bestand is te groot (${stat.size} bytes)`);
   }
   return fs.readFile(path);
-}
-
-async function atomicWrite(path: string, data: Buffer): Promise<void> {
-  const tmp = `${path}.tmp`;
-  // 0o600: an anonymised document can still hold personal data the
-  // detection missed; without a mode it would be readable by every user.
-  await fs.writeFile(tmp, data, { mode: 0o600 });
-  try {
-    await fs.rename(tmp, path);
-  } catch (error) {
-    await fs.unlink(tmp).catch(() => undefined);
-    throw error;
-  }
 }
 
 /**

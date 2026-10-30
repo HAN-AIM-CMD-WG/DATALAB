@@ -92,7 +92,9 @@ Regels:
 - Bewaar dit bestand gescheiden van het geanonimiseerde document.
 - Deel het nooit samen in dezelfde cloudmap, e-mail of chat.
 - Verwijder het zodra je de originele gegevens niet meer nodig hebt.
-- Verlies van het wachtwoord betekent dat het mapping onbruikbaar is — dat is ook de bedoeling.
+- Het bestand werkt alleen voor dezelfde gebruiker op dezelfde computer. Op een andere
+  computer, of na het opnieuw installeren van het besturingssysteem, kan niemand het meer
+  openen — ook jij niet.
 ```
 
 ---
