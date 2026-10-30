@@ -43,6 +43,27 @@ const HEALTH_PORT = Number.parseInt(
 const HEALTH_HOST = process.env.ANONIMISEER_ENGINE_HOST ?? '127.0.0.1';
 
 let engineChild: ChildProcess | null = null;
+/** Laatste stukje stderr van de engine, om een vroege exit te kunnen uitleggen. */
+let engineStderrTail = '';
+
+/**
+ * Vertaal een engine die direct na het starten stopt naar iets waar een
+ * gebruiker mee verder kan. Deze tekst belandt in de foutdialoog.
+ */
+function explainEarlyExit(stderr: string): string {
+  if (/address already in use/i.test(stderr)) {
+    return (
+      `Poort ${HEALTH_PORT} is al in gebruik door een ander programma, vaak een ` +
+      'engine die is blijven hangen na een eerdere crash. Stop het proces ' +
+      '"pii-engine" via Activiteitenweergave (Mac) of Taakbeheer (Windows), of ' +
+      'herstart je computer, en open Anonimiseer daarna opnieuw.'
+    );
+  }
+  return (
+    'De verwerkings-engine stopte direct na het starten. Installeer de app ' +
+    'opnieuw; helpt dat niet, neem dan contact op met support.'
+  );
+}
 
 /**
  * Seed de HuggingFace-modelcache van de gebruiker vanuit de meegebundelde
@@ -158,9 +179,7 @@ async function waitForHealth(token: string): Promise<void> {
     // Is het kindproces al gestorven, dan heeft doorpollen geen zin — sterker
     // nog, dan pollen we mogelijk tegen iets anders dan onze engine.
     if (engineChild === null) {
-      throw new Error(
-        'pii-engine sloot direct na het starten af. Zie de logregels van [pii-engine] hierboven.',
-      );
+      throw new Error(explainEarlyExit(engineStderrTail));
     }
     const nonce = randomBytes(16).toString('hex');
     try {
@@ -237,6 +256,8 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
       // De playground-UI van de engine heeft in de desktop-app geen functie en
       // vergroot alleen het aanvalsoppervlak.
       PII_ENGINE_ENABLE_PLAYGROUND: 'false',
+      // Zie de stdin-pipe hieronder.
+      PII_ENGINE_EXIT_WITH_PARENT: 'true',
       // In de bundle zit nl_core_news_lg als default voor de beste Nederlandse
       // namen-recall. Blijft overschrijfbaar via env voor development.
       PII_ENGINE_SPACY_MODEL:
@@ -247,14 +268,22 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
       PII_ENGINE_ENABLE_SONAR:
         process.env.PII_ENGINE_ENABLE_SONAR ?? 'true',
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    // stdin is een pipe die we nooit beschrijven: het is een levenslijn. Bij
+    // een crash of geforceerde stop van de app worden `before-quit` en
+    // `stopEngine` niet meer uitgevoerd, maar sluit het OS deze pipe wel. De
+    // engine leest dan EOF en stopt zichzelf, in plaats van als wees de poort
+    // vast te houden zodat de app niet meer kan starten.
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
+  engineStderrTail = '';
 
   engineChild.stdout?.on('data', (chunk: Buffer) => {
     console.log('[pii-engine]', chunk.toString().trimEnd());
   });
   engineChild.stderr?.on('data', (chunk: Buffer) => {
-    console.error('[pii-engine]', chunk.toString().trimEnd());
+    const text = chunk.toString();
+    engineStderrTail = (engineStderrTail + text).slice(-4000);
+    console.error('[pii-engine]', text.trimEnd());
   });
   engineChild.on('exit', (code, signal) => {
     console.warn(

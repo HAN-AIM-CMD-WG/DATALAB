@@ -106,6 +106,16 @@ class Settings(BaseSettings):
         ),
     )
 
+    exit_with_parent: bool = Field(
+        default=False,
+        description=(
+            "Stop zodra stdin sluit. De desktop-app zet dit aan en houdt de pipe "
+            "open zolang zij leeft. Crasht de app of wordt hij geforceerd gestopt, "
+            "dan sluit het OS de pipe en stopt de engine ook — anders blijft hij als "
+            "wees op de poort staan en kan de app niet meer opnieuw starten."
+        ),
+    )
+
     # Playground UI
     enable_playground: bool = Field(
         default=True,
