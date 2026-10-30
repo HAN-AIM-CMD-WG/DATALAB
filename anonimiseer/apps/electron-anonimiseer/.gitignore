@@ -11,3 +11,4 @@ dist/
 # Lokale env-overrides
 .env
 .env.local
+e2e/.tmp/

@@ -21,7 +21,8 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "bundle:engine": "bash ../../packages/pii-engine/build/build-bundle.sh",
     "dist:mac:all": "npm run bundle:engine && npm run dist:mac",
-    "dist:win:all": "npm run bundle:engine && npm run dist:win"
+    "dist:win:all": "npm run bundle:engine && npm run dist:win",
+    "e2e": "node e2e/run.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
@@ -41,6 +42,7 @@
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
+    "playwright-core": "^1.64.1",
     "postcss": "^8.4.49",
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.15",
