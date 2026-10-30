@@ -48,6 +48,7 @@ from pii_engine.recognizers import (
     NlRijbewijsRecognizer,
     NlStudentnrRecognizer,
     OnlineIdentifierRecognizer,
+    PersonalUrlRecognizer,
     StageOrganizationRecognizer,
 )
 from pii_engine.runtime import effective_settings
@@ -158,6 +159,8 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
         registry.add_recognizer(BankNameRecognizer(supported_language="nl"))
     if settings.enable_online_identifiers:
         registry.add_recognizer(OnlineIdentifierRecognizer(supported_language="nl"))
+    if settings.enable_personal_url:
+        registry.add_recognizer(PersonalUrlRecognizer(supported_language="nl"))
     if settings.enable_nl_kenteken:
         registry.add_recognizer(NlKentekenRecognizer(supported_language="nl"))
     if settings.enable_gps:

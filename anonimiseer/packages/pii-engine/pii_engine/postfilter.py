@@ -84,7 +84,12 @@ ENTITY_PRIORITY: dict[str, int] = {
     "MAC_ADDRESS": 3,
     "NL_PHONE_NUMBER": 4,
     "PHONE_NUMBER": 5,
+    # A link to a person's profile or page beats the generic URL and any
+    # name or number detected inside it.
+    "PERSONAL_URL": 2,
     "URL": 6,
+    # Same date pattern as DATE_TIME, confirmed by a birth label.
+    "BIRTH_DATE": 3,
     # NER-categorieën: breder, maar minder precies.
     "ORGANIZATION": 20,
     "LOCATION": 21,

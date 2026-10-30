@@ -140,9 +140,18 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
     defaultOn: false,
   },
   {
+    id: 'persoonlijke-links',
+    label: 'Links naar een persoon',
+    description:
+      "Profielpagina's (LinkedIn, GitHub, Instagram …) en links met iemands naam erin. Andere links vallen onder Links (URLs).",
+    example: 'linkedin.com/in/anna-de-vries, example.com/team/jan-jansen',
+    entityTypes: ['PERSONAL_URL'],
+    defaultOn: true,
+  },
+  {
     id: 'url',
     label: 'Links (URLs)',
-    description: 'Webadressen die context kunnen weggeven.',
+    description: 'Alle overige webadressen. Die kunnen context weggeven.',
     example: 'https://example.com/jansen',
     entityTypes: ['URL'],
     defaultOn: false,
@@ -157,9 +166,18 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
     defaultOn: true,
   },
   {
+    id: 'geboortedatum',
+    label: 'Geboortedatums',
+    description:
+      'Datums direct na "geboren", "geb." of "geboortedatum". Andere datums vallen onder Datums en tijden.',
+    example: 'geboren 14-03-1985, Geboortedatum: 14 maart 1985',
+    entityTypes: ['BIRTH_DATE'],
+    defaultOn: true,
+  },
+  {
     id: 'datum',
     label: 'Datums en tijden',
-    description: 'Datums kunnen mensen identificeerbaar maken.',
+    description: 'Alle overige datums en tijden. Ook die kunnen mensen identificeerbaar maken.',
     example: '15 april 2026, 12:30',
     entityTypes: ['DATE_TIME'],
     defaultOn: false,

@@ -86,6 +86,19 @@ def _has_label_before(text: str, start: int, *, window: int = 60) -> bool:
     return any(label in snippet for label in _DATE_LABELS)
 
 
+# A date right after one of these is a birth date. Birth dates are masked by
+# default; other dates are not, as most are meeting or document dates.
+_BIRTH_CONTEXT_RE = re.compile(
+    r"\b(?:geboren|geboorte(?!plaats|land)\w*|dob|birthdate|date\s+of\s+birth|born)\b|\bgeb\.",
+    flags=re.IGNORECASE,
+)
+_BIRTH_WINDOW = 40
+
+
+def _is_birth_date(text: str, start: int) -> bool:
+    return _BIRTH_CONTEXT_RE.search(text[max(0, start - _BIRTH_WINDOW) : start]) is not None
+
+
 class NlDateRecognizer(EntityRecognizer):
     """NL/EU datum-detectie met realistische jaarrange en context-boost."""
 
@@ -97,7 +110,7 @@ class NlDateRecognizer(EntityRecognizer):
 
     def __init__(self, supported_language: str = "nl") -> None:
         super().__init__(
-            supported_entities=["DATE_TIME"],
+            supported_entities=["DATE_TIME", "BIRTH_DATE"],
             name="NlDateRecognizer",
             supported_language=supported_language,
         )
@@ -111,7 +124,9 @@ class NlDateRecognizer(EntityRecognizer):
         entities: list[str] | None = None,
         nlp_artifacts: NlpArtifacts | None = None,
     ) -> list[RecognizerResult]:
-        if entities and "DATE_TIME" not in entities:
+        want_dates = not entities or "DATE_TIME" in entities
+        want_births = not entities or "BIRTH_DATE" in entities
+        if not (want_dates or want_births):
             return []
         out: list[RecognizerResult] = []
         seen: set[tuple[int, int]] = set()
@@ -120,13 +135,16 @@ class NlDateRecognizer(EntityRecognizer):
             key = (start, end)
             if key in seen:
                 return
+            birth = want_births and _is_birth_date(text, start)
+            if not (birth or want_dates):
+                return
             seen.add(key)
             out.append(
                 RecognizerResult(
-                    entity_type="DATE_TIME",
+                    entity_type="BIRTH_DATE" if birth else "DATE_TIME",
                     start=start,
                     end=end,
-                    score=score,
+                    score=max(score, self.SCORE_LABELED) if birth else score,
                     analysis_explanation=AnalysisExplanation(
                         recognizer=self.__class__.__name__,
                         original_score=score,
@@ -134,8 +152,9 @@ class NlDateRecognizer(EntityRecognizer):
                         pattern="",
                         validation_result=True,
                         textual_explanation=(
-                            "NL/EU datum (mogelijk geboortedatum); "
-                            "realistisch jaartal of label-context."
+                            "Geboortedatum: datum direct na 'geboren', 'geb.' of 'geboortedatum'."
+                            if birth
+                            else "NL/EU datum; realistisch jaartal of label-context."
                         ),
                     ),
                 )

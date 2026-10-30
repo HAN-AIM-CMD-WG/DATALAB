@@ -23,6 +23,10 @@ const DEV_GOLD = DEV_DOC.replace(/\.md$/, '.expected.jsonl');
 const SCOPE = new Set([
   'PERSON', 'LOCATION', 'NL_POSTCODE', 'NL_PHONE_NUMBER', 'EMAIL_ADDRESS', 'NL_BSN', 'IBAN_CODE',
 ]);
+// Dates in the test document that follow "geboren" or "Geboortedatum".
+const BIRTH_DATES = [
+  '14-03-1985', '02/11/1992', '30 juni 1978', '1990-08-22', '7 mei 1995', '1962-12-01', '11.04.1975', '07-05-1995',
+];
 
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -165,6 +169,10 @@ function checks(runDir) {
   add(
     'Markdown: no personal data left (categories on by default)',
     gold.filter((g) => g.should_match && SCOPE.has(g.type) && containsWord(md, g.text)).map((g) => `${g.text} (${g.type})`),
+  );
+  add(
+    'Markdown: birth dates and links to a person masked by default',
+    [...BIRTH_DATES, 'linkedin.com/in/fatima-el-amrani-8812'].filter((v) => containsWord(md, v)),
   );
 
   const originals = JSON.parse(fs.readFileSync(path.join(INPUT, 'intake.originals.json'), 'utf8'));

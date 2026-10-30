@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     enable_bic: bool = True
     enable_bank_names: bool = True
     enable_online_identifiers: bool = True
+    enable_personal_url: bool = True
     enable_nl_phone: bool = True
     enable_nl_date: bool = True
     enable_intl_address: bool = True
