@@ -52,6 +52,7 @@ async function fetchHealth(): Promise<EngineHealth> {
       version?: string;
       recognizers?: number;
       spacy_model?: string;
+      limitations?: unknown;
     };
     if (data.status !== 'ok') {
       return {
@@ -66,6 +67,7 @@ async function fetchHealth(): Promise<EngineHealth> {
       recognizers: data.recognizers ?? 0,
       spacyModel: data.spacy_model ?? '—',
       url: engineUrl(),
+      limitations: stringList(data.limitations),
     };
   } catch (error) {
     clearTimeout(timer);
@@ -145,6 +147,10 @@ async function fetchActive(): Promise<ActiveEngineResponse> {
   }
 }
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : [];
+}
+
 function parseActiveBody(data: unknown): ActiveEngineResponse {
   if (!data || typeof data !== 'object') {
     return { ok: false, error: 'onverwacht antwoord (geen object)' };
@@ -182,6 +188,11 @@ function parseActiveBody(data: unknown): ActiveEngineResponse {
       spacyModel: typeof obj.spacy_model === 'string' ? obj.spacy_model : '—',
       sonarEnabled: Boolean(obj.sonar_enabled),
       sonarModel: typeof obj.sonar_model === 'string' ? obj.sonar_model : null,
+      sonarState:
+        obj.sonar_state === 'loading' || obj.sonar_state === 'loaded' || obj.sonar_state === 'failed'
+          ? obj.sonar_state
+          : 'off',
+      limitations: stringList(obj.limitations),
       hanEduEnabled:
         typeof obj.han_edu_enabled === 'boolean' ? obj.han_edu_enabled : true,
       scoreThreshold:

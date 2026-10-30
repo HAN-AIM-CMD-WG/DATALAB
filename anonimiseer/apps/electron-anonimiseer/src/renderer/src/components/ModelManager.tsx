@@ -35,7 +35,14 @@ import type {
 } from '@shared/api';
 import { ollamaInstalled } from './ollamaCatalog';
 import { cn } from '../lib/utils';
-import { statusIcon } from '../lib/statusStyles';
+import { statusIcon, statusPanel } from '../lib/statusStyles';
+
+const SONAR_STATE_LABEL: Record<ActiveEngineInfo['sonarState'], string> = {
+  off: 'Uit',
+  loading: 'Laden…',
+  loaded: 'Aan',
+  failed: 'Niet geladen',
+};
 
 interface ModelManagerProps {
   open: boolean;
@@ -461,6 +468,9 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
   );
 
   const sonarRepoActive = activeEngine?.sonarModel ?? null;
+  // Switched on, whether it is still loading, loaded or failed to load: only
+  // then can the user switch a failed model off again.
+  const sonarSwitchedOn = activeEngine !== null && activeEngine.sonarState !== 'off';
 
   const activateSpacy = useCallback(
     (model: ModelInfo) =>
@@ -474,8 +484,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
 
   const toggleSonar = useCallback(
     (model: ModelInfo) => {
-      const isCurrentlyActive =
-        Boolean(activeEngine?.sonarEnabled) && sonarRepoActive === model.installTarget;
+      const isCurrentlyActive = sonarSwitchedOn && sonarRepoActive === model.installTarget;
       if (isCurrentlyActive) {
         return applyPipeline(
           { enableSonar: false },
@@ -489,7 +498,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
         `${model.label} aangezet — eerstvolgende analyse laadt het model (kan 30s duren).`
       );
     },
-    [activeEngine, applyPipeline, sonarRepoActive]
+    [applyPipeline, sonarRepoActive, sonarSwitchedOn]
   );
 
   const toggleHanEdu = useCallback(
@@ -669,9 +678,9 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                   const isBaseModel = m.kind === 'hf' && !isSonar;
                   const isActive = activeModelIds.has(m.id);
                   const sonarOnDifferentRepo =
-                    isSonar &&
-                    Boolean(activeEngine?.sonarEnabled) &&
-                    sonarRepoActive !== m.installTarget;
+                    isSonar && sonarSwitchedOn && sonarRepoActive !== m.installTarget;
+                  const sonarOnThisRepo =
+                    isSonar && sonarSwitchedOn && sonarRepoActive === m.installTarget;
                   let activate: PipelineAction | null = null;
                   let roleNote: string | null = null;
                   if (isSpacy) {
@@ -685,8 +694,8 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                     };
                   } else if (isSonar) {
                     activate = {
-                      label: isActive ? 'Uitschakelen' : 'Inschakelen',
-                      icon: isActive ? 'power-off' : 'power',
+                      label: sonarOnThisRepo ? 'Uitschakelen' : 'Inschakelen',
+                      icon: sonarOnThisRepo ? 'power-off' : 'power',
                       variant: 'toggle',
                       busy: pipelineBusy === `toggle:${m.id}`,
                       disabled: !m.installed || pipelineBusy !== null || sonarOnDifferentRepo,
@@ -903,6 +912,19 @@ function ActiveEnginePanel({
 
       {info && (
         <div className="mt-4 space-y-3 text-xs">
+          {info.limitations.length > 0 && (
+            <div className={statusPanel('warning', 'px-3 py-2')}>
+              <p className="flex items-center gap-1.5 font-medium text-foreground">
+                <AlertTriangle className={cn('h-3.5 w-3.5', statusIcon('warning'))} aria-hidden />
+                De detectie werkt nu beperkt
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-foreground/80">
+                {info.limitations.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <ul className="space-y-1.5">
             {info.activeModels.map((m) => (
               <li
@@ -947,7 +969,7 @@ function ActiveEnginePanel({
                 {info.sonarEnabled && (
                   <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />
                 )}
-                {info.sonarEnabled ? 'Aan' : 'Uit'}
+                {SONAR_STATE_LABEL[info.sonarState]}
               </span>
             </span>
             {info.recognizers.length > 0 && (

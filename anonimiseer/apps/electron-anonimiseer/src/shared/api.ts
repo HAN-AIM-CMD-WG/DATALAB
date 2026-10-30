@@ -25,6 +25,11 @@ export interface EngineHealthOk {
   recognizers: number;
   spacyModel: string;
   url: string;
+  /**
+   * Why detection is weaker than configured, in plain Dutch (a model that
+   * could not be loaded). Non-empty means the app shows "Beperkt".
+   */
+  limitations: string[];
 }
 
 export interface EngineHealthDown {
@@ -84,6 +89,10 @@ export interface ActiveEngineInfo {
   /** Of SoNaR-BERT echt geladen is in de huidige analyzer. */
   sonarEnabled: boolean;
   sonarModel: string | null;
+  /** ``loading`` right after start; ``failed`` comes with a limitation. */
+  sonarState: 'off' | 'loading' | 'loaded' | 'failed';
+  /** See ``EngineHealthOk.limitations``. */
+  limitations: string[];
   /** HAN-/onderwijsprofiel actief? Zet klas-, cursus-, CROHO-, medewerker-
    *  en mentor-/docent-recognizers aan. */
   hanEduEnabled: boolean;

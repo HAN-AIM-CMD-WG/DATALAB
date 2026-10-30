@@ -25,6 +25,7 @@ Integratie:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 from typing import TYPE_CHECKING, Any
@@ -51,6 +52,17 @@ SONAR_LABEL_MAP: dict[str, str] = {
 }
 
 SONAR_ENTITIES: list[str] = sorted(set(SONAR_LABEL_MAP.values()))
+
+
+def _explain_load_error(exc: Exception) -> str:
+    """A reason a user can act on; shown in the app next to "Beperkt"."""
+    if isinstance(exc, FileNotFoundError):
+        return "het model staat niet op deze computer; installeer het via Modellen beheren"
+    if isinstance(exc, ImportError):
+        return "torch of transformers ontbreekt in deze installatie"
+    if isinstance(exc, MemoryError):
+        return "te weinig werkgeheugen"
+    return f"laden mislukt ({type(exc).__name__})"
 
 
 class SonarRecognizer(EntityRecognizer):
@@ -80,6 +92,7 @@ class SonarRecognizer(EntityRecognizer):
         self._score_min = score_min if score_min is not None else self.DEFAULT_SCORE_MIN
         self._pipeline: Pipeline | None = None
         self._pipeline_lock = threading.Lock()
+        self._load_error: str | None = None
 
     def load(self) -> None:
         """Presidio roept dit eenmaal aan bij registratie. We stellen het
@@ -87,42 +100,78 @@ class SonarRecognizer(EntityRecognizer):
         # Bewust no-op: lazy loading.
         return None
 
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
+    @property
+    def state(self) -> str:
+        """``loaded``, ``failed`` or ``loading`` (not loaded yet)."""
+        if self._pipeline is not None:
+            return "loaded"
+        return "failed" if self._load_error is not None else "loading"
+
+    @property
+    def load_error(self) -> str | None:
+        return self._load_error
+
+    def warm_up(self) -> None:
+        """Start loading in the background, so the status is known before the first analysis."""
+
+        def _load() -> None:
+            # A failure is recorded in _load_error and reported in the status.
+            with contextlib.suppress(Exception):
+                self._get_pipeline()
+
+        threading.Thread(target=_load, name="sonar-warm-up", daemon=True).start()
+
     def _get_pipeline(self) -> Pipeline:
         if self._pipeline is not None:
             return self._pipeline
         with self._pipeline_lock:
             if self._pipeline is not None:
                 return self._pipeline
+            if self._load_error is not None:
+                raise RuntimeError(self._load_error)
             logger.info("SoNaR NER-model laden: %s", self._model_name)
-            # Import binnen de functie om startup van pii-engine niet te
-            # blokkeren als sonar-extras niet geïnstalleerd zijn.
-            from transformers import (
-                AutoModelForTokenClassification,
-                AutoTokenizer,
-            )
-            from transformers import pipeline as hf_pipeline
-
-            from pii_engine.models import hf_hub_cache, hf_model_present
-
-            # Staat het model al op schijf, dan laden we zonder netwerk: anders
-            # vraagt transformers bij elke start huggingface.co of er een
-            # nieuwere versie is.
-            cache_dir = str(hf_hub_cache())
-            local_only = hf_model_present(self._model_name)
-            tokenizer = AutoTokenizer.from_pretrained(
-                self._model_name, cache_dir=cache_dir, local_files_only=local_only
-            )
-            model = AutoModelForTokenClassification.from_pretrained(
-                self._model_name, cache_dir=cache_dir, local_files_only=local_only
-            )
-            self._pipeline = hf_pipeline(
-                task="token-classification",
-                model=model,
-                tokenizer=tokenizer,
-                aggregation_strategy="simple",
-            )
+            try:
+                self._pipeline = self._build_pipeline()
+            except Exception as exc:
+                self._load_error = _explain_load_error(exc)
+                logger.warning("SoNaR NER-model niet geladen: %s", exc)
+                raise
             logger.info("SoNaR NER-model geladen")
             return self._pipeline
+
+    def _build_pipeline(self) -> Pipeline:
+        from pii_engine.models import hf_hub_cache, hf_model_present
+
+        # Never from the network: downloading is an explicit install in the
+        # Model Manager, not something an analysis may trigger on its own.
+        if not hf_model_present(self._model_name):
+            raise FileNotFoundError(self._model_name)
+
+        # Import binnen de functie om startup van pii-engine niet te
+        # blokkeren als sonar-extras niet geïnstalleerd zijn.
+        from transformers import (
+            AutoModelForTokenClassification,
+            AutoTokenizer,
+        )
+        from transformers import pipeline as hf_pipeline
+
+        cache_dir = str(hf_hub_cache())
+        tokenizer = AutoTokenizer.from_pretrained(
+            self._model_name, cache_dir=cache_dir, local_files_only=True
+        )
+        model = AutoModelForTokenClassification.from_pretrained(
+            self._model_name, cache_dir=cache_dir, local_files_only=True
+        )
+        return hf_pipeline(
+            task="token-classification",
+            model=model,
+            tokenizer=tokenizer,
+            aggregation_strategy="simple",
+        )
 
     @staticmethod
     def _is_full_word(text: str, start: int, end: int) -> bool:
@@ -190,6 +239,10 @@ class SonarRecognizer(EntityRecognizer):
 
         try:
             pipe = self._get_pipeline()
+        except Exception:
+            # Reported through the pipeline status; the app shows "Beperkt".
+            return []
+        try:
             raw_entities: list[dict[str, Any]] = pipe(text)
         except Exception as exc:  # pragma: no cover - model/runtime failures
             logger.warning("SoNaR-pipeline faalde: %s", exc)

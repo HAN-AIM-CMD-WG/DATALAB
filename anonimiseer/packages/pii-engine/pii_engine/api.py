@@ -39,6 +39,7 @@ from pii_engine import (
 from pii_engine.analyzer import get_default_analyzer
 from pii_engine.anonymizer import PseudonymMapping, anonymize_with_mode
 from pii_engine.config import get_settings
+from pii_engine.model_status import pipeline_status
 from pii_engine.postfilter import filter_overlaps
 from pii_engine.schemas import (
     ActiveEngineResponse,
@@ -138,6 +139,7 @@ def create_app() -> FastAPI:
         return HealthResponse(
             recognizers=sum(1 for _ in analyzer.registry.recognizers),
             spacy_model=settings.spacy_model,
+            limitations=pipeline_status(analyzer, runtime.effective_settings()).limitations,
             proof=_health_proof(settings.auth_token, nonce),
         )
 
@@ -301,25 +303,25 @@ def create_app() -> FastAPI:
         # Gebruik effectieve settings (incl. runtime-overrides via /engine/config).
         active_settings = runtime.effective_settings()
         recognizer_names = sorted({type(r).__name__ for r in analyzer.registry.recognizers})
+        status = pipeline_status(analyzer, active_settings)
 
         active: list[ActiveModelInfo] = []
 
-        # Primaire spaCy-pipeline (altijd één, valt anders terug op blank('nl')).
-        spacy_id = f"spacy:{active_settings.spacy_model}"
-        spacy_descriptor = model_registry.REGISTRY_BY_ID.get(spacy_id)
-        active.append(
-            ActiveModelInfo(
-                id=spacy_id,
-                label=spacy_descriptor.label if spacy_descriptor else active_settings.spacy_model,
-                kind="spacy",
-                role="nlp",
+        # Only what is really loaded counts as active: an empty fallback
+        # pipeline or a SoNaR model that failed to load is not.
+        if status.spacy_model is not None:
+            spacy_id = f"spacy:{status.spacy_model}"
+            spacy_descriptor = model_registry.REGISTRY_BY_ID.get(spacy_id)
+            active.append(
+                ActiveModelInfo(
+                    id=spacy_id,
+                    label=spacy_descriptor.label if spacy_descriptor else status.spacy_model,
+                    kind="spacy",
+                    role="nlp",
+                )
             )
-        )
 
-        # Optioneel SoNaR-BERT NER, alleen als het ook daadwerkelijk geladen is.
-        sonar_loaded = active_settings.enable_sonar and any(
-            type(r).__name__ == "SonarRecognizer" for r in analyzer.registry.recognizers
-        )
+        sonar_loaded = status.sonar_state == "loaded"
         if sonar_loaded:
             sonar_id = f"hf:{active_settings.sonar_model}"
             sonar_descriptor = model_registry.REGISTRY_BY_ID.get(sonar_id)
@@ -349,7 +351,9 @@ def create_app() -> FastAPI:
         return ActiveEngineResponse(
             spacy_model=active_settings.spacy_model,
             sonar_enabled=sonar_loaded,
-            sonar_model=active_settings.sonar_model if sonar_loaded else None,
+            sonar_model=status.sonar_model,
+            sonar_state=status.sonar_state,
+            limitations=status.limitations,
             han_edu_enabled=active_settings.enable_han_edu,
             score_threshold=active_settings.default_score_threshold,
             recognizers=recognizer_names,

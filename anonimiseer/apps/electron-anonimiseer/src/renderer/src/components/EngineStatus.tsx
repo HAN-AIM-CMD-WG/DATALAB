@@ -16,16 +16,21 @@ export function EngineStatus({
   state: EngineHealth | { status: 'checking' };
   onOpenModels?: () => void;
 }): JSX.Element {
+  const limited = state.status === 'ok' && state.limitations.length > 0;
   const tone =
     state.status === 'ok'
-      ? 'success'
+      ? limited
+        ? 'warning'
+        : 'success'
       : state.status === 'down'
         ? 'destructive'
         : 'neutral';
 
   const label =
     state.status === 'ok'
-      ? 'Online'
+      ? limited
+        ? 'Beperkt'
+        : 'Online'
       : state.status === 'down'
         ? 'Offline'
         : 'Controleren';
@@ -74,7 +79,16 @@ function EngineTooltipOk({
 }): JSX.Element {
   return (
     <div className="space-y-2">
-      <p className="font-medium text-foreground">PII-engine actief</p>
+      <p className="font-medium text-foreground">
+        {health.limitations.length > 0 ? 'PII-engine actief, maar beperkt' : 'PII-engine actief'}
+      </p>
+      {health.limitations.length > 0 && (
+        <ul className="list-disc space-y-1 pl-4 text-[11px] text-foreground">
+          {health.limitations.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      )}
       <dl className="space-y-1 text-[11px] text-muted-foreground">
         <div className="flex justify-between gap-3">
           <dt>Recognizers</dt>

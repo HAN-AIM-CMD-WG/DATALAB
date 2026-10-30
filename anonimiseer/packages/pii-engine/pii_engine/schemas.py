@@ -14,6 +14,13 @@ class HealthResponse(BaseModel):
     version: str = __version__
     recognizers: int
     spacy_model: str
+    limitations: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Waarom de detectie nu minder goed is dan ingesteld, in gewone taal "
+            "(bv. een model dat niet geladen kon worden). Leeg = alles draait."
+        ),
+    )
     proof: str | None = Field(
         default=None,
         description=(
@@ -100,8 +107,13 @@ class ActiveEngineResponse(BaseModel):
     """Wat de PII-engine nu écht gebruikt voor een ``/analyze``."""
 
     spacy_model: str
-    sonar_enabled: bool
+    sonar_enabled: bool = Field(..., description="SoNaR is geladen en doet mee.")
     sonar_model: str | None = None
+    sonar_state: Literal["off", "loading", "loaded", "failed"] = "off"
+    limitations: list[str] = Field(
+        default_factory=list,
+        description="Zie ``HealthResponse.limitations``.",
+    )
     han_edu_enabled: bool = Field(
         default=True,
         description=(

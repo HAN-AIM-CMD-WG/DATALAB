@@ -60,8 +60,9 @@ def _build_nlp_engine(settings: Settings) -> NlpEngine:
     """Bouw de NLP-engine (spaCy) of val terug op een lege NL-pipeline.
 
     In CI en op kale dev-machines is het spaCy-model niet geïnstalleerd. Dan
-    gebruiken we ``spacy.blank("nl")`` onder de motorkap via Presidio's
-    provider. Voor productie installeer je de extra ``nl-large`` (of ``nl-small``).
+    gebruiken we ``spacy.blank("nl")``, zonder NER; ``model_status`` meldt dat
+    als beperking. Voor productie installeer je de extra ``nl-large`` (of
+    ``nl-small``).
     """
 
     configuration = {
@@ -69,6 +70,12 @@ def _build_nlp_engine(settings: Settings) -> NlpEngine:
         "models": [{"lang_code": "nl", "model_name": settings.spacy_model}],
     }
     try:
+        import spacy
+
+        # Presidio pip-installs a missing model from the internet, and exits the
+        # process when that fails. Installing is the Model Manager's job.
+        if not spacy.util.is_package(settings.spacy_model):
+            raise OSError(f"spaCy-model '{settings.spacy_model}' is niet geïnstalleerd")
         provider = NlpEngineProvider(nlp_configuration=configuration)
         return provider.create_engine()
     except (OSError, ValueError) as exc:
@@ -81,21 +88,14 @@ def _build_nlp_engine(settings: Settings) -> NlpEngine:
             exc,
         )
         import spacy  # lazy import voor fallback-pad
+        from presidio_analyzer.nlp_engine import SpacyNlpEngine
 
-        # Maak een dummy-pipeline en registreer als 'nl_blank'.
-        spacy.blank("nl")
-        fallback_conf = {
-            "nlp_engine_name": "spacy",
-            "models": [{"lang_code": "nl", "model_name": "nl"}],
-        }
-        try:
-            return NlpEngineProvider(nlp_configuration=fallback_conf).create_engine()
-        except Exception:  # pragma: no cover - laatste redmiddel
-            # Directe constructie via spacy-blank als Presidio's provider ook faalt.
-            from presidio_analyzer.nlp_engine import SpacyNlpEngine
-
-            engine = SpacyNlpEngine(models=[{"lang_code": "nl", "model_name": "nl"}])
-            return engine
+        # An empty Dutch pipeline: tokenizer only, no NER. Handed over already
+        # loaded, because spaCy 3 cannot load "nl" by name and Presidio would
+        # then try to download it.
+        engine = SpacyNlpEngine(models=[{"lang_code": "nl", "model_name": "blank:nl"}])
+        engine.nlp = {"nl": spacy.blank("nl")}  # type: ignore[assignment]
+        return engine
 
 
 def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
@@ -189,13 +189,13 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
         try:
             from pii_engine.recognizers.sonar import SonarRecognizer
 
-            registry.add_recognizer(
-                SonarRecognizer(
-                    supported_language="nl",
-                    model_name=settings.sonar_model,
-                    score_min=settings.sonar_score_min,
-                )
+            sonar = SonarRecognizer(
+                supported_language="nl",
+                model_name=settings.sonar_model,
+                score_min=settings.sonar_score_min,
             )
+            registry.add_recognizer(sonar)
+            sonar.warm_up()
         except ImportError as exc:
             logger.warning(
                 "enable_sonar=True maar transformers/torch niet beschikbaar (%s). "
