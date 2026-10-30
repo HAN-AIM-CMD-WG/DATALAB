@@ -254,30 +254,38 @@ def create_app() -> FastAPI:
             parsed = DocumentApplyPayload.model_validate(json.loads(payload))
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"ongeldige payload: {exc}") from exc
+        replacements = [
+            documents.AcceptedReplacement(
+                start=r.start, end=r.end, replacement=r.replacement, original=r.original
+            )
+            for r in parsed.replacements
+        ]
         try:
             result_bytes = documents.apply(
                 data,
                 file.filename,
-                replacements=[
-                    documents.AcceptedReplacement(
-                        start=r.start, end=r.end, replacement=r.replacement, original=r.original
-                    )
-                    for r in parsed.replacements
-                ],
+                replacements=replacements,
                 blocks=[
                     documents.Block(id=b.id, kind=b.kind, start=b.start, end=b.end)  # type: ignore[arg-type]
                     for b in parsed.blocks
                 ],
                 footer_note=parsed.footer_note,
             )
+            unreplaced = documents.count_unreplaced(data, result_bytes, file.filename, replacements)
         except documents.UnsupportedFormat as exc:
             raise HTTPException(status_code=415, detail=str(exc)) from exc
         except Exception as exc:  # pragma: no cover
             logger.exception("Toepassing mislukt")
             raise HTTPException(status_code=500, detail=f"toepassing mislukt: {exc}") from exc
+        if unreplaced:
+            logger.warning("%d geaccepteerde vervanging(en) staan nog in de uitvoer", unreplaced)
         ext = Path(file.filename).suffix.lower()
         media_type = _MIME_MAP.get(ext, "application/octet-stream")
-        return Response(content=result_bytes, media_type=media_type)
+        return Response(
+            content=result_bytes,
+            media_type=media_type,
+            headers={"X-Anonimiseer-Unreplaced": str(unreplaced)},
+        )
 
     @app.get("/engine/active", response_model=ActiveEngineResponse, tags=["meta"])
     def engine_active() -> ActiveEngineResponse:

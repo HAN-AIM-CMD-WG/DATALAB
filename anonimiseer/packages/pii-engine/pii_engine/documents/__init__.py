@@ -18,6 +18,7 @@ paragraaf/cel/pagina.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Literal
@@ -137,11 +138,45 @@ def apply(
     raise UnsupportedFormat(f"Bestandstype '{ext}' wordt niet ondersteund.")
 
 
+def count_unreplaced(
+    original: bytes,
+    anonymised: bytes,
+    filename: str,
+    replacements: list[AcceptedReplacement],
+) -> int:
+    """Count accepted replacements whose text is still in the anonymised document.
+
+    Every accepted replacement must remove one occurrence of its text, so the
+    output may contain at most as many occurrences as the input had, minus the
+    replacements. Anything above that is personal data the user chose to remove
+    and is still in the file, whatever the cause: a replacement crossing a
+    block, overlapping replacements, or text a PDF search could not find.
+    """
+
+    before = extract(original, filename).flat_text
+    after = extract(anonymised, filename).flat_text
+    for placeholder in sorted({r.replacement for r in replacements}, key=len, reverse=True):
+        if placeholder:
+            after = after.replace(placeholder, "\0")
+
+    accepted = Counter(
+        before[r.start : r.end] for r in replacements if 0 <= r.start < r.end <= len(before)
+    )
+    missing = 0
+    for value, count in accepted.items():
+        if not value.strip():
+            continue
+        allowed = max(before.count(value) - count, 0)
+        missing += max(after.count(value) - allowed, 0)
+    return missing
+
+
 __all__ = [
     "AcceptedReplacement",
     "Block",
     "ExtractResult",
     "UnsupportedFormat",
     "apply",
+    "count_unreplaced",
     "extract",
 ]
