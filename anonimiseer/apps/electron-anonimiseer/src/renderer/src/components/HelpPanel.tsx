@@ -21,7 +21,7 @@ import { cn } from '../lib/utils';
  * Ontwerpregels:
  *  - Nederlands op B1-niveau — geen jargon zonder uitleg.
  *  - Bekende valkuilen staan in het <em>eerste</em> paneel, niet diep verstopt.
- *  - Voorbeelden lopen parallel aan de onboarding-profielen + Modellenscherm,
+ *  - Voorbeelden lopen parallel aan het Modellenscherm,
  *    zodat een lezer weet waar de knop echt zit.
  *  - Geen externe links die data versturen — alle uitleg is offline.
  *
