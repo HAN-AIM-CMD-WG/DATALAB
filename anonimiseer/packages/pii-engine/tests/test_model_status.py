@@ -12,6 +12,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from pii_engine import runtime
 from pii_engine.analyzer import build_analyzer
 from pii_engine.api import create_app
 from pii_engine.config import Settings
@@ -59,6 +60,36 @@ def test_missing_sonar_model_fails_without_a_download(monkeypatch: pytest.Monkey
     status = pipeline_status(analyzer, settings)
     assert any("niet op deze computer" in reason for reason in status.limitations)
     assert analyzer.analyze(text="Jan de Vries belt.", language="nl") is not None
+
+
+@pytest.mark.parametrize("enable_sonar", [True, None])
+def test_unknown_sonar_model_is_refused(enable_sonar: bool | None) -> None:
+    with pytest.raises(runtime.RuntimeConfigError):
+        runtime._validate(
+            spacy_model=None,
+            enable_sonar=enable_sonar,
+            sonar_model="voorbeeld/bestaat-niet",
+            enable_han_edu=None,
+            ollama_model=None,
+            ollama_review_enabled=None,
+            ollama_extra_ner_enabled=None,
+            ollama_borderline_enabled=None,
+        )
+
+
+@pytest.mark.parametrize("model", ["gpt-oss:120b-cloud", "qwen3:cloud", "Qwen3:CLOUD-2"])
+def test_ollama_cloud_model_is_refused(model: str) -> None:
+    with pytest.raises(runtime.RuntimeConfigError, match="cloud"):
+        runtime._validate(
+            spacy_model=None,
+            enable_sonar=None,
+            sonar_model=None,
+            enable_han_edu=None,
+            ollama_model=model,
+            ollama_review_enabled=None,
+            ollama_extra_ner_enabled=None,
+            ollama_borderline_enabled=None,
+        )
 
 
 def test_health_reports_limitations() -> None:

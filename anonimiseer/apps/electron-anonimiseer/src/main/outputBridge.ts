@@ -34,6 +34,12 @@ const RUN_PREFIX = 'anonimiseer-';
  */
 const knownRunDirs = new Set<string>();
 
+/**
+ * Folders the user picked in the native dialog. ``writeRun`` only writes into
+ * one of these, so the renderer cannot choose a destination on its own.
+ */
+const pickedFolders = new Set<string>();
+
 function isInsideKnownRunDir(path: string): boolean {
   const target = resolve(path);
   for (const dir of knownRunDirs) {
@@ -249,6 +255,9 @@ async function writeRun(payload: RunPayload): Promise<WriteRunResponse> {
   if (typeof payload?.outputParent !== 'string' || !payload.outputParent) {
     return { ok: false, error: 'geen doelmap opgegeven' };
   }
+  if (!pickedFolders.has(resolve(payload.outputParent))) {
+    return { ok: false, error: 'kies de doelmap opnieuw via "Kies map"' };
+  }
   if (!Array.isArray(payload.files) || !Array.isArray(payload.skipped)) {
     return { ok: false, error: 'ongeldige payload-structuur' };
   }
@@ -359,6 +368,7 @@ export function registerOutputBridge(): void {
       ? await dialog.showOpenDialog(window, opts)
       : await dialog.showOpenDialog(opts);
     if (result.canceled || result.filePaths.length === 0) return null;
+    pickedFolders.add(resolve(result.filePaths[0]));
     return result.filePaths[0];
   });
 

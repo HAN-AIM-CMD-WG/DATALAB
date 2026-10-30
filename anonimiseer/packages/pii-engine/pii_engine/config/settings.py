@@ -6,6 +6,7 @@ voor het overzicht van alle variabelen.
 
 from __future__ import annotations
 
+import sys
 from functools import lru_cache
 from typing import Literal
 
@@ -18,7 +19,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="PII_ENGINE_",
-        env_file=".env",
+        # The bundled engine is configured by the app alone; a .env in whatever
+        # directory it was started from could otherwise open it up.
+        env_file=None if getattr(sys, "frozen", False) else ".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

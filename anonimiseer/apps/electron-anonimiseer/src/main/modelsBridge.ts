@@ -9,7 +9,7 @@
 
 import { exec, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ipcMain, shell } from 'electron';
+import { app, ipcMain, shell } from 'electron';
 import type {
   ModelInfo,
   ModelListResponse,
@@ -36,9 +36,13 @@ const OLLAMA_KNOWN_PATHS: Partial<Record<NodeJS.Platform, string[]>> = {
 
 const OLLAMA_DOWNLOAD_URL = 'https://ollama.com/download';
 
+import { isCloudModel } from './catalogBridge';
 import { engineHeaders, engineUrl } from './engineEndpoint';
+// The override is for development; an installed app only talks to the local daemon.
 const OLLAMA_URL =
-  process.env.ANONIMISEER_OLLAMA_URL ?? 'http://127.0.0.1:11434';
+  (!app.isPackaged && process.env.ANONIMISEER_OLLAMA_URL) || 'http://127.0.0.1:11434';
+// Never engineHeaders(): that would hand the engine's secret token to Ollama.
+const OLLAMA_JSON_HEADERS = { 'content-type': 'application/json' };
 
 interface RawTask {
   task_id: string;
@@ -275,7 +279,7 @@ async function ollamaRemove(name: unknown): Promise<{ ok: true } | { ok: false; 
   try {
     const res = await fetch(`${OLLAMA_URL}/api/delete`, {
       method: 'DELETE',
-      headers: engineHeaders({ 'content-type': 'application/json' }),
+      headers: OLLAMA_JSON_HEADERS,
       body: JSON.stringify({ name: name.trim() }),
     });
     if (!res.ok) {
@@ -292,12 +296,20 @@ async function ollamaPull(name: unknown): Promise<{ ok: true } | { ok: false; er
   if (typeof name !== 'string' || !name) {
     return { ok: false, error: 'modelnaam verplicht' };
   }
+  // The catalogue already leaves cloud variants out; a name typed by hand
+  // must not bring them back.
+  if (isCloudModel(name)) {
+    return {
+      ok: false,
+      error: 'cloud-modellen draaien niet op deze computer en zijn daarom niet toegestaan',
+    };
+  }
   try {
     // Ollama streamt JSON-events. We willen alleen weten of het lukt;
     // we lezen tot stream eindigt en kijken naar de laatste status.
     const res = await fetch(`${OLLAMA_URL}/api/pull`, {
       method: 'POST',
-      headers: engineHeaders({ 'content-type': 'application/json' }),
+      headers: OLLAMA_JSON_HEADERS,
       body: JSON.stringify({ name, stream: false }),
     });
     if (!res.ok) {

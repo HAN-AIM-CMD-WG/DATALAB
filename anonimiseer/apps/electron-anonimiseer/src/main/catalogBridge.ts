@@ -26,7 +26,9 @@ const CACHE_DIR_NAME = 'catalog';
 const CURRENT_SCHEMA_VERSION = 1;
 
 const DEFAULT_REMOTE_URL =
-  process.env.ANONIMISEER_OLLAMA_CATALOG_URL ??
+  // Development only: in an installed app an environment variable must not
+  // decide which models the app offers for download.
+  (!app.isPackaged && process.env.ANONIMISEER_OLLAMA_CATALOG_URL) ||
   // Plaatsvervanger: hier komt straks de canonical raw-URL te staan
   // wanneer de monorepo publiek is. ``null`` betekent: alleen bundled
   // + cache, geen remote refresh tot er een URL is.
@@ -88,6 +90,12 @@ interface RawEntry {
   recommended?: unknown;
 }
 
+/** A cloud variant runs on Ollama's servers, so text would leave the machine. */
+export function isCloudModel(name: string): boolean {
+  const tag = name.trim().toLowerCase();
+  return tag.endsWith(':cloud') || tag.includes(':cloud-') || tag.endsWith('-cloud');
+}
+
 function isString(v: unknown): v is string {
   return typeof v === 'string' && v.length > 0;
 }
@@ -124,7 +132,7 @@ function parseCatalog(raw: unknown, sourceLabel: string): OllamaCatalog {
   for (const item of obj.models as RawEntry[]) {
     if (!item || typeof item !== 'object') continue;
     if (!isString(item.name)) continue;
-    if (item.name.endsWith(':cloud') || item.name.includes(':cloud-')) {
+    if (isCloudModel(item.name)) {
       // Stille weigering: cloud-varianten staan haaks op de privacybelofte.
       continue;
     }

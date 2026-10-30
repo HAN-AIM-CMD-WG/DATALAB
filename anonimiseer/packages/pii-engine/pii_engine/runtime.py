@@ -132,6 +132,11 @@ class RuntimeConfigError(ValueError):
     """Een wijziging is geweigerd, met een mens-leesbare reden."""
 
 
+def _is_cloud_model(name: str) -> bool:
+    tag = name.strip().lower()
+    return tag.endswith((":cloud", "-cloud")) or ":cloud-" in tag
+
+
 def _validate(
     *,
     spacy_model: str | None,
@@ -153,7 +158,7 @@ def _validate(
                 f"spaCy-model '{spacy_model}' is niet geïnstalleerd. Download het eerst."
             )
 
-    if enable_sonar:
+    if enable_sonar or sonar_model:
         # Sonar vereist transformers + torch (extras [sonar]) en het
         # daadwerkelijke HF-snapshot in cache.
         try:
@@ -167,12 +172,22 @@ def _validate(
 
         target_repo = sonar_model or get_settings().sonar_model
         descriptor = REGISTRY_BY_ID.get(f"hf:{target_repo}")
-        if descriptor is not None:
-            installed, _ = status_for(descriptor)
-            if not installed:
-                raise RuntimeConfigError(
-                    f"SoNaR-model '{target_repo}' is niet gedownload. Haal het op via Modellen beheren."
-                )
+        # Only models from the registry: any other name would make the engine
+        # fetch an arbitrary repository from HuggingFace.
+        if descriptor is None:
+            raise RuntimeConfigError(f"SoNaR-model '{target_repo}' staat niet in de registry.")
+        installed, _ = status_for(descriptor)
+        if not installed:
+            raise RuntimeConfigError(
+                f"SoNaR-model '{target_repo}' is niet gedownload. Haal het op via Modellen beheren."
+            )
+
+    # A cloud variant runs on Ollama's servers: the local daemon would forward
+    # the document text there.
+    if ollama_model and _is_cloud_model(ollama_model):
+        raise RuntimeConfigError(
+            f"Ollama-model '{ollama_model}' draait in de cloud, niet op deze computer."
+        )
 
     # Ollama: model moet in de lokale daemon staan; rollen vereisen een model.
     if ollama_model and not ollama_client.model_present(ollama_model):

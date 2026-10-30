@@ -40,7 +40,9 @@ const HEALTH_PORT = Number.parseInt(
   process.env.ANONIMISEER_ENGINE_PORT ?? '8765',
   10,
 );
-const HEALTH_HOST = process.env.ANONIMISEER_ENGINE_HOST ?? '127.0.0.1';
+// Always loopback: an environment variable must not be able to expose the
+// engine, and with it every document, to the network.
+const HEALTH_HOST = '127.0.0.1';
 
 let engineChild: ChildProcess | null = null;
 /** Laatste stukje stderr van de engine, om een vroege exit te kunnen uitleggen. */
@@ -248,6 +250,8 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
 
   console.log('[engineProcess] start engine:', binary);
   engineChild = spawn(binary, [], {
+    // A fixed directory of our own, not whatever the app was started from.
+    cwd: app.getPath('userData'),
     env: {
       ...process.env,
       PII_ENGINE_HOST: HEALTH_HOST,
