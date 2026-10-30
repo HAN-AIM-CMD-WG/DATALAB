@@ -249,3 +249,17 @@ Keizersgracht 123-3
 ---
 
 *Einde testdocument v2.*
+
+## 11. Aanvulling v3: technische en administratieve valkuilen
+
+Geen van onderstaande regels bevat persoonsgegevens. Ze lijken er wel op en worden
+door taalmodellen geregeld ten onrechte gemarkeerd.
+
+- Printer type QL-820 v2 staat op de tweede verdieping.
+- De nachtelijke back-up beslaat ongeveer 1600 MB.
+- Zie Werkblad 3, cel D14 voor het totaal per kwartaal.
+- Het voorstel ligt ter beoordeling bij de afdeling FZ.
+- Factuur 512830467 is op tijd betaald.
+- Vul in het formulier de velden Geboorteplaats en Achternaam in.
+
+*Einde testdocument v3.*

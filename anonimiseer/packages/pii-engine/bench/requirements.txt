@@ -1,0 +1,4 @@
+torch
+transformers>=5.6
+gliner2
+httpx

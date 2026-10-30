@@ -217,3 +217,11 @@
 {"text": "code-blocks", "type": "LOCATION", "should_match": false, "comment": "IT-jargon - spaCy LOC FP"}
 {"text": "code-blocks", "type": "ORGANIZATION", "should_match": false, "comment": "IT-jargon - spaCy ORG FP"}
 {"text": "Anonimiseer-tool", "type": "ORGANIZATION", "should_match": false, "comment": "productnaam met -tool suffix"}
+{"text": "QL-820 v2", "type": "PERSON", "should_match": false, "comment": "v3: printertypenummer"}
+{"text": "1600 MB", "type": "NL_POSTCODE", "should_match": false, "comment": "v3: bestandsgrootte, geen postcode"}
+{"text": "Werkblad 3", "type": "PERSON", "should_match": false, "comment": "v3: werkbladnaam"}
+{"text": "D14", "type": "LOCATION", "should_match": false, "comment": "v3: celverwijzing"}
+{"text": "FZ", "type": "LOCATION", "should_match": false, "comment": "v3: afkorting van een afdeling"}
+{"text": "512830467", "type": "NL_BSN", "should_match": false, "comment": "v3: 9 cijfers maar geen geldig BSN (Elfproef faalt)"}
+{"text": "Geboorteplaats", "type": "LOCATION", "should_match": false, "comment": "v3: veldlabel"}
+{"text": "Achternaam", "type": "PERSON", "should_match": false, "comment": "v3: veldlabel"}
