@@ -160,6 +160,11 @@ _NAME_CONTINUATION_RE = re.compile(
     r"[A-ZÀ-Þ][a-zà-ÿ]"
     r")"
 )
+# A capitalised word that opens a closing phrase or header, not a surname:
+# ``Anna Jansen\nMet vriendelijke groet``.
+_NOT_A_NAME_START_RE = re.compile(
+    r"^\s*(?:Met|Groet|Groeten|Hartelijke|Vriendelijke|Namens|Datum|Onderwerp|Betreft)\b"
+)
 
 # Woorden die we nooit als ORGANIZATION/PERSON/LOCATION willen zien, ook
 # niet als spaCy ze als "eigennaam" oppikt. Dit zijn alléén veld-labels die
@@ -594,44 +599,98 @@ def _is_mostly_punct(text_slice: str) -> bool:
     return not _HAS_LETTER_RE.search(text_slice)
 
 
-def _trim_ner_span(result: RecognizerResult, text: str) -> RecognizerResult | None:
+def _is_label_or_empty(line: str) -> bool:
+    stripped = line.strip().strip(_TRIM_CHARS)
+    return not stripped or stripped.lower() in _LABEL_WORDS_ANY or _is_mostly_punct(stripped)
+
+
+def _continues_name(line: str) -> bool:
+    return bool(
+        line.strip()
+        and _NAME_CONTINUATION_RE.match(line)
+        and not _LABEL_AFTER_NEWLINE_RE.match(line)
+        and not _NOT_A_NAME_START_RE.match(line)
+        and line.strip().strip(_TRIM_CHARS).lower() not in _LABEL_WORDS_ANY
+    )
+
+
+def _content_parts(result: RecognizerResult, text: str) -> list[tuple[int, str]]:
+    """Split a multi-line NER span into the parts that hold an actual value.
+
+    NER does not see layout, so in forms and tables a span often runs over a
+    line break: ``Adres\\n\\nBeukenlaan 8``, ``Mohamed Bakkali\\n\\nMet`` or
+    ``Tim\\n\\nTim de Wit``. A blank line is a paragraph or table-cell boundary
+    and is never crossed, because a replacement spanning two cells cannot be
+    applied to the document; each block is judged on its own instead. Lines
+    that are only a field label are skipped, so the value next to the label
+    is kept rather than dropped. Within a block only the first value counts.
+    Only a PERSON may continue on the next line, and only when that line
+    continues the name (``Jeroen\\nvan der Meulen``) rather than a role or a
+    closing phrase; a PERSON part in a later block must also look like a name.
+
+    Returns ``(offset within the span, text)`` per part; empty when nothing
+    but labels and blank lines is left.
+    """
+    span = text[result.start : result.end]
+    if "\n" not in span:
+        return [(0, span)]
+    lines: list[tuple[int, str]] = []
+    pos = 0
+    for line in span.split("\n"):
+        lines.append((pos, line))
+        pos += len(line) + 1
+
+    is_person = result.entity_type == "PERSON"
+    parts: list[tuple[int, str]] = []
+    i = 0
+    while i < len(lines):
+        start_off, line = lines[i]
+        if _is_label_or_empty(line):
+            i += 1
+            continue
+        if not parts or not is_person or _continues_name(line):
+            end_off = start_off + len(line)
+            i += 1
+            while is_person and i < len(lines) and _continues_name(lines[i][1]):
+                end_off = lines[i][0] + len(lines[i][1])
+                i += 1
+            parts.append((start_off, span[start_off:end_off]))
+        while i < len(lines) and lines[i][1].strip():
+            i += 1
+    return parts
+
+
+def _trim_ner_span(result: RecognizerResult, text: str) -> list[RecognizerResult]:
     """Krimp de span van een NER-hit tot de eerste/laatste letter.
 
     Voorbeelden:
 
     - ``ING |``              → ``ING``
     - ``**Paspoortnummer**`` → ``Paspoortnummer``
-    - ``|---|---|---|---|``  → ``None`` (niets over)
+    - ``|---|---|---|---|``  → niets over
     - ``Piet van der Berg\nDocent`` → ``Piet van der Berg``
+    - ``Tim\n\nTim de Wit``  → ``Tim`` en ``Tim de Wit``
 
-    We muteren het resultaat niet, maar geven een nieuw object terug.
+    We muteren het resultaat niet, maar geven nieuwe objecten terug.
     """
 
-    span = text[result.start : result.end]
-    # SpaCy labelt regelmatig NER-spans door naar een volgende regel
-    # omdat het tabel-layout niet goed snapt (``Mentor: X\nDocent: Y``
-    # levert dan één PERSON-span). Standaard knippen we op de eerste
-    # newline, BEHALVE als de span een naam over twee regels is en de
-    # tweede regel met een tussenvoegsel of hoofdletter-token begint
-    # (``Jeroen\nvan der Meulen``). Dan houden we de hele naam in één
-    # span. Een echte label-header op de tweede regel (``\n**Docent:**``)
-    # wint nog wel: dan splitsen we alsnog.
-    newline_idx = span.find("\n")
-    if newline_idx != -1:
-        after = span[newline_idx + 1 :]
-        keep_through_newline = (
-            result.entity_type == "PERSON"
-            and not _LABEL_AFTER_NEWLINE_RE.match(after)
-            and _NAME_CONTINUATION_RE.match(after)
-        )
-        if not keep_through_newline:
-            span = span[:newline_idx]
+    trimmed: list[RecognizerResult] = []
+    for offset, span in _content_parts(result, text):
+        fixed = _trim_part(result, text, offset, span)
+        if fixed is not None:
+            trimmed.append(fixed)
+    return trimmed
+
+
+def _trim_part(
+    result: RecognizerResult, text: str, offset: int, span: str
+) -> RecognizerResult | None:
     lstrip = span.lstrip(_TRIM_CHARS)
     rstrip = lstrip.rstrip(_TRIM_CHARS)
     if not rstrip:
         return None
 
-    new_start = result.start + (len(span) - len(lstrip))
+    new_start = result.start + offset + (len(span) - len(lstrip))
     new_end = new_start + len(rstrip)
 
     # Aanhef voor een PERSON-span (``Hoi Anna``) wegtrimmen zodat alleen
@@ -680,6 +739,30 @@ def _trim_ner_span(result: RecognizerResult, text: str) -> RecognizerResult | No
         score=result.score,
         analysis_explanation=result.analysis_explanation,
     )
+
+
+def _is_ner_noise(fixed: RecognizerResult, text: str) -> bool:
+    span = text[fixed.start : fixed.end].strip()
+
+    if span.lower() in _LABEL_WORDS_ANY:
+        return True
+
+    is_short_upper = 1 <= len(span) <= 3 and span.isalpha() and span.isupper()
+    if is_short_upper and _from_spacy(fixed) and span not in _SHORT_UPPER_KEEP:
+        return True
+
+    if (
+        _from_spacy(fixed)
+        and len(span) <= 4
+        and _is_paren_wrapped(text, fixed.start, fixed.end)
+        and span not in _SHORT_UPPER_KEEP
+    ):
+        return True
+
+    if _from_spacy(fixed) and _SHORT_ALNUM_CODE_RE.match(span):
+        return True
+
+    return bool(_from_spacy(fixed) and fixed.score <= 0.86 and _PRODUCT_SUFFIX_RE.match(span))
 
 
 def filter_overlaps(
@@ -737,34 +820,9 @@ def filter_overlaps(
             if r.entity_type in _PUNCT_SENSITIVE_TYPES:
                 if _is_mostly_punct(text[r.start : r.end]):
                     continue
-                fixed = _trim_ner_span(r, text)
-                if fixed is None:
-                    continue
-                span = text[fixed.start : fixed.end].strip()
-                span_lower = span.lower()
-
-                if span_lower in _LABEL_WORDS_ANY:
-                    continue
-
-                is_short_upper = 1 <= len(span) <= 3 and span.isalpha() and span.isupper()
-                if is_short_upper and _from_spacy(fixed) and span not in _SHORT_UPPER_KEEP:
-                    continue
-
-                if (
-                    _from_spacy(fixed)
-                    and len(span) <= 4
-                    and _is_paren_wrapped(text, fixed.start, fixed.end)
-                    and span not in _SHORT_UPPER_KEEP
-                ):
-                    continue
-
-                if _from_spacy(fixed) and _SHORT_ALNUM_CODE_RE.match(span):
-                    continue
-
-                if _from_spacy(fixed) and fixed.score <= 0.86 and _PRODUCT_SUFFIX_RE.match(span):
-                    continue
-
-                trimmed.append(fixed)
+                trimmed.extend(
+                    fixed for fixed in _trim_ner_span(r, text) if not _is_ner_noise(fixed, text)
+                )
             else:
                 trimmed.append(r)
         deduped = trimmed

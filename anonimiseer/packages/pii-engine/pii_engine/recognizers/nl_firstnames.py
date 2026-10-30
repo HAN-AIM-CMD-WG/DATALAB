@@ -921,16 +921,19 @@ _WORD_PATTERN = re.compile(r"(?<![A-Za-zÀ-ÿ])(?P<w>[A-ZÀ-Þ][a-zà-ÿ]{2,})(?
 # als achternaam worden opgepikt. Ook sluiten we uit dat er meteen een
 # cijfer achter zit (``Meulen42`` is geen naam).
 _SURNAME_TOKEN = r"[A-ZÀ-Þ][a-zà-ÿ][A-Za-zÀ-ÿ'\-]*"
+# Whitespace inside a name: at most one line break (a name wrapped in a PDF),
+# never a blank line, which is a paragraph or table-cell boundary.
+_GAP = r"(?:[^\S\n]+|[^\S\n]*\n[^\S\n]*)"
 _SURNAME_PREFIX = re.compile(
-    r"\s+(?:el|al|ibn|bin|de|den|der|van(?:\s+(?:de|der|den))?|te|ten|ter|'t|het|op\s+de?n?)"
-    rf"\s+(?P<w>{_SURNAME_TOKEN})(?!\d)",
+    rf"{_GAP}(?:el|al|ibn|bin|de|den|der|van(?:{_GAP}(?:de|der|den))?|te|ten|ter|'t|het|op{_GAP}de?n?)"
+    rf"{_GAP}(?P<w>{_SURNAME_TOKEN})(?!\d)",
     flags=re.IGNORECASE,
 )
-_SURNAME_CAP_TOKEN = re.compile(rf"\s+(?P<w>{_SURNAME_TOKEN})(?!\d)")
+_SURNAME_CAP_TOKEN = re.compile(rf"{_GAP}(?P<w>{_SURNAME_TOKEN})(?!\d)")
 # Een bijnaam tussen aanhalingstekens tussen voornaam en achternaam:
 # ``Wim "Pim" Fortuyn-de Boer``. We slaan zo'n bijnaam over zodat de
 # achternaam-expansie alsnog ``Fortuyn-de Boer`` meeneemt.
-_NICKNAME_QUOTE = re.compile(r'\s+(?:"[^"\n]{1,30}"|\'[^\'\n]{1,30}\')(?=\s+[A-ZÀ-Þ])')
+_NICKNAME_QUOTE = re.compile(rf"{_GAP}(?:\"[^\"\n]{{1,30}}\"|'[^'\n]{{1,30}}')(?={_GAP}[A-ZÀ-Þ])")
 
 
 def _prev_word(text: str, start: int) -> str | None:

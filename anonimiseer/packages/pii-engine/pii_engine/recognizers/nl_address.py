@@ -76,11 +76,14 @@ _STREET_SUFFIXES = (
 # op één van de suffixen — dat is de "harde eis" voor een NL-straat.
 _TITLE = r"(?:Dr\.|Prof\.|Mr\.|Ir\.|Ing\.|Drs\.|Mgr\.)"
 _TOKEN = r"[A-ZÀ-Þ][A-Za-zÀ-ÿ'\-]+"
-_TUSSEN = r"(?:van(?:\s+der?)?|de|den|der|te|ten|ter|het|'t|op|aan)"
+# Whitespace within an address never includes a line break: across one, the
+# "street" would swallow a name and a field label from the lines above.
+_SP = r"[^\S\n]+"
+_TUSSEN = rf"(?:van(?:{_SP}der?)?|de|den|der|te|ten|ter|het|'t|op|aan)"
 _STREET_LAST = rf"[A-ZÀ-Þ][A-Za-zÀ-ÿ'\-]*?(?:{'|'.join(_STREET_SUFFIXES)})"
 _STREET_NAME = (
-    rf"(?:{_TITLE}\s+)?"
-    rf"(?:(?:{_TOKEN}|{_TUSSEN})\s+){{0,3}}"
+    rf"(?:{_TITLE}{_SP})?"
+    rf"(?:(?:{_TOKEN}|{_TUSSEN}){_SP}){{0,3}}"
     rf"{_STREET_LAST}"
 )
 # Huisnummer: 1-5 cijfers + optionele toevoeging. De toevoeging plakt
@@ -95,11 +98,11 @@ _HOUSE_NUMBER = (
     r"|"
     r"[-/]\d{1,4}[A-Za-z]?"  # appartement-nummer: 123-3, 45/12, 12-3a
     r"|"
-    r"\s+(?:bis|huis|[IVXivx]{1,5})"  # met spatie, alleen expliciete suffixen
+    rf"{_SP}(?:bis|huis|[IVXivx]{{1,5}})"  # met spatie, alleen expliciete suffixen
     r")?"
 )
 _STREET_PATTERN = re.compile(
-    rf"\b(?P<street>{_STREET_NAME})\s+(?P<nr>{_HOUSE_NUMBER})\b",
+    rf"\b(?P<street>{_STREET_NAME}){_SP}(?P<nr>{_HOUSE_NUMBER})\b",
     flags=0,  # expliciet case-sensitive — voorkomt random lowercase matches
 )
 
@@ -107,12 +110,12 @@ _STREET_PATTERN = re.compile(
 # daarna staan 1-3 hoofdletter-woorden met de plaats (bv. "Den Haag",
 # "Bergen op Zoom"). We beperken tot 3 woorden zodat we niet hele
 # zinnen binnenhalen.
-_POSTCODE = r"[1-9]\d{3}\s?[A-Z]{2}"
+_POSTCODE = r"[1-9]\d{3}[^\S\n]?[A-Z]{2}"
 _CITY_TOKEN = r"[A-ZÀ-Þ][A-Za-zÀ-ÿ'\-]+"
-_CITY_CONNECTOR = r"(?:\s+(?:aan|op|bij|de|den|het|'t|in))"
-_CITY_NAME = rf"{_CITY_TOKEN}(?:(?:{_CITY_CONNECTOR}\s+)?\s+{_CITY_TOKEN}){{0,2}}"
+_CITY_CONNECTOR = rf"(?:{_SP}(?:aan|op|bij|de|den|het|'t|in))"
+_CITY_NAME = rf"{_CITY_TOKEN}(?:(?:{_CITY_CONNECTOR}{_SP})?{_SP}{_CITY_TOKEN}){{0,2}}"
 _POSTCODE_CITY_PATTERN = re.compile(
-    rf"(?P<pc>{_POSTCODE})\s+(?P<city>{_CITY_NAME})\b",
+    rf"(?P<pc>{_POSTCODE}){_SP}(?P<city>{_CITY_NAME})\b",
     flags=0,
 )
 
@@ -156,7 +159,7 @@ class NlAddressRecognizer(EntityRecognizer):
             raw = text[start:end]
             # Een straatnaam begint met een hoofdletter. Als ons regex-
             # patroon per ongeluk een lowercase tussenvoegsel als eerste
-            # token heeft meegepakt (``op\nKeizersgracht 123``) schuiven
+            # token heeft meegepakt (``op Keizersgracht 123``) schuiven
             # we ``start`` op naar het eerste hoofdletter-token.
             while raw and not raw[0].isupper():
                 ws_match = re.search(r"\s+", raw)
