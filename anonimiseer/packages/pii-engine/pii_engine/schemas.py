@@ -238,6 +238,8 @@ class ModelInfo(BaseModel):
     local_path: str | None = None
     min_ram_mb: int = 0
     gpu_recommended: bool = False
+    license: str = "Onbekend"
+    license_url: str = ""
 
 
 class ModelListResponse(BaseModel):

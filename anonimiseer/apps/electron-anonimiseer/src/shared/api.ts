@@ -240,6 +240,10 @@ export interface ModelInfo {
   localPath: string | null;
   minRamMb: number;
   gpuRecommended: boolean;
+  /** Licentie van de modelgewichten, kort en leesbaar. */
+  license: string;
+  /** Waar die licentie te vinden is; leeg als er geen bron bekend is. */
+  licenseUrl: string;
 }
 
 export interface SystemInfo {

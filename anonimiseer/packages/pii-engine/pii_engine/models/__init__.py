@@ -55,6 +55,15 @@ class ModelDescriptor:
     te draaien (model in geheugen + werkruimte). UI gebruikt dit voor
     een fit-check tegen de detectie van het systeem; geen harde grens."""
     gpu_recommended: bool = False
+    license: str = "Onbekend"
+    """Licentie van de modelgewichten, kort en leesbaar.
+
+    Staat los van de licentie van deze tool: een model met een eigen
+    licentie mogen wij niet zomaar meeleveren in de installer. Waar geen
+    licentie te vinden is geldt "alle rechten voorbehouden" en hoort het
+    model dus door de gebruiker zelf te worden opgehaald. Dat is de reden
+    dat dit veld bestaat en in de Model Manager zichtbaar is."""
+    license_url: str = ""
 
 
 @dataclass
@@ -93,6 +102,8 @@ _SPACY_MODELS: list[ModelDescriptor] = [
         size_mb=12,
         install_target="nl_core_news_sm",
         min_ram_mb=512,
+        license="CC BY-SA 4.0",
+        license_url="https://spacy.io/models/nl",
     ),
     ModelDescriptor(
         id="spacy:nl_core_news_md",
@@ -105,6 +116,8 @@ _SPACY_MODELS: list[ModelDescriptor] = [
         size_mb=43,
         install_target="nl_core_news_md",
         min_ram_mb=1024,
+        license="CC BY-SA 4.0",
+        license_url="https://spacy.io/models/nl",
     ),
     ModelDescriptor(
         id="spacy:nl_core_news_lg",
@@ -118,6 +131,8 @@ _SPACY_MODELS: list[ModelDescriptor] = [
         size_mb=568,
         install_target="nl_core_news_lg",
         min_ram_mb=2048,
+        license="CC BY-SA 4.0",
+        license_url="https://spacy.io/models/nl",
     ),
 ]
 
@@ -131,6 +146,8 @@ _HF_MODELS: list[ModelDescriptor] = [
         size_mb=440,
         install_target="GroNLP/bert-base-dutch-cased",
         min_ram_mb=2048,
+        license="Apache-2.0 (volgens de GitHub-repo; niet vermeld op HuggingFace)",
+        license_url="https://github.com/wietsedv/bertje",
     ),
     ModelDescriptor(
         id="hf:wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
@@ -142,6 +159,8 @@ _HF_MODELS: list[ModelDescriptor] = [
         ),
         size_mb=440,
         install_target="wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
+        license="Onbekend — geen licentie vermeld op HuggingFace",
+        license_url="https://huggingface.co/wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
         min_ram_mb=2048,
     ),
 ]
@@ -237,6 +256,21 @@ def _ensure_hf_home_env() -> Path:
     os.environ["HF_HOME"] = str(home)
     os.environ["HF_HUB_CACHE"] = str(hub)
     return hub
+
+
+def hf_hub_cache() -> Path:
+    """De map waaruit Anonimiseer HuggingFace-modellen laadt én waarin het ze installeert.
+
+    Alles wat een HF-model laadt, moet deze map expliciet meegeven. Zonder
+    dat valt ``transformers`` terug op ``~/.cache/huggingface``: dan wordt het
+    meegeleverde of via de Model Manager geïnstalleerde model niet gevonden en
+    opnieuw gedownload, of faalt het laden als die map niet schrijfbaar is.
+    """
+    return _ensure_hf_home_env()
+
+
+def hf_model_present(repo_id: str) -> bool:
+    return _hf_installed(repo_id)[0]
 
 
 def _hf_installed(repo_id: str) -> tuple[bool, str | None]:

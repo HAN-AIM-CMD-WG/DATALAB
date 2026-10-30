@@ -96,11 +96,29 @@ class SonarRecognizer(EntityRecognizer):
             logger.info("SoNaR NER-model laden: %s", self._model_name)
             # Import binnen de functie om startup van pii-engine niet te
             # blokkeren als sonar-extras niet geïnstalleerd zijn.
+            from transformers import (
+                AutoModelForTokenClassification,
+                AutoTokenizer,
+            )
             from transformers import pipeline as hf_pipeline
 
+            from pii_engine.models import hf_hub_cache, hf_model_present
+
+            # Staat het model al op schijf, dan laden we zonder netwerk: anders
+            # vraagt transformers bij elke start huggingface.co of er een
+            # nieuwere versie is.
+            cache_dir = str(hf_hub_cache())
+            local_only = hf_model_present(self._model_name)
+            tokenizer = AutoTokenizer.from_pretrained(
+                self._model_name, cache_dir=cache_dir, local_files_only=local_only
+            )
+            model = AutoModelForTokenClassification.from_pretrained(
+                self._model_name, cache_dir=cache_dir, local_files_only=local_only
+            )
             self._pipeline = hf_pipeline(
                 task="token-classification",
-                model=self._model_name,
+                model=model,
+                tokenizer=tokenizer,
                 aggregation_strategy="simple",
             )
             logger.info("SoNaR NER-model geladen")

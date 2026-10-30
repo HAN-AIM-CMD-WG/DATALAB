@@ -82,6 +82,8 @@ async function listModels(): Promise<ModelListResponse> {
         local_path: string | null;
         min_ram_mb?: number;
         gpu_recommended?: boolean;
+        license?: string;
+        license_url?: string;
       }>;
     };
     const models: ModelInfo[] = json.models.map((m) => ({
@@ -95,6 +97,8 @@ async function listModels(): Promise<ModelListResponse> {
       localPath: m.local_path,
       minRamMb: m.min_ram_mb ?? 0,
       gpuRecommended: m.gpu_recommended ?? false,
+      license: m.license ?? 'Onbekend',
+      licenseUrl: m.license_url ?? '',
     }));
     return { ok: true, models };
   } catch (err) {

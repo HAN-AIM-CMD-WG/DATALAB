@@ -35,6 +35,7 @@ import type {
 } from '@shared/api';
 import { ollamaInstalled } from './ollamaCatalog';
 import { cn } from '../lib/utils';
+import { statusIcon } from '../lib/statusStyles';
 
 interface ModelManagerProps {
   open: boolean;
@@ -1344,6 +1345,28 @@ function ModelGroup({
   );
 }
 
+/**
+ * Toont onder welke licentie de modelgewichten vallen.
+ *
+ * Dit is geen detail: modellen hebben hun eigen voorwaarden, los van de
+ * licentie van Anonimiseer zelf. Waar geen licentie te vinden is, moet dat
+ * zichtbaar zijn — dan mag het model niet zomaar worden meegeleverd en haalt
+ * de gebruiker het zelf op.
+ */
+function LicenseLine({ license, url }: { license: string; url: string }): JSX.Element {
+  const unknown = license.toLowerCase().startsWith('onbekend');
+  return (
+    <p
+      className={cn(
+        'mt-1 text-[11px]',
+        unknown ? statusIcon('warning') : 'text-muted-foreground'
+      )}
+    >
+      Licentie: {url ? <a href={url}>{license}</a> : license}
+    </p>
+  );
+}
+
 function ModelRow({
   model,
   state,
@@ -1395,6 +1418,7 @@ function ModelRow({
             </p>
           )}
           {model.minRamMb > 0 && <FitLine fit={fit} />}
+          <LicenseLine license={model.license} url={model.licenseUrl} />
           {task && (task.state === 'running' || task.state === 'pending') && (
             <p className="mt-1 truncate text-[11px] text-muted-foreground">
               <Loader2 className="inline h-3 w-3 animate-spin" aria-hidden /> {task.message || 'Bezig…'}

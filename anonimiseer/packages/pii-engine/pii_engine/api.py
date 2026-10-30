@@ -449,6 +449,8 @@ def create_app() -> FastAPI:
                     install_target=descriptor.install_target,
                     installed=installed,
                     local_path=local_path,
+                    license=descriptor.license,
+                    license_url=descriptor.license_url,
                     min_ram_mb=descriptor.min_ram_mb,
                     gpu_recommended=descriptor.gpu_recommended,
                 )
