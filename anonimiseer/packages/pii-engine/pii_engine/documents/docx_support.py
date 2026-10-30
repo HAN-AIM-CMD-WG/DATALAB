@@ -39,6 +39,7 @@ from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 
 from ._common import apply_replacements_to_text, group_replacements_per_block
+from .metadata import accept_docx_revisions, scrub_office_metadata
 
 # Word-namespace voor lxml-queries op `<w:tc>` etc.
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -133,7 +134,7 @@ def extract_docx(file_bytes: bytes) -> ExtractResult:
 
     from . import Block, ExtractResult
 
-    doc = Document(io.BytesIO(file_bytes))
+    doc = Document(io.BytesIO(accept_docx_revisions(file_bytes)))
     texts: list[str] = []
     blocks: list[Block] = []
     cursor = 0
@@ -198,7 +199,8 @@ def apply_docx(
 ) -> bytes:
     """Pas vervangingen toe en geef nieuwe DOCX-bytes terug."""
 
-    doc = Document(io.BytesIO(file_bytes))
+    # Same accepted version as extract_docx, so the block ids line up.
+    doc = Document(io.BytesIO(accept_docx_revisions(file_bytes)))
     grouped = group_replacements_per_block(blocks, replacements)
 
     # Bouw een index van block_id → paragraph-ref in de huidige parse.
@@ -231,7 +233,7 @@ def apply_docx(
 
     buffer = io.BytesIO()
     doc.save(buffer)
-    return buffer.getvalue()
+    return scrub_office_metadata(buffer.getvalue())
 
 
 __all__ = ["apply_docx", "extract_docx"]

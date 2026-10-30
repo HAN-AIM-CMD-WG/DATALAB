@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from openpyxl import load_workbook
 
 from ._common import apply_replacements_to_text, group_replacements_per_block
+from .metadata import scrub_office_metadata
 
 if TYPE_CHECKING:  # pragma: no cover
     from . import AcceptedReplacement, Block, ExtractResult
@@ -91,6 +92,14 @@ def apply_xlsx(
             if cell.hyperlink is not None:
                 cell.hyperlink = None
 
+    # Cell comments are never extracted, so their text and author would leave
+    # the file unanonymised.
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.comment is not None:
+                    cell.comment = None
+
     if footer_note:
         # Voeg een aparte sheet "_Anonimiseer" toe met het watermerk.
         # We kiezen een aparte sheet ipv vervuiling van bestaande sheets,
@@ -105,7 +114,7 @@ def apply_xlsx(
 
     buffer = io.BytesIO()
     wb.save(buffer)
-    return buffer.getvalue()
+    return scrub_office_metadata(buffer.getvalue())
 
 
 __all__ = ["apply_xlsx", "extract_xlsx"]

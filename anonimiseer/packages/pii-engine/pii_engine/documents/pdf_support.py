@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 import fitz  # PyMuPDF
 
 from ._common import group_replacements_per_block
+from .metadata import scrub_pdf_metadata
 
 if TYPE_CHECKING:  # pragma: no cover
     from . import AcceptedReplacement, Block, ExtractResult
@@ -146,6 +147,7 @@ def apply_pdf(
                     align=1,  # center
                 )
 
+        scrub_pdf_metadata(doc)
         buffer = io.BytesIO()
         doc.save(buffer, deflate=True, garbage=3)
         return buffer.getvalue()
