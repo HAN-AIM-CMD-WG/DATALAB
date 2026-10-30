@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import type {
   ActiveEngineInfo,
-  AppSettings,
   ReviewFinding,
   WriteRunResponse,
 } from '@shared/api';
@@ -67,13 +66,11 @@ export function Step4Save({
   files,
   settings,
   review,
-  appSettings,
   onReset,
 }: {
   files: WizardFileEntry[];
   settings: WizardSettings;
   review: ReviewState;
-  appSettings: AppSettings;
   onReset: () => void;
 }): JSX.Element {
   const [outputParent, setOutputParent] = useState<string | null>(null);
@@ -171,6 +168,7 @@ export function Step4Save({
     if (!outputParent) return;
     setSaving(true);
     try {
+      const active = await window.anonimiseer.engine.active();
       const response = await window.anonimiseer.output.writeRun({
         outputParent,
         context: {
@@ -179,7 +177,10 @@ export function Step4Save({
           entities: resolveEntities(settings),
           threshold: resolveThreshold(settings),
           whitelist: review.whitelist,
-          modelProfile: appSettings.modelProfile,
+          models: active.ok ? active.info.activeModels.map((m) => m.label) : [],
+          limitations: active.ok
+            ? active.info.limitations
+            : [`De engine gaf geen modelstatus (${active.error}).`],
           startedAt: new Date().toISOString(),
         },
         files: run.files,

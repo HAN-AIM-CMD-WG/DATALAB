@@ -8,6 +8,8 @@
 
 export interface VersionInfo {
   app: string;
+  /** Installed app (starts its own engine) rather than a development build. */
+  packaged: boolean;
   electron: string;
   chrome: string;
   node: string;
@@ -164,13 +166,10 @@ export interface EngineApi {
   review(text: string, modelOverride?: string): Promise<ReviewResponse>;
 }
 
-export type ModelProfile = 'basis' | 'plus' | 'max';
-
 export interface AppSettings {
   schemaVersion: 1;
   onboardingCompletedAt: string | null;
   acceptedResponsibility: boolean;
-  modelProfile: ModelProfile;
 }
 
 export interface SettingsApi {
@@ -451,7 +450,10 @@ export interface RunAuditContext {
   entities: string[];
   threshold: number;
   whitelist: string[];
-  modelProfile: string;
+  /** Models the engine really had loaded when the run was saved. */
+  models: string[];
+  /** See ``EngineHealthOk.limitations``; recorded so the audit shows them. */
+  limitations: string[];
   startedAt: string;
 }
 

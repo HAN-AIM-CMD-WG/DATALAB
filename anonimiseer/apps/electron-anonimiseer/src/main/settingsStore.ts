@@ -19,8 +19,6 @@ import { app, ipcMain } from 'electron';
 import { promises as fs } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-export type ModelProfile = 'basis' | 'plus' | 'max';
-
 export interface AppSettings {
   /** Schema-versie, zodat we later kunnen migreren. */
   schemaVersion: 1;
@@ -28,15 +26,12 @@ export interface AppSettings {
   onboardingCompletedAt: string | null;
   /** Heeft de gebruiker expliciet "ik blijf verantwoordelijk" geaccepteerd. */
   acceptedResponsibility: boolean;
-  /** Gekozen modelprofiel (wordt in Fase 3.8 gebruikt om engine te spawnen). */
-  modelProfile: ModelProfile;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   schemaVersion: 1,
   onboardingCompletedAt: null,
   acceptedResponsibility: false,
-  modelProfile: 'plus',
 };
 
 function settingsPath(): string {
@@ -47,7 +42,11 @@ async function readSettings(): Promise<AppSettings> {
   try {
     const raw = await fs.readFile(settingsPath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return { ...DEFAULT_SETTINGS, ...parsed, schemaVersion: 1 };
+    return {
+      ...DEFAULT_SETTINGS,
+      onboardingCompletedAt: parsed.onboardingCompletedAt ?? null,
+      acceptedResponsibility: parsed.acceptedResponsibility === true,
+    };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { ...DEFAULT_SETTINGS };
@@ -80,13 +79,6 @@ function sanitizePatch(patch: unknown): Partial<AppSettings> {
   }
   if (typeof input.acceptedResponsibility === 'boolean') {
     out.acceptedResponsibility = input.acceptedResponsibility;
-  }
-  if (
-    input.modelProfile === 'basis' ||
-    input.modelProfile === 'plus' ||
-    input.modelProfile === 'max'
-  ) {
-    out.modelProfile = input.modelProfile;
   }
   return out;
 }

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
-import type { AppSettings } from '@shared/api';
 import { cn } from '../../lib/utils';
 import { Step1FilePicker } from './Step1FilePicker';
 import { Step2Settings } from './Step2Settings';
@@ -21,7 +20,7 @@ import type { ReviewState } from './reviewTypes';
  * alleen de relevante slice + een setter. Later kunnen we dit naar een
  * context/reducer promoten; voor nu is het klein genoeg.
  */
-export function Wizard({ appSettings }: { appSettings: AppSettings }): JSX.Element {
+export function Wizard(): JSX.Element {
   const [step, setStep] = useState<WizardStepId>('files');
   const [files, setFiles] = useState<WizardFileEntry[]>([]);
   const [settings, setSettings] = useState<WizardSettings>(defaultWizardSettings());
@@ -126,7 +125,6 @@ export function Wizard({ appSettings }: { appSettings: AppSettings }): JSX.Eleme
             files={files}
             settings={settings}
             review={review}
-            appSettings={appSettings}
             onReset={resetAll}
           />
         )}

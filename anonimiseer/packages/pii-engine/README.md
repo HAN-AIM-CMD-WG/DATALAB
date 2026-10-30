@@ -64,8 +64,8 @@ pii-engine                             # start FastAPI op 127.0.0.1:8765
 
 ```bash
 cd anonimiseer/packages/pii-engine
-docker build -t pii-engine:0.1.0 .
-docker run --rm -p 8765:8765 pii-engine:0.1.0
+docker build -t pii-engine .
+docker run --rm -p 8765:8765 pii-engine
 curl -s http://localhost:8765/health | jq
 ```
 
@@ -79,8 +79,11 @@ Alle endpoints accepteren alleen `language = "nl"` (uitbreiding later).
 ### `GET /health`
 
 ```json
-{ "status": "ok", "version": "0.1.0", "recognizers": 12, "spacy_model": "nl_core_news_lg" }
+{ "status": "ok", "version": "0.1.1", "recognizers": 50, "spacy_model": "nl_core_news_lg", "limitations": [], "proof": null }
 ```
+
+`limitations` zegt in gewone taal waarom de detectie nu minder goed is dan ingesteld,
+bijvoorbeeld een model dat niet geladen kon worden. De app toont dan "Beperkt".
 
 ### `POST /analyze`
 
@@ -132,34 +135,41 @@ Dezelfde request als `/analyze` plus `mode` (`"pseudonymize"` | `"redact"`) en
 | `PII_ENGINE_ENABLE_SONAR` | `false` | Laad SoNaR-BERT NER (vereist `[sonar]` extras). |
 | `PII_ENGINE_SONAR_MODEL` | `wietsedv/bert-base-dutch-cased-finetuned-sonar-ner` | HF-id. |
 | `PII_ENGINE_SONAR_SCORE_MIN` | `0.5` | Ondergrens modelvertrouwen. |
-| `PII_ENGINE_ENABLE_PLAYGROUND` | `true` | Serveer de HTML-playground op `/`. |
+| `PII_ENGINE_ENABLE_PLAYGROUND` | `true` | Serveer de HTML-playground op `/`. De app zet hem uit. |
 | `PII_ENGINE_CORS_ALLOW_ORIGINS` | `["http://localhost"]` | CORS-lijst. |
+| `PII_ENGINE_AUTH_TOKEN` | leeg | Gedeeld geheim; gezet, dan eist elk endpoint behalve `/health` de header `X-Engine-Token`. De app zet een nieuw token per sessie. |
+| `PII_ENGINE_EXIT_WITH_PARENT` | `false` | Stop zodra stdin sluit, zodat de engine meegaat als de app crasht. |
+
+Buiten de bundel leest de engine ook een `.env` in de werkmap; de gebundelde engine niet.
+
+## Overige endpoints
+
+| Endpoint | Wat |
+|---|---|
+| `POST /document/extract` | DOCX, XLSX of PDF naar platte tekst plus blokken (alinea's, cellen, regels). Bijgehouden wijzigingen in Word worden eerst geaccepteerd. |
+| `POST /document/apply` | Vervangingen toepassen, met behoud van opmaak; documenteigenschappen, opmerkingen en PDF-annotaties worden leeggemaakt. De header `X-Anonimiseer-Unreplaced` telt geaccepteerde teksten die nog in de uitvoer staan. |
+| `POST /restore/text`, `POST /document/restore` | Pseudoniemen terugzetten met een mapping; het watermerk gaat eruit. PDF kan niet. |
+| `GET /engine/active`, `POST /engine/config` | Wat er echt geladen is, en modellen wisselen. Alleen modellen uit de registry. |
+| `GET /models`, `POST /models/install` | Modellen tonen en op verzoek downloaden. |
+| `POST /engine/review` | Controle achteraf door een lokaal Ollama-model (geen cloud-modellen). |
 
 ## Architectuur-positie
 
 ```
   +---------------------+        +---------------------+
   | Electron-app        |        | Open WebUI Filter   |
-  | (Fase 3)            |        | (Fase 2)            |
+  | (start de engine)   |        | (bevroren)          |
   +---------+-----------+        +----------+----------+
             |                               |
             |          HTTP (localhost)     |
             v                               v
        +----+-------------------------------+----+
        |              pii-engine                 |
-       |  Presidio + NL-recognizers (Fase 1)     |
-       |  [optioneel] GLiNER/Ollama (Fase 4)     |
+       |  Presidio + spaCy + SoNaR-BERT          |
+       |  + NL/EU-recognizers + postfilter       |
+       |  [optioneel] Ollama-controle achteraf   |
        +-----------------------------------------+
 ```
-
-## Niet in scope voor Fase 1
-
-- GLiNER zero-shot integratie (Fase 4).
-- ONNX-export van SoNaR voor snellere inference (backlog Fase 4).
-- LLM-augmentatie via Ollama (Fase 4).
-- Model Manager & auto-download (Fase 3, aan de Electron-kant).
-- Document-formaten (DOCX/PDF/XLSX) — dat blijft in de Electron-app;
-  de engine werkt puur op plaintext.
 
 ## Kwaliteit & conventies
 

@@ -106,7 +106,6 @@ async function driveApp(inputs) {
     await shot(page, 'onboarding');
     await clickNext(page);
     await page.getByRole('checkbox').check();
-    await clickNext(page);
     await page.getByRole('button', { name: /Afronden en openen/ }).click();
 
     await page.getByRole('button', { name: /Kies bestanden/ }).click();
@@ -214,6 +213,15 @@ function checks(runDir) {
   add('Word: no personal data left in the text', originals.body.filter((o) => body.includes(o)));
   const props = docxPart(docx, 'docProps/core.xml');
   add('Word: no personal data left in the document properties', originals.properties.filter((o) => props.includes(o)));
+
+  const disclaimer = fs.readFileSync(path.join(runDir, 'DISCLAIMER.txt'), 'utf8');
+  add(
+    'DISCLAIMER names the models really used, without limitations',
+    [
+      ...(/Modellen: .*SoNaR/.test(disclaimer) ? [] : ['no SoNaR in the "Modellen:" line']),
+      ...disclaimer.split('\n').filter((l) => l.startsWith('Beperking:')),
+    ],
+  );
 
   const auditText = fs.readFileSync(path.join(runDir, 'audit.jsonl'), 'utf8');
   add(

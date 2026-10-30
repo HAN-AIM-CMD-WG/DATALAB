@@ -31,17 +31,17 @@ import type {
   WriteRunResponse,
 } from '@shared/api';
 
-const VERSION_ARG = '--anonimiseer-version=';
-
-/** Passed by the main process; ``npm_package_version`` only exists under npm. */
-function appVersion(): string {
-  const arg = process.argv.find((a) => a.startsWith(VERSION_ARG));
-  return arg ? arg.slice(VERSION_ARG.length) : 'onbekend';
+/** Passed by the main process; the sandboxed preload cannot ask ``app`` itself. */
+function mainArg(name: string): string | null {
+  const prefix = `--anonimiseer-${name}=`;
+  const arg = process.argv.find((a) => a.startsWith(prefix));
+  return arg ? arg.slice(prefix.length) : null;
 }
 
 const api: AnonimiseerApi = {
   version: {
-    app: appVersion(),
+    app: mainArg('version') ?? 'onbekend',
+    packaged: mainArg('packaged') === '1',
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node,

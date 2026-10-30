@@ -7,10 +7,9 @@ import { statusBadge, statusIconBg, statusPanel } from '../lib/statusStyles';
 /**
  * Expliciete fallback wanneer de pii-engine niet bereikbaar is.
  *
- * De minimum-variant van Fase 3.2: we spawnen (nog) niet zelf, dus
- * we leggen *zo concreet mogelijk* uit wat de gebruiker moet doen om
- * de engine online te krijgen. In Fase 3.8 (PyInstaller) wordt dit
- * automatisch en verdwijnt dit paneel.
+ * De geïnstalleerde app start de engine zelf; lukt dat niet, dan krijgt de
+ * gebruiker stappen die zonder terminal werken. Alleen in een ontwikkelbuild,
+ * waar je de engine zelf start, tonen we het commando.
  */
 
 const START_COMMAND = `cd anonimiseer/packages/pii-engine
@@ -25,6 +24,7 @@ export function EngineOfflinePanel({
   onRetry?: () => void;
 }): JSX.Element {
   const [copied, setCopied] = useState(false);
+  const packaged = window.anonimiseer.version.packaged;
 
   const handleCopy = async (): Promise<void> => {
     try {
@@ -50,12 +50,12 @@ export function EngineOfflinePanel({
         <div className="flex-1 space-y-3">
           <div>
             <h3 className="text-base font-semibold text-foreground">
-              De anonimiseringsengine draait nog niet
+              De anonimiseringsengine draait niet
             </h3>
             <p className="mt-1 text-sm text-foreground/80">
-              Zonder engine kan Anonimiseer geen PII detecteren. Start de
-              engine handmatig — in een toekomstige versie doen we dat
-              automatisch bij het openen van de app.
+              {packaged
+                ? 'Zonder engine kan Anonimiseer geen persoonsgegevens vinden. Anonimiseer start de engine zelf bij het openen, maar dat is nu niet gelukt.'
+                : 'Zonder engine kan Anonimiseer geen persoonsgegevens vinden. In een ontwikkelbuild start je de engine zelf; de geïnstalleerde app doet dat automatisch.'}
             </p>
           </div>
 
@@ -77,6 +77,27 @@ export function EngineOfflinePanel({
             </dl>
           </details>
 
+          {packaged ? (
+            <div>
+              <p className="text-sm font-medium text-foreground">Wat kun je doen?</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-foreground/90">
+                <li>Sluit Anonimiseer helemaal af en open de app opnieuw.</li>
+                <li>Gebeurt het weer, herstart dan je computer en probeer het nog eens.</li>
+                <li>
+                  Lukt het dan nog niet, geef de reden onder <em>Technische details</em> door
+                  aan wie Anonimiseer bij jou beheert.
+                </li>
+              </ol>
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-background"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                Opnieuw controleren
+              </button>
+            </div>
+          ) : (
           <div>
             <p className="text-sm font-medium text-foreground">
               Hoe start ik de engine?
@@ -125,6 +146,7 @@ export function EngineOfflinePanel({
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
     </section>

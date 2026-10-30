@@ -105,7 +105,10 @@ function buildDisclaimer(
   );
   lines.push(`Modus: ${context.mode === 'pseudonymize' ? 'Pseudonimiseren' : 'Anonimiseren'}`);
   lines.push(`Gevoeligheid: ${context.sensitivity}`);
-  lines.push(`Modelprofiel: ${context.modelProfile}`);
+  lines.push(`Modellen: ${context.models.join(', ') || 'geen taalmodel geladen'}`);
+  for (const limitation of context.limitations) {
+    lines.push(`Beperking: ${limitation}`);
+  }
   lines.push(`Drempel: ${context.threshold.toFixed(2)}`);
   lines.push(`Actieve categorieën: ${context.entities.join(', ') || '(geen)'}`);
   if (context.whitelist.length > 0) {
@@ -182,7 +185,8 @@ function auditLines(payload: RunPayload, results: RunResultFile[]): string {
       threshold: payload.context.threshold,
       entities: payload.context.entities,
       whitelist: payload.context.whitelist,
-      modelProfile: payload.context.modelProfile,
+      models: payload.context.models,
+      limitations: payload.context.limitations,
       filesProcessed: results.filter((r) => r.status === 'written').length,
       filesSkipped: payload.skipped.length + results.filter((r) => r.status !== 'written').length,
     })

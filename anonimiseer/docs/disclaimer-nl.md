@@ -1,6 +1,14 @@
 # Disclaimer en verantwoordelijkheid
 
-Centrale plek voor alle Nederlandstalige waarschuwingsteksten die in de app, de Open WebUI-filter en op output-artefacten verschijnen. Verandert deze tekst? Dan wordt de first-run-disclaimer in de app opnieuw aan de gebruiker voorgelegd.
+Ontwerp voor de Nederlandstalige waarschuwingsteksten in de app, de Open WebUI-filter en op
+output-artefacten.
+
+> **Status:** nog niet alles uit dit ontwerp staat in de app. Wél: de first-run-tekst met
+> akkoordvinkje (in eigen woorden), één vinkje in stap 4, `DISCLAIMER.txt` bij elke run en een
+> watermerk in elk document. Nog niet: de banner in stap 3 (§2), de context-gevoelige
+> waarschuwingen (§3), het tweede vinkje (§4) en `MAPPING_README.txt` (§7). Een gewijzigde
+> tekst wordt nog niet opnieuw aan de gebruiker voorgelegd. De teksten die de app echt toont
+> staan in `Onboarding.tsx`, `Step4Save.tsx` en `outputBridge.ts`.
 
 ## 1. First-run modal (Electron-app)
 
@@ -85,7 +93,7 @@ het geanonimiseerde document in dezelfde cloudmap of e-mail.
 BELANGRIJK: mapping-bestand voor pseudonimiseer-sessie
 
 Dit bestand bevat de vertaaltabel tussen echte persoonsgegevens en de
-codes (PERSOON_1, BSN_1, ...) in het geanonimiseerde document. Wie dit
+codes (PERSON_1, NL_BSN_1, ...) in het geanonimiseerde document. Wie dit
 bestand heeft, kan het geanonimiseerde document de-anonimiseren.
 
 Regels:

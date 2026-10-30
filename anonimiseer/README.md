@@ -50,14 +50,14 @@ Bestand controleren tegen de SHA-256 op de Releases-pagina:
 
 ### Wat de app doet
 
-1. Sleep een document in het venster (DOCX, PDF, XLSX, TXT).
+1. Sleep een document in het venster (DOCX, PDF, XLSX, Markdown, TXT).
 2. Kies wat je wilt maskeren (namen, BSN, adressen, IBAN, etc.) en hoe streng.
 3. Bekijk de gemarkeerde gevallen vóór je ze opslaat.
-4. Exporteer een schone versie + (optioneel) een versleutelde mapping om later terug te draaien.
+4. Exporteer een schone versie + (optioneel) een versleutelde mapping, waarmee je de pseudoniemen later via *Terugzetten* weer vervangt door de originelen (niet bij PDF).
 
 **De inhoud van je documenten verlaat je laptop nooit.** Geen account nodig, geen telemetrie, geen automatische updates.
 
-Internet heb je alleen nodig als je zelf een taalmodel downloadt. Dat gebeurt nooit vanzelf en nooit met documentinhoud. Houd er rekening mee dat het aanbevolen SoNaR-model niet in de installer zit: de eerste keer dat je het inschakelt wordt het opgehaald (~400 MB).
+Internet heb je alleen nodig als je zelf een extra taalmodel downloadt in *Modellen beheren*. Dat gebeurt nooit vanzelf en nooit met documentinhoud. De standaardmodellen (spaCy en SoNaR-BERT) zitten in de installer.
 
 > **Belangrijk:** Anonimiseer is een **hulpmiddel**, geen garantie. Geen enkele automatische PII-detectie is 100% nauwkeurig. Loop de highlights altijd na vóór je een document deelt. Onder de AVG blijft de gebruiker zelf verwerkingsverantwoordelijke. Zie [`docs/disclaimer-nl.md`](docs/disclaimer-nl.md).
 
@@ -120,8 +120,8 @@ Zie [`apps/electron-anonimiseer/RELEASE.md`](apps/electron-anonimiseer/RELEASE.m
 ## Architectuur
 
 - **Detectie-pijplijn**: recognizers (Presidio + ruim 30 eigen NL/EU) → post-filter (overlap, label-FP) → anonymizer (pseudoniem of redact). Zie [`docs/architecture.md`](docs/architecture.md).
-- **Privacy**: alle verwerking lokaal; engine luistert alleen op `127.0.0.1`; geen telemetrie.
-- **Modelprofielen**: Basis (alleen spaCy), Plus (+ SoNaR-BERT, aanbevolen), Max (alle recognizers).
+- **Privacy**: alle verwerking lokaal; engine luistert alleen op `127.0.0.1` en accepteert alleen de app (geheim token per sessie); geen telemetrie.
+- **Modellen**: spaCy `nl_core_news_lg` en SoNaR-BERT standaard, aan of uit te zetten in *Modellen beheren*; optioneel een lokaal Ollama-model voor een controle achteraf.
 
 ## Licentie en attributie
 

@@ -23,13 +23,23 @@ code en heeft zijn eigen tests.
 
 ## Detectie-pijplijn
 
-Per tekstblok, met vroege-exit op hoge confidence:
+Een document wordt eerst platgeslagen tot blokken (alinea's, tabelcellen, kop- en
+voetteksten, werkbladcellen, PDF-regels). Daarna:
 
-1. **Regex + validatie**: BSN-Elfproef, IBAN mod-97, NL-telefoon met contextwoorden, NL-postcode, e-mail, IP, creditcard, studentnummer-patronen.
-2. **Nederlandse NER**: spaCy `nl_core_news_lg` via Presidio NlpEngine + extra recall via Wietsedv SoNaR BERT (ONNX).
-3. **Zero-shot GLiNER** (optioneel): `E3-JSI/gliner-multi-pii-domains-v1` met NL-support voor runtime-configureerbare entiteiten.
-4. **LLM-pass** (optioneel): Ollama endpoint met GEITje-7B-ultra of Llama-3.1-8B, alleen op blokken waar vorige stappen weinig vonden.
-5. **Merge + de-duplicatie** met confidence-weging.
+1. **Patronen met validatie**: ruim 30 eigen herkenners voor NL/EU, waaronder BSN
+   (Elfproef), IBAN (mod-97), telefoon, postcode (met adrescontext), adressen, kentekens,
+   KvK/BIG/AGB/BTW, geboortedatums, links naar een persoon, plus Presidio's herkenners voor
+   e-mail, IP, URL en creditcard.
+2. **Nederlandse NER**: spaCy `nl_core_news_lg` via Presidio, plus SoNaR-BERT
+   (`wietsedv/bert-base-dutch-cased-finetuned-sonar-ner`, PyTorch) voor betere recall op
+   namen, plaatsen en organisaties.
+3. **Postfilter**: treffers blijven binnen één blok, overlappende treffers worden
+   samengevoegd of rond een sterkere treffer (postcode, e-mail) geknipt, veldlabels en ruis
+   vallen weg.
+4. **Controle door de gebruiker** in stap 3, daarna vervangen. Na het opslaan telt de engine
+   of elke geaccepteerde vervanging ook echt in het bestand is beland.
+5. **Controle achteraf door een lokaal taalmodel** (optioneel, standaard uit): een
+   Ollama-model leest het resultaat en wijst op wat mogelijk gemist is.
 6. **Pseudonimisering**: één consistente mapping voor alle bestanden van een run, opgeslagen
    als `mapping.bin`. Versleuteld met een sleutel van het besturingssysteem (Electron
    safeStorage: Keychain op macOS, DPAPI op Windows, Secret Service op Linux) en beveiligd
@@ -37,31 +47,33 @@ Per tekstblok, met vroege-exit op hoge confidence:
    voor dezelfde gebruiker op dezelfde computer. Op Linux zonder keyring slaat de app geen
    mapping op.
 
-## Model Manager
+## Modellen beheren
 
-Alle NER/NLP/LLM-modellen zijn pluggable en 1-klik downloadbaar:
+Modellen beheren is de enige plek waar je kiest welke modellen de engine gebruikt, en toont
+wat er echt geladen is. Ontbreekt er iets, dan staat de engine in de kopbalk op "Beperkt",
+met de reden.
 
-- **HuggingFace**: `huggingface_hub.snapshot_download`
-- **Ollama**: `POST /api/pull`
+- **spaCy**: klein, medium of large; large zit in de installer.
+- **SoNaR-BERT**: zit in de installer, aan of uit te zetten.
+- **Ollama**: lokale taalmodellen uit een catalogus, voor de controle achteraf.
+  Cloud-varianten worden geweigerd, ook als je zelf een naam invoert.
 
-Profielen:
-
-| Profiel | Grootte | Hardware | Modellen |
-|---|---|---|---|
-| Basis | ~150 MB | CPU | spaCy `nl_core_news_md` + regex/BSN/postcode |
-| Plus | ~900 MB | CPU | + spaCy `nl_core_news_lg` + Wietsedv SoNaR BERT ONNX |
-| Max | ~4-8 GB | GPU aanbevolen | + GLiNER-PII NL + GEITje-7B-ultra (Ollama) |
+Downloaden gebeurt alleen op verzoek: HuggingFace via `snapshot_download`, Ollama via
+`POST /api/pull`. Een analyse haalt nooit zelf iets van internet; ontbreekt een model, dan
+werkt de engine zonder en meldt dat.
 
 ## Verantwoordelijkheidslagen
 
-Op zes plekken wordt expliciet aan de gebruiker duidelijk gemaakt dat dit een hulpmiddel is, geen garantie:
+Op deze plekken wordt de gebruiker erop gewezen dat dit een hulpmiddel is, geen garantie:
 
-1. First-run disclaimer met verplichte akkoord-checkbox
-2. Permanente banner in Stap 3 (Controleren) die pas verdwijnt na scrollen-tot-eind
-3. Context-gevoelige waarschuwingen (lage confidence, OCR-PDF, art. 9-trefwoorden, taal-mismatch)
-4. Dubbele check-off in Stap 4 (Opslaan)
-5. `DISCLAIMER.txt` + optionele footer-metadata bij elk output-bestand
-6. Lokaal audit-log (`audit.jsonl`, geen PII) met retentie-beleid
+1. Onboarding met een verplicht akkoordvinkje.
+2. Stap 3 (Controleren): elke treffer is te accepteren of over te slaan, gemiste tekst is
+   handmatig te markeren.
+3. Stap 4 (Opslaan): opslaan kan pas na het vinkje "Ik blijf zelf verantwoordelijk", en een
+   vervanging die niet in het bestand is beland, levert een waarschuwing op.
+4. `DISCLAIMER.txt` bij elke run en een watermerk in elk document.
+5. Een lokaal audit-log (`audit.jsonl`) met instellingen, aantallen en bestandsnamen, zonder
+   documentinhoud.
 
 Zie [`disclaimer-nl.md`](disclaimer-nl.md) voor de exacte teksten.
 
@@ -70,8 +82,9 @@ Zie [`disclaimer-nl.md`](disclaimer-nl.md) voor de exacte teksten.
 | Onderdeel | Status |
 |---|---|
 | PII Engine + Model Manager | Werkend, gedekt door pytest/mypy/ruff in CI |
-| Electron-app met wizard-UI | Werkend, pilot v0.1.1 |
-| LLM-versterking via Ollama | Optioneel, aanwezig (`ollama_review.py`) |
+| Electron-app met wizard-UI | Werkend, pilot v0.1.1; v0.2.0 in ontwikkeling |
+| Controle achteraf via Ollama | Optioneel, aanwezig (`ollama_review.py`) |
+| Extra NER en twijfelrechter via Ollama | Nog niet; staan als "binnenkort" in Modellen beheren |
 | Open WebUI filter | Werkend, bevroren |
 
 ## Wat we bewust niet bouwen

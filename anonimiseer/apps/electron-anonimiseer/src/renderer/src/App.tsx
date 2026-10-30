@@ -10,10 +10,8 @@ import { RestorePanel } from './components/RestorePanel';
 import { Wizard } from './components/wizard/Wizard';
 import { useEngineHealth } from './hooks/useEngineHealth';
 import { useSettings } from './hooks/useSettings';
-import type { AppSettings } from '@shared/api';
-
 export function App(): JSX.Element {
-  const health = useEngineHealth();
+  const { health, recheck } = useEngineHealth();
   const { settings, update, reload } = useSettings();
   const [showModels, setShowModels] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -28,11 +26,9 @@ export function App(): JSX.Element {
   if (!settings.onboardingCompletedAt) {
     return (
       <Onboarding
-        initialProfile={settings.modelProfile}
-        onComplete={async ({ acceptedResponsibility, modelProfile }) => {
+        onComplete={async ({ acceptedResponsibility }) => {
           await update({
             acceptedResponsibility,
-            modelProfile,
             onboardingCompletedAt: new Date().toISOString(),
           });
         }}
@@ -44,7 +40,6 @@ export function App(): JSX.Element {
     <div className="flex min-h-screen flex-col">
       <Header
         state={health}
-        settings={settings}
         onResetOnboarding={async () => {
           await window.anonimiseer.settings.reset();
           await reload();
@@ -54,8 +49,8 @@ export function App(): JSX.Element {
         onOpenRestore={() => setShowRestore(true)}
       />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
-        {health.status === 'down' && <EngineOfflinePanel health={health} />}
-        <Wizard appSettings={settings} />
+        {health.status === 'down' && <EngineOfflinePanel health={health} onRetry={recheck} />}
+        <Wizard />
       </main>
       <Footer />
       <ModelManager open={showModels} onClose={() => setShowModels(false)} />
@@ -67,14 +62,12 @@ export function App(): JSX.Element {
 
 function Header({
   state,
-  settings,
   onResetOnboarding,
   onOpenModels,
   onOpenHelp,
   onOpenRestore,
 }: {
-  state: ReturnType<typeof useEngineHealth>;
-  settings: AppSettings;
+  state: ReturnType<typeof useEngineHealth>['health'];
   onResetOnboarding: () => Promise<void>;
   onOpenModels: () => void;
   onOpenHelp: () => void;
@@ -94,12 +87,7 @@ function Header({
               </h1>
               <PreviewDisclaimer />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Lokale PII-anonimisering · profiel{' '}
-              <span className="font-medium text-foreground/80 capitalize">
-                {settings.modelProfile}
-              </span>
-            </p>
+            <p className="text-xs text-muted-foreground">Lokale PII-anonimisering</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

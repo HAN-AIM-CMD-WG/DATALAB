@@ -18,17 +18,18 @@ Dat is bij deze versie verwacht gedrag.
 | Schijfruimte | ~700 MB | ~700 MB |
 | Internet | Niet nodig na installatie | Niet nodig na installatie |
 
-De installer bevat alle noodzakelijke onderdelen inclusief het Nederlandse
-taalmodel. Voor zwaardere modellen (SoNaR-BERT, Ollama LLM's) is eenmalig
-internet nodig om ze te downloaden — dat kan later via de Model Manager.
+De installer bevat alle noodzakelijke onderdelen, inclusief de Nederlandse
+taalmodellen (spaCy en SoNaR-BERT). Alleen voor extra modellen, zoals een lokaal
+Ollama-taalmodel, is eenmalig internet nodig; dat download je zelf via
+*Modellen beheren*.
 
 ---
 
 ## macOS
 
 1. Download het bestand dat bij je Mac past van de release-pagina:
-   - `Anonimiseer-0.1.0-arm64.dmg` voor **Apple Silicon** (M1, M2, M3, M4)
-   - `Anonimiseer-0.1.0.dmg` voor **Intel**-Macs
+   - `Anonimiseer-x.y.z-arm64.dmg` voor **Apple Silicon** (M1, M2, M3, M4)
+   - `Anonimiseer-x.y.z.dmg` voor **Intel**-Macs
 2. Dubbelklik op de `.dmg` — een venster toont `Anonimiseer.app`.
 3. Sleep `Anonimiseer.app` naar `Applications`.
 4. Open `Applications` → rechtsklik op `Anonimiseer` → **Openen** (niet dubbelklikken,
@@ -44,7 +45,7 @@ zie je `Apple M…` (arm64) of `Intel` (x64).
 
 ## Windows
 
-1. Download `Anonimiseer Setup 0.1.0.exe` van de release-pagina.
+1. Download `Anonimiseer Setup x.y.z.exe` van de release-pagina.
 2. Dubbelklik op de installer.
 3. SmartScreen toont een blauw venster *"Windows heeft uw pc beschermd"*.
    Klik op **Meer info** → **Toch uitvoeren**.

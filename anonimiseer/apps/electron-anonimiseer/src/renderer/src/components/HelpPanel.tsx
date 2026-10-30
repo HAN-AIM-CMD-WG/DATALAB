@@ -309,9 +309,10 @@ function QuickStart(): JSX.Element {
       <li>
         <span className="font-medium">Stap 4 — Opslaan.</span>{' '}
         Kies een map. Je krijgt de geanonimiseerde bestanden, een{' '}
-        <span className="font-mono">AUDIT.jsonl</span>, een{' '}
+        <span className="font-mono">audit.jsonl</span>, een{' '}
         <span className="font-mono">DISCLAIMER.txt</span>, en — bij pseudonimiseren —
-        een versleuteld mapping-bestand zodat je later nog kunt terugdraaien.
+        een versleuteld mapping-bestand waarmee je de pseudoniemen later kunt
+        terugzetten (knop <em>Terugzetten</em> bovenaan).
       </li>
     </ol>
   );
@@ -400,8 +401,8 @@ function ModelGuide(): JSX.Element {
 
 function PseudoVsAnon(): JSX.Element {
   const original = '"Anna Jansen (a.jansen@voorbeeld.nl) werkt bij Gemeente Utrecht."';
-  const pseudo = '"[PERSON_1] ([EMAIL_1]) werkt bij [ORG_1]."';
-  const anon = '"[PERSON] ([EMAIL]) werkt bij [ORG]."';
+  const pseudo = '"PERSON_1 (EMAIL_ADDRESS_1) werkt bij ORGANIZATION_1."';
+  const anon = '"[PERSON] ([EMAIL_ADDRESS]) werkt bij [ORGANIZATION]."';
   return (
     <div className="space-y-3">
       <div className="rounded-md border border-border/60 bg-muted/30 p-3">
@@ -418,9 +419,9 @@ function PseudoVsAnon(): JSX.Element {
           <p className="mt-1 font-mono text-[11px]">{pseudo}</p>
           <p className="mt-2 text-[11px]">
             Elke <em>unieke</em> waarde krijgt een stabiel label. Dezelfde persoon krijgt
-            overal <span className="font-mono">[PERSON_1]</span>.{' '}
+            overal <span className="font-mono">PERSON_1</span>.{' '}
             <span className="font-medium">Terugdraaien kan</span> met het versleutelde
-            mapping-bestand dat ernaast wordt opgeslagen.
+            mapping-bestand dat ernaast wordt opgeslagen, via <em>Terugzetten</em> bovenaan.
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
             Goed voor: samenwerking, data-analyse, verzamelde logs delen.
@@ -558,7 +559,7 @@ function Glossary(): JSX.Element {
     },
     {
       term: 'Pseudoniem',
-      def: 'Een neutrale tijdelijke naam (bv. [PERSON_1]). Dezelfde echte naam krijgt altijd hetzelfde pseudoniem, zodat context behouden blijft.',
+      def: 'Een neutrale tijdelijke naam (bv. PERSON_1). Dezelfde echte naam krijgt altijd hetzelfde pseudoniem, zodat context behouden blijft.',
     },
     {
       term: 'Mapping',

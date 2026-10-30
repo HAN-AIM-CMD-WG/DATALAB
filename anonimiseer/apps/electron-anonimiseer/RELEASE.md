@@ -27,10 +27,12 @@ met push-rechten op `HAN-AIM-CMD-WG/DATALAB`.
 
 ```bash
 cd packages/pii-engine
-pytest --ignore=tests/test_sonar.py     # 40/40 passed verwacht
+pytest                                  # alles groen
+ruff check . && mypy pii_engine
 
-# Engine draaien in een tweede terminal, dan:
+# Engine draaien in een tweede terminal (met PII_ENGINE_ENABLE_SONAR=true), dan:
 python scripts/score.py --fail-under 0.99   # ≥99% recall, 100% negatieve set
+# en de vergelijking met andere modellen, zie bench/README.md en docs/benchmarks.md
 
 cd ../../apps/electron-anonimiseer
 npm test                                # app-logica
@@ -55,8 +57,8 @@ npm install                             # alleen eerste keer / na lock-update
 npm run dist:mac:all                    # bundle:engine + dist:mac
 ```
 
-Output: `apps/electron-anonimiseer/release/Anonimiseer-X.Y.Z.dmg`
-(arm64 + x64 in één bestand, ~700 MB-1 GB).
+Output: twee bestanden in `apps/electron-anonimiseer/release/`:
+`Anonimiseer-X.Y.Z-arm64.dmg` (Apple Silicon) en `Anonimiseer-X.Y.Z.dmg` (Intel).
 
 ### Windows (.exe)
 
@@ -65,7 +67,7 @@ cd apps/electron-anonimiseer
 npm run dist:win:all                    # vereist Wine op macOS
 ```
 
-Output: `apps/electron-anonimiseer/release/Anonimiseer-Setup-X.Y.Z.exe`.
+Output: `apps/electron-anonimiseer/release/Anonimiseer Setup X.Y.Z.exe`.
 
 ### Linux (.AppImage) — optioneel
 
@@ -78,16 +80,17 @@ npm run dist:linux
 Open de gegenereerde installer/dmg lokaal:
 1. App installeren / drag-naar-Applications.
 2. Eerste keer openen (Gatekeeper-omweg op Mac, SmartScreen op Windows).
-3. Test-document slepen (`test.v2.md` uit ANONIMISER-workspace).
-4. Verwacht: ~225 hits gevonden, geen crashes in DevTools-console.
+3. Kopbalk: "Engine · Online", niet "Beperkt"; de versie onderaan klopt.
+4. Draai de end-to-end- en crashtest tegen de gebouwde app (zie
+   [`e2e/README.md`](e2e/README.md)); alles moet PASS zijn.
 
 ---
 
 ## 3. Tag + push
 
 ```bash
-# In de repo-root (DATALAB)
-VERSION="0.1.0"
+# In de repo-root (DATALAB); het versienummer uit package.json
+VERSION="X.Y.Z"
 git tag -a "anonimiseer-v${VERSION}" -m "Anonimiseer v${VERSION}"
 git push origin "anonimiseer-v${VERSION}"
 ```
@@ -99,22 +102,23 @@ git push origin "anonimiseer-v${VERSION}"
 ### Via GitHub CLI (aanbevolen)
 
 ```bash
-VERSION="0.1.0"
+VERSION="X.Y.Z"
 cd apps/electron-anonimiseer/release
 
 gh release create "anonimiseer-v${VERSION}" \
     --repo HAN-AIM-CMD-WG/DATALAB \
     --title "Anonimiseer v${VERSION}" \
     --notes-file ../RELEASE_NOTES_TEMPLATE.md \
+    Anonimiseer-${VERSION}-arm64.dmg \
     Anonimiseer-${VERSION}.dmg \
-    Anonimiseer-Setup-${VERSION}.exe
+    "Anonimiseer Setup ${VERSION}.exe"
 ```
 
 ### Via GitHub web UI
 
 1. Ga naar [Releases → Draft a new release](https://github.com/HAN-AIM-CMD-WG/DATALAB/releases/new).
-2. **Tag**: `anonimiseer-v0.1.0` (kies de bestaande tag).
-3. **Title**: `Anonimiseer v0.1.0`.
+2. **Tag**: `anonimiseer-vX.Y.Z` (kies de bestaande tag).
+3. **Title**: `Anonimiseer vX.Y.Z`.
 4. **Description**: kopieer uit `RELEASE_NOTES_TEMPLATE.md` en pas aan.
 5. Sleep `.dmg` + `.exe` (+ optioneel `.AppImage`) erin.
 6. Vink **"Set as the latest release"** aan (mits het echt de nieuwste van álle DATALAB-projecten is — anders alleen de tag-prefix laten doen wat hij doet).

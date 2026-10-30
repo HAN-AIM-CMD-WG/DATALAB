@@ -4,72 +4,58 @@ import {
   EyeOff,
   FileLock2,
   AlertTriangle,
-  CheckCircle2,
   ArrowRight,
   Check,
-  Gauge,
-  Sparkles,
-  Zap,
 } from 'lucide-react';
-import type { ModelProfile } from '@shared/api';
 import { cn } from '../lib/utils';
 
 /**
- * First-run onboarding (Fase 3.3).
+ * First-run onboarding.
  *
- * Drie stappen:
+ * Twee stappen:
  *   1. Welkom — wat Anonimiseer is en wat het *niet* is.
  *   2. Privacy & verantwoordelijkheid — lokaal verwerken, akkoordvinkje.
- *   3. Modelprofiel — Basis / Plus / Max (Plus is default).
+ *
+ * Modellen kies je niet hier maar in Modellen beheren, de enige plek die de
+ * engine ook echt aanstuurt.
  *
  * Resultaat wordt via ``onComplete`` teruggegeven aan de App, die het
  * atomisch opslaat in de settings-store en vervolgens de hoofd-UI toont.
  */
 
-type StepId = 'welcome' | 'responsibility' | 'profile';
-const STEPS: StepId[] = ['welcome', 'responsibility', 'profile'];
+type StepId = 'welcome' | 'responsibility';
+const STEPS: StepId[] = ['welcome', 'responsibility'];
 
 export function Onboarding({
-  initialProfile = 'plus',
   onComplete,
 }: {
-  initialProfile?: ModelProfile;
-  onComplete: (data: {
-    acceptedResponsibility: true;
-    modelProfile: ModelProfile;
-  }) => Promise<void> | void;
+  onComplete: (data: { acceptedResponsibility: true }) => Promise<void> | void;
 }): JSX.Element {
   const [step, setStep] = useState<StepId>('welcome');
   const [accepted, setAccepted] = useState(false);
-  const [profile, setProfile] = useState<ModelProfile>(initialProfile);
   const [submitting, setSubmitting] = useState(false);
 
   const stepIndex = STEPS.indexOf(step);
+  const lastStep = step === 'responsibility';
 
-  const canGoNext = (): boolean => {
-    if (step === 'welcome') return true;
-    if (step === 'responsibility') return accepted;
-    if (step === 'profile') return true;
-    return false;
-  };
+  const canGoNext = (): boolean => (step === 'responsibility' ? accepted : true);
 
   const next = async (): Promise<void> => {
     if (!canGoNext()) return;
-    if (step === 'welcome') setStep('responsibility');
-    else if (step === 'responsibility') setStep('profile');
-    else if (step === 'profile') {
-      setSubmitting(true);
-      try {
-        await onComplete({ acceptedResponsibility: true, modelProfile: profile });
-      } finally {
-        setSubmitting(false);
-      }
+    if (step === 'welcome') {
+      setStep('responsibility');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onComplete({ acceptedResponsibility: true });
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const back = (): void => {
     if (step === 'responsibility') setStep('welcome');
-    else if (step === 'profile') setStep('responsibility');
   };
 
   return (
@@ -94,9 +80,6 @@ export function Onboarding({
           {step === 'responsibility' && (
             <ResponsibilityStep accepted={accepted} onChange={setAccepted} />
           )}
-          {step === 'profile' && (
-            <ProfileStep value={profile} onChange={setProfile} />
-          )}
         </section>
 
         <div className="flex items-center justify-between">
@@ -117,7 +100,7 @@ export function Onboarding({
               'hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40'
             )}
           >
-            {step === 'profile' ? (
+            {lastStep ? (
               submitting ? (
                 <>Bezig…</>
               ) : (
@@ -140,7 +123,7 @@ export function Onboarding({
 }
 
 function Stepper({ current }: { current: number }): JSX.Element {
-  const labels = ['Welkom', 'Privacy', 'Modelprofiel'];
+  const labels = ['Welkom', 'Privacy'];
   return (
     <ol className="flex items-center gap-3 text-xs text-muted-foreground">
       {labels.map((label, idx) => {
@@ -255,7 +238,7 @@ function ResponsibilityStep({
         />
         <Fact
           title="Opslag van mappings"
-          body="Bij pseudonimisering wordt de mapping lokaal versleuteld opgeslagen. Verlies het wachtwoord niet — dan is de tekst niet meer herleidbaar."
+          body="Bij pseudonimisering wordt de mapping versleuteld opgeslagen, met een sleutel van je besturingssysteem. Alleen jij kunt de pseudoniemen daarmee terugzetten, en alleen op deze computer."
         />
         <Fact
           title="Niet feilloos"
@@ -289,134 +272,6 @@ function ResponsibilityStep({
         </span>
       </label>
     </div>
-  );
-}
-
-function ProfileStep({
-  value,
-  onChange,
-}: {
-  value: ModelProfile;
-  onChange: (value: ModelProfile) => void;
-}): JSX.Element {
-  return (
-    <div className="space-y-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Gauge className="h-5 w-5" aria-hidden />
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Kies een modelprofiel</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Bepaalt welke modellen Anonimiseer later zelf opstart.
-            Je kunt dit altijd wijzigen bij <em>Instellingen</em>.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-3">
-        <ProfileCard
-          id="basis"
-          label="Basis"
-          icon={<Zap className="h-4 w-4" aria-hidden />}
-          tagline="Licht & snel"
-          description="Alleen spaCy. Lichte CPU, snelle startup. Minder nauwkeurig bij namen met tussenvoegsels (van den Broek, ter Horst)."
-          selected={value === 'basis'}
-          onSelect={onChange}
-          recommended={false}
-        />
-        <ProfileCard
-          id="plus"
-          label="Plus"
-          icon={<Sparkles className="h-4 w-4" aria-hidden />}
-          tagline="Aanbevolen"
-          description="spaCy + SoNaR-BERT voor betere NL-personen/locaties/organisaties. ~440 MB eenmalige download."
-          selected={value === 'plus'}
-          onSelect={onChange}
-          recommended
-        />
-        <ProfileCard
-          id="max"
-          label="Max"
-          icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
-          tagline="Hoogste recall"
-          description="Plus-stack met alle aanvullende NL-recognizers (BSN-Elfproef, studentnr, uitgebreide patronen). Zwaarder, trager."
-          selected={value === 'max'}
-          onSelect={onChange}
-          recommended={false}
-        />
-      </div>
-
-      <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-        Tijdens deze preview draait de engine extern; je profielkeuze wordt
-        bewaard en toegepast zodra Anonimiseer de engine zelf opstart (Fase
-        3.8: PyInstaller-bundeling).
-      </p>
-    </div>
-  );
-}
-
-function ProfileCard({
-  id,
-  label,
-  icon,
-  tagline,
-  description,
-  selected,
-  onSelect,
-  recommended,
-}: {
-  id: ModelProfile;
-  label: string;
-  icon: JSX.Element;
-  tagline: string;
-  description: string;
-  selected: boolean;
-  onSelect: (value: ModelProfile) => void;
-  recommended: boolean;
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(id)}
-      className={cn(
-        'flex items-start gap-3 rounded-xl border p-4 text-left transition-colors',
-        selected
-          ? 'border-primary bg-primary/5 shadow-sm'
-          : 'border-border/70 hover:border-border hover:bg-muted/40'
-      )}
-      aria-pressed={selected}
-    >
-      <span
-        className={cn(
-          'mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-md',
-          selected ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
-        )}
-      >
-        {icon}
-      </span>
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{label}</span>
-          {recommended && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
-              Aanbevolen
-            </span>
-          )}
-          <span className="text-xs text-muted-foreground">· {tagline}</span>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      </div>
-      <span
-        className={cn(
-          'mt-1 flex h-5 w-5 flex-none items-center justify-center rounded-full border',
-          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
-        )}
-        aria-hidden
-      >
-        {selected && <Check className="h-3 w-3" />}
-      </span>
-    </button>
   );
 }
 
