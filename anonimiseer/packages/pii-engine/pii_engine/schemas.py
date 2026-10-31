@@ -46,6 +46,17 @@ class ActiveModelInfo(BaseModel):
     )
 
 
+class CustomTermSchema(BaseModel):
+    """Een eigen begrip uit een organisatieprofiel."""
+
+    label: str = Field(..., min_length=1, max_length=40)
+    description: str = Field(default="", max_length=300)
+
+
+class ActiveCustomTerm(CustomTermSchema):
+    entity_type: str = Field(..., description="Bv. 'TERM_DOSSIERNUMMER'.")
+
+
 class EngineConfigRequest(BaseModel):
     """Wijzig runtime welke modellen Anonimiseer in de pipeline laadt.
 
@@ -74,6 +85,16 @@ class EngineConfigRequest(BaseModel):
     enable_pii_model: bool | None = Field(
         default=None,
         description="Schakel het extra PII-model (bardsai) in/uit; moet gedownload zijn.",
+    )
+    profile_name: str | None = Field(
+        default=None, max_length=80, description="Naam van het actieve organisatieprofiel."
+    )
+    custom_terms: list[CustomTermSchema] | None = Field(
+        default=None,
+        description=(
+            "Eigen begrippen van het profiel; leeg = geen. Vereist het model voor eigen "
+            "begrippen (GLiNER2)."
+        ),
     )
     ollama_model: str | None = Field(
         default=None,
@@ -115,6 +136,9 @@ class ActiveEngineResponse(BaseModel):
     sonar_model: str | None = None
     sonar_state: Literal["off", "loading", "loaded", "failed"] = "off"
     pii_model_state: Literal["off", "loading", "loaded", "failed"] = "off"
+    profile_name: str = ""
+    custom_terms: list[ActiveCustomTerm] = Field(default_factory=list)
+    custom_terms_state: Literal["off", "loading", "loaded", "failed"] = "off"
     limitations: list[str] = Field(
         default_factory=list,
         description="Zie ``HealthResponse.limitations``.",

@@ -52,6 +52,7 @@ from pii_engine.recognizers import (
     PiiModelRecognizer,
     StageOrganizationRecognizer,
 )
+from pii_engine.recognizers.custom_terms import CustomTerm, CustomTermsRecognizer
 from pii_engine.runtime import effective_settings
 
 logger = logging.getLogger(__name__)
@@ -211,6 +212,15 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
         )
         registry.add_recognizer(pii_model)
         pii_model.warm_up()
+    if settings.custom_terms:
+        custom_terms = CustomTermsRecognizer(
+            [CustomTerm(t["label"], t.get("description", "")) for t in settings.custom_terms],
+            supported_language="nl",
+            model_name=settings.custom_terms_model,
+            threshold=settings.custom_terms_threshold,
+        )
+        registry.add_recognizer(custom_terms)
+        custom_terms.warm_up()
 
     nlp_engine = _build_nlp_engine(settings)
     analyzer = AnalyzerEngine(

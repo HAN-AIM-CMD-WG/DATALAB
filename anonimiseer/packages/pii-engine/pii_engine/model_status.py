@@ -29,6 +29,7 @@ class PipelineStatus:
     sonar_model: str | None
     pii_model_state: ModelState = "off"
     pii_model: str | None = None
+    custom_terms_state: ModelState = "off"
     limitations: list[str] = field(default_factory=list)
 
 
@@ -96,6 +97,15 @@ def pipeline_status(analyzer: AnalyzerEngine, settings: Settings) -> PipelineSta
         "Er wordt gezocht zonder deze extra laag.",
         limitations,
     )
+    profile = settings.profile_name or "dit profiel"
+    custom_terms_state = _model_state(
+        analyzer,
+        "CustomTermsRecognizer",
+        bool(settings.custom_terms),
+        f"Het model voor de eigen begrippen van {profile}",
+        "Die begrippen worden nu niet gezocht.",
+        limitations,
+    )
 
     return PipelineStatus(
         spacy_model=spacy_model,
@@ -103,5 +113,6 @@ def pipeline_status(analyzer: AnalyzerEngine, settings: Settings) -> PipelineSta
         sonar_model=settings.sonar_model if sonar_state != "off" else None,
         pii_model_state=pii_model_state,
         pii_model=settings.pii_model if pii_model_state != "off" else None,
+        custom_terms_state=custom_terms_state,
         limitations=limitations,
     )

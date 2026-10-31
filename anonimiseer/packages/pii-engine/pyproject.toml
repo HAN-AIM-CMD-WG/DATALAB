@@ -56,6 +56,8 @@ bundle = [
 sonar = [
     "transformers>=4.46.0",
     "torch>=2.3.0",
+    # Runs the custom-terms model (GLiNER2) of an organisation profile.
+    "gliner2>=2.1.0",
 ]
 dev = [
     "pytest>=8.3.0",

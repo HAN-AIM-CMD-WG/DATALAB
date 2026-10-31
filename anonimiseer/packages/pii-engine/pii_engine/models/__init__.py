@@ -194,6 +194,23 @@ _HF_MODELS: list[ModelDescriptor] = [
         role="pii",
         on_demand=True,
     ),
+    ModelDescriptor(
+        id="hf:fastino/gliner2-privacy-filter-PII-multi",
+        label="GLiNER2-PII (eigen begrippen)",
+        kind="hf",
+        description=(
+            "Zoekt de eigen begrippen uit het profiel van je organisatie, zoals een"
+            " dossiernummer of projectcode, op basis van alleen de naam en een korte"
+            " omschrijving. Nodig zodra een profiel eigen begrippen heeft. ~1,1 GB."
+        ),
+        size_mb=1150,
+        install_target="fastino/gliner2-privacy-filter-PII-multi",
+        min_ram_mb=3072,
+        license="Apache-2.0",
+        license_url="https://huggingface.co/fastino/gliner2-privacy-filter-PII-multi",
+        role="custom-terms",
+        on_demand=True,
+    ),
 ]
 
 

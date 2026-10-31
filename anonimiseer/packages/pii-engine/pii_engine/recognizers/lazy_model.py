@@ -13,7 +13,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 if TYPE_CHECKING:
@@ -78,6 +78,24 @@ class LazyModel(Generic[T]):
                 raise
             logger.info("Model geladen: %s", self._name)
             return self._value
+
+
+def text_windows(text: str, size: int, overlap: int) -> Iterator[tuple[int, str]]:
+    """Overlapping chunks for a model with a limited input, cut at a line break
+    or space so no name is cut in half. Yields ``(offset, chunk)``."""
+    start = 0
+    while start < len(text):
+        end = min(len(text), start + size)
+        if end < len(text):
+            cut = max(
+                text.rfind("\n", start + size // 2, end), text.rfind(" ", start + size // 2, end)
+            )
+            if cut > start:
+                end = cut
+        yield start, text[start:end]
+        if end >= len(text):
+            return
+        start = max(end - overlap, start + 1)
 
 
 def require_local_hf_model(repo_id: str) -> str:

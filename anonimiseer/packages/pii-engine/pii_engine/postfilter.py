@@ -104,6 +104,10 @@ ENTITY_PRIORITY: dict[str, int] = {
 
 
 def _priority(entity_type: str) -> int:
+    # An organisation's own terms rank with the identifiers: the profile says
+    # they matter, so they beat a date or a name read inside them.
+    if entity_type.startswith("TERM_"):
+        return 3
     return ENTITY_PRIORITY.get(entity_type, 999)
 
 

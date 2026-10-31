@@ -42,7 +42,9 @@ from pii_engine.config import get_settings
 from pii_engine.documents import restore
 from pii_engine.model_status import pipeline_status
 from pii_engine.postfilter import filter_overlaps
+from pii_engine.recognizers.custom_terms import term_entity_type
 from pii_engine.schemas import (
+    ActiveCustomTerm,
     ActiveEngineResponse,
     ActiveModelInfo,
     AnalysisItem,
@@ -147,6 +149,13 @@ def create_app() -> FastAPI:
             proof=_health_proof(settings.auth_token, nonce),
         )
 
+    def with_profile_terms(entities: list[str] | None) -> list[str] | None:
+        """The active profile's own terms are always searched; switching profile turns them off."""
+        if entities is None:
+            return None
+        terms = runtime.effective_settings().custom_terms
+        return [*entities, *(term_entity_type(t["label"]) for t in terms)]
+
     @app.post("/analyze", response_model=AnalyzeResponse, tags=["pii"])
     def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         analyzer = get_default_analyzer()
@@ -154,7 +163,7 @@ def create_app() -> FastAPI:
             results = analyzer.analyze(
                 text=req.text,
                 language=req.language,
-                entities=req.entities,
+                entities=with_profile_terms(req.entities),
                 score_threshold=req.score_threshold,
                 return_decision_process=True,
             )
@@ -182,7 +191,7 @@ def create_app() -> FastAPI:
             results = analyzer.analyze(
                 text=req.text,
                 language=req.language,
-                entities=req.entities,
+                entities=with_profile_terms(req.entities),
                 score_threshold=req.score_threshold,
                 return_decision_process=True,
             )
@@ -411,6 +420,16 @@ def create_app() -> FastAPI:
             sonar_model=status.sonar_model,
             sonar_state=status.sonar_state,
             pii_model_state=status.pii_model_state,
+            profile_name=active_settings.profile_name,
+            custom_terms=[
+                ActiveCustomTerm(
+                    label=t["label"],
+                    description=t.get("description", ""),
+                    entity_type=term_entity_type(t["label"]),
+                )
+                for t in active_settings.custom_terms
+            ],
+            custom_terms_state=status.custom_terms_state,
             limitations=status.limitations,
             han_edu_enabled=active_settings.enable_han_edu,
             score_threshold=active_settings.default_score_threshold,
@@ -436,6 +455,12 @@ def create_app() -> FastAPI:
                 sonar_model=req.sonar_model,
                 enable_han_edu=req.enable_han_edu,
                 enable_pii_model=req.enable_pii_model,
+                profile_name=req.profile_name,
+                custom_terms=(
+                    [(t.label, t.description) for t in req.custom_terms]
+                    if req.custom_terms is not None
+                    else None
+                ),
                 ollama_model=req.ollama_model,
                 ollama_review_enabled=req.ollama_review_enabled,
                 ollama_extra_ner_enabled=req.ollama_extra_ner_enabled,

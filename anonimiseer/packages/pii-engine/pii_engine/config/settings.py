@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     enable_pii_model: bool = False
     pii_model: str = "bardsai/eu-pii-anonimization-multilang-v3"
     pii_model_score_min: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Organisation profile: its name and own terms (label + description), set
+    # by the app through /engine/config. Terms need the custom-terms model.
+    profile_name: str = ""
+    custom_terms: list[dict[str, str]] = Field(default_factory=list)
+    custom_terms_model: str = "fastino/gliner2-privacy-filter-PII-multi"
+    custom_terms_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
     enable_nl_phone: bool = True
     enable_nl_date: bool = True
     enable_intl_address: bool = True

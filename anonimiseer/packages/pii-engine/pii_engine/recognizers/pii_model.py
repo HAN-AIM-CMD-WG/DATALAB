@@ -15,13 +15,18 @@ only, in the background, like SoNaR.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from presidio_analyzer import AnalysisExplanation, EntityRecognizer, RecognizerResult
 from presidio_analyzer.nlp_engine import NlpArtifacts
 
-from pii_engine.recognizers.lazy_model import LazyModel, LoadState, local_token_classifier
+from pii_engine.recognizers.lazy_model import (
+    LazyModel,
+    LoadState,
+    local_token_classifier,
+    text_windows,
+)
 from pii_engine.validation import digits_only, iban_valid, is_valid_bsn, luhn_valid
 
 if TYPE_CHECKING:
@@ -69,23 +74,6 @@ def _identifier_type(value: str) -> str | None:
     if _NUMBER.fullmatch(value) and len(digits_only(value)) in (8, 9):
         return "NL_BSN" if is_valid_bsn(value) else None
     return "PERSON_IDENTIFIER"
-
-
-def _windows(text: str, size: int = 2000, overlap: int = 200) -> Iterator[tuple[int, str]]:
-    """Overlapping chunks, cut at a line break or space, so no name is cut in half."""
-    start = 0
-    while start < len(text):
-        end = min(len(text), start + size)
-        if end < len(text):
-            cut = max(
-                text.rfind("\n", start + size // 2, end), text.rfind(" ", start + size // 2, end)
-            )
-            if cut > start:
-                end = cut
-        yield start, text[start:end]
-        if end >= len(text):
-            return
-        start = max(end - overlap, start + 1)
 
 
 class PiiModelRecognizer(EntityRecognizer):
@@ -184,7 +172,7 @@ class PiiModelRecognizer(EntityRecognizer):
             return []
 
         best: dict[tuple[int, int, str], RecognizerResult] = {}
-        for offset, chunk in _windows(text):
+        for offset, chunk in text_windows(text, size=2000, overlap=200):
             raw: list[dict[str, Any]] = pipe(chunk)
             for ent in raw:
                 result = self._to_result(

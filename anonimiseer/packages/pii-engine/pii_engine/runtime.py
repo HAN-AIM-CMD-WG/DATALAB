@@ -16,6 +16,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import threading
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -43,6 +44,9 @@ class RuntimeConfig:
     enable_han_edu: bool | None = None
     # Extra PII-model (bardsai); alleen aan als het gedownload is.
     enable_pii_model: bool | None = None
+    # Organisatieprofiel: naam en eigen begrippen als (label, omschrijving).
+    profile_name: str | None = None
+    custom_terms: tuple[tuple[str, str], ...] | None = None
     # Ollama integraties. ``ollama_model`` = tagnaam zoals in
     # ``ollama list`` (bv. ``qwen3.5:4b``). De drie flags zijn opt-in
     # zodat Ollama-aanwezigheid alleen bewust meedoet aan detectie.
@@ -70,6 +74,16 @@ def _optional_bool(raw: dict[str, object], key: str) -> bool | None:
     return bool(raw[key])
 
 
+def _stored_terms(raw: object) -> tuple[tuple[str, str], ...] | None:
+    if not isinstance(raw, list):
+        return None
+    return tuple(
+        (str(item[0]), str(item[1]))
+        for item in raw
+        if isinstance(item, (list, tuple)) and len(item) == 2
+    )
+
+
 def _load_from_disk() -> RuntimeConfig:
     path = _config_path()
     if not path.exists():
@@ -85,6 +99,8 @@ def _load_from_disk() -> RuntimeConfig:
         sonar_model=raw.get("sonar_model") or None,
         enable_han_edu=_optional_bool(raw, "enable_han_edu"),
         enable_pii_model=_optional_bool(raw, "enable_pii_model"),
+        profile_name=raw.get("profile_name") or None,
+        custom_terms=_stored_terms(raw.get("custom_terms")),
         ollama_model=raw.get("ollama_model") or None,
         ollama_review_enabled=_optional_bool(raw, "ollama_review_enabled"),
         ollama_extra_ner_enabled=_optional_bool(raw, "ollama_extra_ner_enabled"),
@@ -127,6 +143,13 @@ def effective_settings() -> Settings:
         changes["enable_han_edu"] = override.enable_han_edu
     if override.enable_pii_model is not None:
         changes["enable_pii_model"] = override.enable_pii_model
+    if override.profile_name is not None:
+        changes["profile_name"] = override.profile_name
+    if override.custom_terms is not None:
+        changes["custom_terms"] = [
+            {"label": label, "description": description}
+            for label, description in override.custom_terms
+        ]
     if not changes:
         return base
     # Pydantic BaseSettings ondersteunt model_copy(update=...).
@@ -164,6 +187,27 @@ def _require_hf_model(repo: str, what: str) -> None:
         )
 
 
+MAX_TERMS = 25
+_TERM_LABEL = re.compile(r"[\w][\w \-/]{0,39}")
+
+
+def _validate_terms(terms: list[tuple[str, str]]) -> None:
+    if len(terms) > MAX_TERMS:
+        raise RuntimeConfigError(f"Een profiel mag hoogstens {MAX_TERMS} eigen begrippen hebben.")
+    seen: set[str] = set()
+    for label, description in terms:
+        if not _TERM_LABEL.fullmatch(label.strip()):
+            raise RuntimeConfigError(
+                f"Begrip '{label}' is ongeldig: 1 tot 40 letters, cijfers, spaties of streepjes."
+            )
+        if len(description) > 300:
+            raise RuntimeConfigError(f"De omschrijving van '{label}' is langer dan 300 tekens.")
+        key = label.strip().lower()
+        if key in seen:
+            raise RuntimeConfigError(f"Begrip '{label}' staat dubbel in het profiel.")
+        seen.add(key)
+
+
 def _validate(
     *,
     spacy_model: str | None,
@@ -175,7 +219,11 @@ def _validate(
     ollama_extra_ner_enabled: bool | None,
     ollama_borderline_enabled: bool | None,
     enable_pii_model: bool | None = None,
+    custom_terms: list[tuple[str, str]] | None = None,
 ) -> None:
+    if custom_terms:
+        _validate_terms(custom_terms)
+        _require_hf_model(get_settings().custom_terms_model, "model voor eigen begrippen")
     if spacy_model:
         descriptor = REGISTRY_BY_ID.get(f"spacy:{spacy_model}")
         if descriptor is None:
@@ -230,6 +278,8 @@ def apply(
     ollama_extra_ner_enabled: bool | None = None,
     ollama_borderline_enabled: bool | None = None,
     enable_pii_model: bool | None = None,
+    profile_name: str | None = None,
+    custom_terms: list[tuple[str, str]] | None = None,
 ) -> RuntimeConfig:
     """Pas de runtime-overrides aan, sla op en leeg de analyzer-cache.
 
@@ -249,6 +299,7 @@ def apply(
         ollama_extra_ner_enabled=ollama_extra_ner_enabled,
         ollama_borderline_enabled=ollama_borderline_enabled,
         enable_pii_model=enable_pii_model,
+        custom_terms=custom_terms,
     )
 
     with _LOCK:
@@ -263,6 +314,12 @@ def apply(
             ),
             enable_pii_model=(
                 enable_pii_model if enable_pii_model is not None else current.enable_pii_model
+            ),
+            profile_name=profile_name if profile_name is not None else current.profile_name,
+            custom_terms=(
+                tuple((label.strip(), description.strip()) for label, description in custom_terms)
+                if custom_terms is not None
+                else current.custom_terms
             ),
             ollama_model=ollama_model if ollama_model is not None else current.ollama_model,
             ollama_review_enabled=(
