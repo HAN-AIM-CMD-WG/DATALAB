@@ -147,6 +147,10 @@ async function fetchActive(): Promise<ActiveEngineResponse> {
   }
 }
 
+function modelState(value: unknown): 'off' | 'loading' | 'loaded' | 'failed' {
+  return value === 'loading' || value === 'loaded' || value === 'failed' ? value : 'off';
+}
+
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : [];
 }
@@ -188,10 +192,8 @@ function parseActiveBody(data: unknown): ActiveEngineResponse {
       spacyModel: typeof obj.spacy_model === 'string' ? obj.spacy_model : '—',
       sonarEnabled: Boolean(obj.sonar_enabled),
       sonarModel: typeof obj.sonar_model === 'string' ? obj.sonar_model : null,
-      sonarState:
-        obj.sonar_state === 'loading' || obj.sonar_state === 'loaded' || obj.sonar_state === 'failed'
-          ? obj.sonar_state
-          : 'off',
+      sonarState: modelState(obj.sonar_state),
+      piiModelState: modelState(obj.pii_model_state),
       limitations: stringList(obj.limitations),
       hanEduEnabled:
         typeof obj.han_edu_enabled === 'boolean' ? obj.han_edu_enabled : true,
@@ -340,6 +342,7 @@ export function registerEngineBridge(): void {
     if (typeof patch?.enableSonar === 'boolean') body.enable_sonar = patch.enableSonar;
     if (typeof patch?.sonarModel === 'string') body.sonar_model = patch.sonarModel;
     if (typeof patch?.enableHanEdu === 'boolean') body.enable_han_edu = patch.enableHanEdu;
+    if (typeof patch?.enablePiiModel === 'boolean') body.enable_pii_model = patch.enablePiiModel;
     if (typeof patch?.ollamaModel === 'string') body.ollama_model = patch.ollamaModel;
     if (typeof patch?.ollamaReviewEnabled === 'boolean')
       body.ollama_review_enabled = patch.ollamaReviewEnabled;

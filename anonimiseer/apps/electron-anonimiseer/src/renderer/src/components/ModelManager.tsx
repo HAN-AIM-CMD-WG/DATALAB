@@ -37,12 +37,38 @@ import { ollamaInstalled } from './ollamaCatalog';
 import { cn } from '../lib/utils';
 import { statusIcon, statusPanel } from '../lib/statusStyles';
 
-const SONAR_STATE_LABEL: Record<ActiveEngineInfo['sonarState'], string> = {
+const LAYER_STATE_LABEL: Record<ActiveEngineInfo['sonarState'], string> = {
   off: 'Uit',
   loading: 'Laden…',
   loaded: 'Aan',
   failed: 'Niet geladen',
 };
+
+/** On/off state of an optional model layer, as a small badge. */
+function LayerState({
+  label,
+  state,
+}: {
+  label: string;
+  state: ActiveEngineInfo['sonarState'];
+}): JSX.Element {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]',
+          state === 'loaded'
+            ? 'border-border/70 bg-background text-foreground/70'
+            : 'border-border/60 bg-muted/40 text-muted-foreground'
+        )}
+      >
+        {state === 'loaded' && <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />}
+        {LAYER_STATE_LABEL[state]}
+      </span>
+    </span>
+  );
+}
 
 interface ModelManagerProps {
   open: boolean;
@@ -471,6 +497,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
   // Switched on, whether it is still loading, loaded or failed to load: only
   // then can the user switch a failed model off again.
   const sonarSwitchedOn = activeEngine !== null && activeEngine.sonarState !== 'off';
+  const piiSwitchedOn = activeEngine !== null && activeEngine.piiModelState !== 'off';
 
   const activateSpacy = useCallback(
     (model: ModelInfo) =>
@@ -499,6 +526,18 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
       );
     },
     [applyPipeline, sonarRepoActive, sonarSwitchedOn]
+  );
+
+  const togglePiiModel = useCallback(
+    (model: ModelInfo) =>
+      applyPipeline(
+        { enablePiiModel: !piiSwitchedOn },
+        `toggle:${model.id}`,
+        piiSwitchedOn
+          ? `${model.label} uitgezet.`
+          : `${model.label} aangezet — het laden kan een halve minuut duren.`
+      ),
+    [applyPipeline, piiSwitchedOn]
   );
 
   const toggleHanEdu = useCallback(
@@ -669,13 +708,12 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             {models &&
               models.length > 0 &&
               (() => {
-                const isSonarModel = (m: ModelInfo): boolean =>
-                  m.kind === 'hf' && m.installTarget.includes('sonar');
                 const renderRow = (m: ModelInfo): JSX.Element => {
-                  const isSpacy = m.kind === 'spacy';
-                  const isSonar = isSonarModel(m);
+                  const isSpacy = m.role === 'nlp';
+                  const isSonar = m.role === 'ner';
+                  const isPiiModel = m.role === 'pii';
                   // BERTje en vrienden zijn base-modellen zonder NER-hoofd.
-                  const isBaseModel = m.kind === 'hf' && !isSonar;
+                  const isBaseModel = m.role === 'base';
                   const isActive = activeModelIds.has(m.id);
                   const sonarOnDifferentRepo =
                     isSonar && sonarSwitchedOn && sonarRepoActive !== m.installTarget;
@@ -701,6 +739,15 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                       disabled: !m.installed || pipelineBusy !== null || sonarOnDifferentRepo,
                       onClick: () => void toggleSonar(m),
                     };
+                  } else if (isPiiModel) {
+                    activate = {
+                      label: piiSwitchedOn ? 'Uitschakelen' : 'Inschakelen',
+                      icon: piiSwitchedOn ? 'power-off' : 'power',
+                      variant: 'toggle',
+                      busy: pipelineBusy === `toggle:${m.id}`,
+                      disabled: !m.installed || pipelineBusy !== null,
+                      onClick: () => void togglePiiModel(m),
+                    };
                   } else if (isBaseModel) {
                     roleNote =
                       'Basis-model zonder NER-hoofd — niet zelfstandig bruikbaar. Het is het fundament waarop SoNaR-BERT is getraind.';
@@ -719,11 +766,10 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                   );
                 };
 
-                const spacyModels = models.filter((m) => m.kind === 'spacy');
-                const sonarModels = models.filter(isSonarModel);
-                const baseModels = models.filter(
-                  (m) => m.kind === 'hf' && !isSonarModel(m)
-                );
+                const spacyModels = models.filter((m) => m.role === 'nlp');
+                const sonarModels = models.filter((m) => m.role === 'ner');
+                const piiModels = models.filter((m) => m.role === 'pii');
+                const baseModels = models.filter((m) => m.role === 'base');
 
                 return (
                   <div className="space-y-4">
@@ -744,6 +790,17 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                         description="Draait náást spaCy en vangt Nederlandse namen die spaCy mist. Laat 'm aan voor de beste recall; uitzetten kan om RAM te besparen."
                       >
                         {sonarModels.map(renderRow)}
+                      </ModelGroup>
+                    )}
+
+                    {piiModels.length > 0 && (
+                      <ModelGroup
+                        tone="optional"
+                        title="Extra laag voor persoonsgegevens"
+                        badge="Optioneel · download"
+                        description="Een algemeen PII-model dat meeleest. Vindt losse voornamen en waarden in tabellen die de regels missen; elk nummer gaat door dezelfde controles (Elfproef, IBAN). Kost ~1,1 GB schijfruimte en ~3 GB werkgeheugen."
+                      >
+                        {piiModels.map(renderRow)}
                       </ModelGroup>
                     )}
 
@@ -956,22 +1013,9 @@ function ActiveEnginePanel({
               herkenningsregels
             </span>
             <span className="h-3 w-px bg-border" aria-hidden />
-            <span className="inline-flex items-center gap-1.5">
-              SoNaR-BERT
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]',
-                  info.sonarEnabled
-                    ? 'border-border/70 bg-background text-foreground/70'
-                    : 'border-border/60 bg-muted/40 text-muted-foreground'
-                )}
-              >
-                {info.sonarEnabled && (
-                  <span className="h-1 w-1 rounded-full bg-primary" aria-hidden />
-                )}
-                {SONAR_STATE_LABEL[info.sonarState]}
-              </span>
-            </span>
+            <LayerState label="SoNaR-BERT" state={info.sonarState} />
+            <span className="h-3 w-px bg-border" aria-hidden />
+            <LayerState label="PII-model" state={info.piiModelState} />
             {info.recognizers.length > 0 && (
               <details className="group ml-auto w-full sm:w-auto">
                 <summary className="inline-flex cursor-pointer select-none list-none items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">

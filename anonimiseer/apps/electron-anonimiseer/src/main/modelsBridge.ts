@@ -13,12 +13,14 @@ import { app, ipcMain, shell } from 'electron';
 import type {
   ModelInfo,
   ModelListResponse,
+  ModelRole,
   ModelTask,
   ModelTaskResponse,
   OllamaPresence,
 } from '@shared/api';
 
 const execAsync = promisify(exec);
+const MODEL_ROLES = new Set<ModelRole>(['nlp', 'ner', 'pii', 'custom-terms', 'base']);
 
 /**
  * Bekende install-paden per platform — handig om de CLI te vinden
@@ -88,6 +90,7 @@ async function listModels(): Promise<ModelListResponse> {
         gpu_recommended?: boolean;
         license?: string;
         license_url?: string;
+        role?: string;
       }>;
     };
     const models: ModelInfo[] = json.models.map((m) => ({
@@ -103,6 +106,7 @@ async function listModels(): Promise<ModelListResponse> {
       gpuRecommended: m.gpu_recommended ?? false,
       license: m.license ?? 'Onbekend',
       licenseUrl: m.license_url ?? '',
+      role: MODEL_ROLES.has(m.role as ModelRole) ? (m.role as ModelRole) : 'base',
     }));
     return { ok: true, models };
   } catch (err) {

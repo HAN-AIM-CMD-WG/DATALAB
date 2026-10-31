@@ -93,6 +93,8 @@ export interface ActiveEngineInfo {
   sonarModel: string | null;
   /** ``loading`` right after start; ``failed`` comes with a limitation. */
   sonarState: 'off' | 'loading' | 'loaded' | 'failed';
+  /** Same, for the extra PII model. */
+  piiModelState: 'off' | 'loading' | 'loaded' | 'failed';
   /** See ``EngineHealthOk.limitations``. */
   limitations: string[];
   /** HAN-/onderwijsprofiel actief? Zet klas-, cursus-, CROHO-, medewerker-
@@ -121,6 +123,8 @@ export interface EngineConfigPatch {
   /** Schakel HAN-/onderwijsprofiel aan/uit (klas, cursus, CROHO, medewerker,
    *  mentor-/docent-label). */
   enableHanEdu?: boolean;
+  /** Schakel het extra PII-model in of uit (moet gedownload zijn). */
+  enablePiiModel?: boolean;
   /** Ollama-tag (bv. ``qwen3.5:4b``) voor alle LLM-rollen. */
   ollamaModel?: string;
   /** Schakel de LLM-review-laag aan/uit. */
@@ -261,7 +265,15 @@ export interface ModelInfo {
   license: string;
   /** Waar die licentie te vinden is; leeg als er geen bron bekend is. */
   licenseUrl: string;
+  /**
+   * What the model does: the spaCy pipeline (``nlp``), an extra NER layer
+   * (``ner``, SoNaR), an extra PII model (``pii``), the organisation's own
+   * terms (``custom-terms``), or a foundation without NER head (``base``).
+   */
+  role: ModelRole;
 }
+
+export type ModelRole = 'nlp' | 'ner' | 'pii' | 'custom-terms' | 'base';
 
 export interface SystemInfo {
   platform: NodeJS.Platform;

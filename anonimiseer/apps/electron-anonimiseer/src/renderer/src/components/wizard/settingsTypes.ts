@@ -79,7 +79,7 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
     id: 'ids',
     label: 'ID- en bedrijfsnummers',
     description:
-      'Overheids- en zorgnummers en interne dossiers: KvK, BTW, BIG, AGB, rijbewijs, polisnummer, studenten-/personeelsnummer, OV-chipkaart, Belgisch rijksregister én patiënt-/dossier-/zaaknummers.',
+      'Overheids- en zorgnummers en interne dossiers: KvK, BTW, BIG, AGB, rijbewijs, polisnummer, studenten-/personeelsnummer, OV-chipkaart, Belgisch rijksregister, patiënt-/dossier-/zaaknummers en, met het extra PII-model, paspoort- en klantnummers.',
     example: 'KvK 34567890, BIG 19912345601, PAT-2026-001234',
     entityTypes: [
       'NL_STUDENT_ID',
@@ -94,6 +94,7 @@ export const ENTITY_CATEGORIES: EntityCategory[] = [
       'NL_OV_CHIPKAART',
       'BE_RIJKSREGISTER',
       'INTERNAL_CASE_NUMBER',
+      'PERSON_IDENTIFIER',
     ],
     defaultOn: true,
   },
