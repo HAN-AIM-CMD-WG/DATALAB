@@ -43,6 +43,7 @@ from pii_engine.recognizers.nl_postcode import NlPostcodeRecognizer
 from pii_engine.recognizers.nl_studentnr import NlStudentnrRecognizer
 from pii_engine.recognizers.online_identifiers import OnlineIdentifierRecognizer
 from pii_engine.recognizers.personal_url import PersonalUrlRecognizer
+from pii_engine.recognizers.pii_model import PiiModelRecognizer
 
 __all__ = [
     "BANK_NAMES",
@@ -81,6 +82,7 @@ __all__ = [
     "NlStudentnrRecognizer",
     "OnlineIdentifierRecognizer",
     "PersonalUrlRecognizer",
+    "PiiModelRecognizer",
     "StageOrganizationRecognizer",
     "is_valid_bsn",
 ]

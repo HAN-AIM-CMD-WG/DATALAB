@@ -41,6 +41,8 @@ class RuntimeConfig:
     # en mentor-recognizers aan of uit zonder engine-restart. ``None``
     # betekent: gebruik de env-var/Settings-default (in de pilot: True).
     enable_han_edu: bool | None = None
+    # Extra PII-model (bardsai); alleen aan als het gedownload is.
+    enable_pii_model: bool | None = None
     # Ollama integraties. ``ollama_model`` = tagnaam zoals in
     # ``ollama list`` (bv. ``qwen3.5:4b``). De drie flags zijn opt-in
     # zodat Ollama-aanwezigheid alleen bewust meedoet aan detectie.
@@ -82,6 +84,7 @@ def _load_from_disk() -> RuntimeConfig:
         enable_sonar=_optional_bool(raw, "enable_sonar"),
         sonar_model=raw.get("sonar_model") or None,
         enable_han_edu=_optional_bool(raw, "enable_han_edu"),
+        enable_pii_model=_optional_bool(raw, "enable_pii_model"),
         ollama_model=raw.get("ollama_model") or None,
         ollama_review_enabled=_optional_bool(raw, "ollama_review_enabled"),
         ollama_extra_ner_enabled=_optional_bool(raw, "ollama_extra_ner_enabled"),
@@ -122,6 +125,8 @@ def effective_settings() -> Settings:
         changes["sonar_model"] = override.sonar_model
     if override.enable_han_edu is not None:
         changes["enable_han_edu"] = override.enable_han_edu
+    if override.enable_pii_model is not None:
+        changes["enable_pii_model"] = override.enable_pii_model
     if not changes:
         return base
     # Pydantic BaseSettings ondersteunt model_copy(update=...).
@@ -137,6 +142,28 @@ def _is_cloud_model(name: str) -> bool:
     return tag.endswith((":cloud", "-cloud")) or ":cloud-" in tag
 
 
+def _require_hf_model(repo: str, what: str) -> None:
+    """The model must be in the registry, downloaded, and runnable here."""
+    try:
+        import torch  # noqa: F401
+        import transformers  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeConfigError(
+            f"Het {what} vereist de extra 'sonar' (transformers + torch); "
+            "die is niet geïnstalleerd in deze engine."
+        ) from exc
+    descriptor = REGISTRY_BY_ID.get(f"hf:{repo}")
+    # Only models from the registry: any other name would make the engine
+    # fetch an arbitrary repository from HuggingFace.
+    if descriptor is None:
+        raise RuntimeConfigError(f"{what} '{repo}' staat niet in de registry.")
+    installed, _ = status_for(descriptor)
+    if not installed:
+        raise RuntimeConfigError(
+            f"{what} '{repo}' is niet gedownload. Haal het op via Modellen beheren."
+        )
+
+
 def _validate(
     *,
     spacy_model: str | None,
@@ -147,6 +174,7 @@ def _validate(
     ollama_review_enabled: bool | None,
     ollama_extra_ner_enabled: bool | None,
     ollama_borderline_enabled: bool | None,
+    enable_pii_model: bool | None = None,
 ) -> None:
     if spacy_model:
         descriptor = REGISTRY_BY_ID.get(f"spacy:{spacy_model}")
@@ -159,28 +187,9 @@ def _validate(
             )
 
     if enable_sonar or sonar_model:
-        # Sonar vereist transformers + torch (extras [sonar]) en het
-        # daadwerkelijke HF-snapshot in cache.
-        try:
-            import torch  # noqa: F401
-            import transformers  # noqa: F401
-        except ImportError as exc:
-            raise RuntimeConfigError(
-                "SoNaR vereist de extra 'sonar' (transformers + torch); "
-                "die is niet geïnstalleerd in deze engine."
-            ) from exc
-
-        target_repo = sonar_model or get_settings().sonar_model
-        descriptor = REGISTRY_BY_ID.get(f"hf:{target_repo}")
-        # Only models from the registry: any other name would make the engine
-        # fetch an arbitrary repository from HuggingFace.
-        if descriptor is None:
-            raise RuntimeConfigError(f"SoNaR-model '{target_repo}' staat niet in de registry.")
-        installed, _ = status_for(descriptor)
-        if not installed:
-            raise RuntimeConfigError(
-                f"SoNaR-model '{target_repo}' is niet gedownload. Haal het op via Modellen beheren."
-            )
+        _require_hf_model(sonar_model or get_settings().sonar_model, "SoNaR-model")
+    if enable_pii_model:
+        _require_hf_model(get_settings().pii_model, "PII-model")
 
     # A cloud variant runs on Ollama's servers: the local daemon would forward
     # the document text there.
@@ -220,6 +229,7 @@ def apply(
     ollama_review_enabled: bool | None = None,
     ollama_extra_ner_enabled: bool | None = None,
     ollama_borderline_enabled: bool | None = None,
+    enable_pii_model: bool | None = None,
 ) -> RuntimeConfig:
     """Pas de runtime-overrides aan, sla op en leeg de analyzer-cache.
 
@@ -238,6 +248,7 @@ def apply(
         ollama_review_enabled=ollama_review_enabled,
         ollama_extra_ner_enabled=ollama_extra_ner_enabled,
         ollama_borderline_enabled=ollama_borderline_enabled,
+        enable_pii_model=enable_pii_model,
     )
 
     with _LOCK:
@@ -249,6 +260,9 @@ def apply(
             sonar_model=sonar_model if sonar_model is not None else current.sonar_model,
             enable_han_edu=(
                 enable_han_edu if enable_han_edu is not None else current.enable_han_edu
+            ),
+            enable_pii_model=(
+                enable_pii_model if enable_pii_model is not None else current.enable_pii_model
             ),
             ollama_model=ollama_model if ollama_model is not None else current.ollama_model,
             ollama_review_enabled=(

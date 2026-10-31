@@ -62,6 +62,8 @@ ENTITY_PRIORITY: dict[str, int] = {
     "NL_POLICY_NUMBER": 2,
     "BE_RIJKSREGISTER": 2,
     "NL_POSTCODE": 3,
+    # A passport, student or customer number found by the PII model.
+    "PERSON_IDENTIFIER": 3,
     "NL_STUDENT_ID": 3,
     "NL_EMPLOYEE_ID": 3,
     # Interne dossier-/patiënt-/zaaknummers. Patroon-gebaseerd, valideert
@@ -628,10 +630,13 @@ def _content_parts(result: RecognizerResult, text: str) -> list[tuple[int, str]]
     and is never crossed, because a replacement spanning two cells cannot be
     applied to the document; each block is judged on its own instead. Lines
     that are only a field label are skipped, so the value next to the label
-    is kept rather than dropped. Within a block only the first value counts.
-    Only a PERSON may continue on the next line, and only when that line
-    continues the name (``Jeroen\\nvan der Meulen``) rather than a role or a
-    closing phrase; a PERSON part in a later block must also look like a name.
+    is kept rather than dropped. Within a block, a PERSON keeps only its first
+    value, continued on the next line only when that line continues the name
+    (``Jeroen\\nvan der Meulen``) rather than a role or a closing phrase; a
+    PERSON part in a later block must also look like a name. For a location or
+    organisation every line is a value of its own, so an address over two
+    lines (street, then postcode and place) stays whole; a ``Label: value``
+    line after the first is left out.
 
     Returns ``(offset within the span, text)`` per part; empty when nothing
     but labels and blank lines is left.
@@ -650,13 +655,19 @@ def _content_parts(result: RecognizerResult, text: str) -> list[tuple[int, str]]
     i = 0
     while i < len(lines):
         start_off, line = lines[i]
-        if _is_label_or_empty(line):
+        if _is_label_or_empty(line) or (
+            not is_person and parts and _LABEL_AFTER_NEWLINE_RE.match(line)
+        ):
             i += 1
             continue
-        if not parts or not is_person or _continues_name(line):
+        if not is_person:
+            parts.append((start_off, line))
+            i += 1
+            continue
+        if not parts or _continues_name(line):
             end_off = start_off + len(line)
             i += 1
-            while is_person and i < len(lines) and _continues_name(lines[i][1]):
+            while i < len(lines) and _continues_name(lines[i][1]):
                 end_off = lines[i][0] + len(lines[i][1])
                 i += 1
             parts.append((start_off, span[start_off:end_off]))
@@ -754,7 +765,8 @@ def _recognizer_name(r: RecognizerResult) -> str:
     return name or (getattr(r, "recognition_metadata", None) or {}).get("recognizer_name", "")
 
 
-_PIECE_TRIM = _TRIM_CHARS + "<>\"'“”‘’"
+# No single quotes: they are part of names like 's-Hertogenbosch.
+_PIECE_TRIM = _TRIM_CHARS + '<>"“”'
 
 
 def _cut_around_strong(results: list[RecognizerResult], text: str) -> list[RecognizerResult]:
@@ -806,12 +818,20 @@ def _cut_around_strong(results: list[RecognizerResult], text: str) -> list[Recog
     return out
 
 
-def _prefer_sonar_labels(results: list[RecognizerResult]) -> list[RecognizerResult]:
-    """On the exact same span, SoNaR's label beats spaCy's: it is the stronger Dutch NER."""
-    sonar = {
+_TRANSFORMER_RECOGNIZERS = frozenset({"SonarRecognizer", "PiiModelRecognizer"})
+
+
+def _prefer_model_labels(results: list[RecognizerResult]) -> list[RecognizerResult]:
+    """On the exact same span, a transformer model's label beats spaCy's.
+
+    SoNaR and the PII model are the stronger NER; spaCy often calls a city an
+    organisation, and organisations are not masked by default.
+    """
+    model_spans = {
         (r.start, r.end)
         for r in results
-        if r.entity_type in _PUNCT_SENSITIVE_TYPES and _recognizer_name(r) == "SonarRecognizer"
+        if r.entity_type in _PUNCT_SENSITIVE_TYPES
+        and _recognizer_name(r) in _TRANSFORMER_RECOGNIZERS
     }
     return [
         r
@@ -819,7 +839,7 @@ def _prefer_sonar_labels(results: list[RecognizerResult]) -> list[RecognizerResu
         if not (
             r.entity_type in _PUNCT_SENSITIVE_TYPES
             and _recognizer_name(r) == "SpacyRecognizer"
-            and (r.start, r.end) in sonar
+            and (r.start, r.end) in model_spans
         )
     ]
 
@@ -908,7 +928,7 @@ def filter_overlaps(
                 )
             else:
                 trimmed.append(r)
-        deduped = _prefer_sonar_labels(_cut_around_strong(trimmed, text))
+        deduped = _prefer_model_labels(_cut_around_strong(trimmed, text))
 
     # Containment + partial-overlap filter. Twee regels:
     #

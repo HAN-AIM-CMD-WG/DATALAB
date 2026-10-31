@@ -49,6 +49,7 @@ from pii_engine.recognizers import (
     NlStudentnrRecognizer,
     OnlineIdentifierRecognizer,
     PersonalUrlRecognizer,
+    PiiModelRecognizer,
     StageOrganizationRecognizer,
 )
 from pii_engine.runtime import effective_settings
@@ -202,6 +203,14 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
                 "Installeer extras [sonar] om SoNaR-NER te gebruiken.",
                 exc,
             )
+    if settings.enable_pii_model:
+        pii_model = PiiModelRecognizer(
+            supported_language="nl",
+            model_name=settings.pii_model,
+            score_min=settings.pii_model_score_min,
+        )
+        registry.add_recognizer(pii_model)
+        pii_model.warm_up()
 
     nlp_engine = _build_nlp_engine(settings)
     analyzer = AnalyzerEngine(

@@ -48,6 +48,13 @@ def _trimmed(text: str, entity: str, fragment: str) -> list[str]:
         ("Naam:\nAnna de Vries", "PERSON", "Naam:\nAnna de Vries", ["Anna de Vries"]),
         # A value followed by the next label keeps only the value.
         ("Ede\n\nContactpersoon", "LOCATION", "Ede\n\nContactpersoon", ["Ede"]),
+        # An address over two lines stays whole, a "Label: value" line does not join.
+        (
+            "Keizersgracht 123-3\nAmsterdam\nTelefoon: 020-1234567",
+            "LOCATION",
+            "Keizersgracht 123-3\nAmsterdam\nTelefoon: 020-1234567",
+            ["Keizersgracht 123-3", "Amsterdam"],
+        ),
         # Values in several cells are all kept, each as its own part.
         ("Tim\n\nTim de Wit", "PERSON", "Tim\n\nTim de Wit", ["Tim", "Tim de Wit"]),
         (
@@ -113,6 +120,46 @@ def test_ner_overlapping_an_email_keeps_the_name_without_brackets() -> None:
     ]
     found = sorted(text[r.start : r.end] for r in filter_overlaps(results, text))
     assert found == ["Tim de Wit", "t.dewit@example.com"]
+
+
+def test_model_label_beats_spacy_on_the_same_span() -> None:
+    text = "Keizersgracht 123-3, 1015 CJ Amsterdam"
+    results = [
+        _hit(text, "1015 CJ", "NL_POSTCODE", "NlPostcodeRecognizer"),
+        _hit(text, text, "LOCATION", "PiiModelRecognizer"),
+        _hit(text, "CJ Amsterdam", "ORGANIZATION", "SpacyRecognizer"),
+    ]
+    found = sorted((text[r.start : r.end], r.entity_type) for r in filter_overlaps(results, text))
+    assert found == [
+        ("1015 CJ", "NL_POSTCODE"),
+        ("Amsterdam", "LOCATION"),
+        ("Keizersgracht 123-3", "LOCATION"),
+    ]
+
+
+def test_address_over_two_lines_keeps_the_place_after_the_postcode() -> None:
+    text = "woonachtig op\nKeizersgracht 123-3\n1015 CJ Amsterdam."
+    results = [
+        _hit(text, "1015 CJ", "NL_POSTCODE", "NlPostcodeRecognizer"),
+        _hit(text, "Keizersgracht 123-3\n1015 CJ Amsterdam", "LOCATION", "PiiModelRecognizer"),
+        _hit(text, "CJ Amsterdam", "ORGANIZATION", "SpacyRecognizer"),
+    ]
+    found = sorted((text[r.start : r.end], r.entity_type) for r in filter_overlaps(results, text))
+    assert found == [
+        ("1015 CJ", "NL_POSTCODE"),
+        ("Amsterdam", "LOCATION"),
+        ("Keizersgracht 123-3", "LOCATION"),
+    ]
+
+
+def test_cut_keeps_the_apostrophe_of_a_place_name() -> None:
+    text = "Stationsplein 4, 5211 AP 's-Hertogenbosch"
+    results = [
+        _hit(text, "5211 AP", "NL_POSTCODE", "NlPostcodeRecognizer"),
+        _hit(text, text, "LOCATION", "PiiModelRecognizer"),
+    ]
+    found = sorted(text[r.start : r.end] for r in filter_overlaps(results, text))
+    assert found == ["'s-Hertogenbosch", "5211 AP", "Stationsplein 4"]
 
 
 def test_ner_address_around_a_postcode_is_split() -> None:

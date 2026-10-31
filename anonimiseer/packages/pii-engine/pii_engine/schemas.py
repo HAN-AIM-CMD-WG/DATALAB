@@ -71,6 +71,10 @@ class EngineConfigRequest(BaseModel):
             "CROHO-, personeelsnummer- en mentor-/docent-labelherkenners."
         ),
     )
+    enable_pii_model: bool | None = Field(
+        default=None,
+        description="Schakel het extra PII-model (bardsai) in/uit; moet gedownload zijn.",
+    )
     ollama_model: str | None = Field(
         default=None,
         description="Ollama-tag (bv. 'qwen3.5:4b') voor LLM-rollen.",
@@ -110,6 +114,7 @@ class ActiveEngineResponse(BaseModel):
     sonar_enabled: bool = Field(..., description="SoNaR is geladen en doet mee.")
     sonar_model: str | None = None
     sonar_state: Literal["off", "loading", "loaded", "failed"] = "off"
+    pii_model_state: Literal["off", "loading", "loaded", "failed"] = "off"
     limitations: list[str] = Field(
         default_factory=list,
         description="Zie ``HealthResponse.limitations``.",
@@ -252,6 +257,7 @@ class ModelInfo(BaseModel):
     gpu_recommended: bool = False
     license: str = "Onbekend"
     license_url: str = ""
+    role: Literal["nlp", "ner", "pii", "custom-terms", "base"] = "base"
 
 
 class ModelListResponse(BaseModel):

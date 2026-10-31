@@ -17,16 +17,48 @@ if TYPE_CHECKING:
 
     from pii_engine.config import Settings
 
-SonarState = Literal["off", "loading", "loaded", "failed"]
+ModelState = Literal["off", "loading", "loaded", "failed"]
+SonarState = ModelState
 
 
 @dataclass(frozen=True)
 class PipelineStatus:
     #: The spaCy model actually loaded, or ``None`` for the empty fallback pipeline.
     spacy_model: str | None
-    sonar_state: SonarState
+    sonar_state: ModelState
     sonar_model: str | None
+    pii_model_state: ModelState = "off"
+    pii_model: str | None = None
     limitations: list[str] = field(default_factory=list)
+
+
+def _model_state(
+    analyzer: AnalyzerEngine,
+    recognizer_name: str,
+    enabled: bool,
+    what: str,
+    consequence: str,
+    limitations: list[str],
+) -> ModelState:
+    """State of an optional model layer; a failure is added to ``limitations``."""
+    if not enabled:
+        return "off"
+    recognizer = next(
+        (r for r in analyzer.registry.recognizers if type(r).__name__ == recognizer_name),
+        None,
+    )
+    if recognizer is None:
+        limitations.append(
+            f"{what} staat aan, maar deze installatie kan het niet draaien "
+            f"(torch of transformers ontbreekt). {consequence}"
+        )
+        return "failed"
+    state: ModelState = recognizer.state  # type: ignore[attr-defined]
+    if state == "failed":
+        limitations.append(
+            f"{what} kon niet worden geladen: {recognizer.load_error}. {consequence}"  # type: ignore[attr-defined]
+        )
+    return state
 
 
 def loaded_spacy_model(analyzer: AnalyzerEngine) -> str | None:
@@ -48,30 +80,28 @@ def pipeline_status(analyzer: AnalyzerEngine, settings: Settings) -> PipelineSta
             "minder goed herkend."
         )
 
-    sonar = next(
-        (r for r in analyzer.registry.recognizers if type(r).__name__ == "SonarRecognizer"),
-        None,
+    sonar_state = _model_state(
+        analyzer,
+        "SonarRecognizer",
+        settings.enable_sonar,
+        "Het SoNaR-model",
+        "Namen worden minder goed herkend.",
+        limitations,
     )
-    sonar_state: SonarState
-    if not settings.enable_sonar:
-        sonar_state = "off"
-    elif sonar is None:
-        sonar_state = "failed"
-        limitations.append(
-            "Het SoNaR-model staat aan, maar deze installatie kan het niet draaien "
-            "(torch of transformers ontbreekt). Namen worden minder goed herkend."
-        )
-    else:
-        sonar_state = sonar.state  # type: ignore[attr-defined]
-        if sonar_state == "failed":
-            limitations.append(
-                f"Het SoNaR-model kon niet worden geladen: {sonar.load_error}. "  # type: ignore[attr-defined]
-                "Namen worden minder goed herkend."
-            )
+    pii_model_state = _model_state(
+        analyzer,
+        "PiiModelRecognizer",
+        settings.enable_pii_model,
+        "Het extra PII-model",
+        "Er wordt gezocht zonder deze extra laag.",
+        limitations,
+    )
 
     return PipelineStatus(
         spacy_model=spacy_model,
         sonar_state=sonar_state,
         sonar_model=settings.sonar_model if sonar_state != "off" else None,
+        pii_model_state=pii_model_state,
+        pii_model=settings.pii_model if pii_model_state != "off" else None,
         limitations=limitations,
     )

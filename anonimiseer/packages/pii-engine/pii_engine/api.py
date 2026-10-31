@@ -381,6 +381,17 @@ def create_app() -> FastAPI:
                     role="ner",
                 )
             )
+        if status.pii_model_state == "loaded":
+            pii_id = f"hf:{active_settings.pii_model}"
+            pii_descriptor = model_registry.REGISTRY_BY_ID.get(pii_id)
+            active.append(
+                ActiveModelInfo(
+                    id=pii_id,
+                    label=pii_descriptor.label if pii_descriptor else active_settings.pii_model,
+                    kind="hf",
+                    role="ner",
+                )
+            )
 
         rt = runtime.get_runtime()
         ollama_state = OllamaEngineState(
@@ -399,6 +410,7 @@ def create_app() -> FastAPI:
             sonar_enabled=sonar_loaded,
             sonar_model=status.sonar_model,
             sonar_state=status.sonar_state,
+            pii_model_state=status.pii_model_state,
             limitations=status.limitations,
             han_edu_enabled=active_settings.enable_han_edu,
             score_threshold=active_settings.default_score_threshold,
@@ -423,6 +435,7 @@ def create_app() -> FastAPI:
                 enable_sonar=req.enable_sonar,
                 sonar_model=req.sonar_model,
                 enable_han_edu=req.enable_han_edu,
+                enable_pii_model=req.enable_pii_model,
                 ollama_model=req.ollama_model,
                 ollama_review_enabled=req.ollama_review_enabled,
                 ollama_extra_ner_enabled=req.ollama_extra_ner_enabled,
@@ -511,6 +524,7 @@ def create_app() -> FastAPI:
                     license_url=descriptor.license_url,
                     min_ram_mb=descriptor.min_ram_mb,
                     gpu_recommended=descriptor.gpu_recommended,
+                    role=descriptor.role,
                 )
             )
         return ModelListResponse(models=items)

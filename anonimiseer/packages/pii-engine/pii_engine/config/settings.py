@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     enable_bank_names: bool = True
     enable_online_identifiers: bool = True
     enable_personal_url: bool = True
+    # Extra PII model (downloaded on request in the Model Manager).
+    enable_pii_model: bool = False
+    pii_model: str = "bardsai/eu-pii-anonimization-multilang-v3"
+    pii_model_score_min: float = Field(default=0.5, ge=0.0, le=1.0)
     enable_nl_phone: bool = True
     enable_nl_date: bool = True
     enable_intl_address: bool = True

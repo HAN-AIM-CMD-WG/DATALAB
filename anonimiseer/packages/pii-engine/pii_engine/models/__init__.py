@@ -36,6 +36,7 @@ from typing import Literal
 logger = logging.getLogger(__name__)
 
 ModelKind = Literal["spacy", "hf"]
+ModelRole = Literal["nlp", "ner", "pii", "custom-terms", "base"]
 TaskState = Literal["pending", "running", "done", "error"]
 
 
@@ -64,6 +65,14 @@ class ModelDescriptor:
     model dus door de gebruiker zelf te worden opgehaald. Dat is de reden
     dat dit veld bestaat en in de Model Manager zichtbaar is."""
     license_url: str = ""
+    role: ModelRole = "base"
+    """What the model does: ``nlp`` (the spaCy pipeline, always exactly one),
+    ``ner`` (SoNaR, an extra NER layer), ``pii`` (an extra PII model),
+    ``custom-terms`` (the organisation's own terms) or ``base`` (a foundation
+    model without NER head, not usable on its own). The Model Manager groups
+    models by role."""
+    on_demand: bool = False
+    """Downloadable in the installed app, rather than shipped with it."""
 
 
 @dataclass
@@ -104,6 +113,7 @@ _SPACY_MODELS: list[ModelDescriptor] = [
         min_ram_mb=512,
         license="CC BY-SA 4.0",
         license_url="https://spacy.io/models/nl",
+        role="nlp",
     ),
     ModelDescriptor(
         id="spacy:nl_core_news_md",
@@ -118,6 +128,7 @@ _SPACY_MODELS: list[ModelDescriptor] = [
         min_ram_mb=1024,
         license="CC BY-SA 4.0",
         license_url="https://spacy.io/models/nl",
+        role="nlp",
     ),
     ModelDescriptor(
         id="spacy:nl_core_news_lg",
@@ -133,6 +144,7 @@ _SPACY_MODELS: list[ModelDescriptor] = [
         min_ram_mb=2048,
         license="CC BY-SA 4.0",
         license_url="https://spacy.io/models/nl",
+        role="nlp",
     ),
 ]
 
@@ -162,6 +174,25 @@ _HF_MODELS: list[ModelDescriptor] = [
         license="Onbekend — geen licentie vermeld op HuggingFace",
         license_url="https://huggingface.co/wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
         min_ram_mb=2048,
+        role="ner",
+    ),
+    ModelDescriptor(
+        id="hf:bardsai/eu-pii-anonimization-multilang-v3",
+        label="PII-model (bardsai, meertalig)",
+        kind="hf",
+        description=(
+            "Extra laag voor gewone persoonsgegevens: namen, adressen, telefoon, IBAN en"
+            " identificatienummers. Vindt losse voornamen en waarden in tabellen die de"
+            " regels missen. Treffers gaan door dezelfde controles als de eigen regels"
+            " (Elfproef, IBAN). ~1,1 GB."
+        ),
+        size_mb=1150,
+        install_target="bardsai/eu-pii-anonimization-multilang-v3",
+        min_ram_mb=3072,
+        license="Apache-2.0",
+        license_url="https://huggingface.co/bardsai/eu-pii-anonimization-multilang-v3",
+        role="pii",
+        on_demand=True,
     ),
 ]
 
@@ -195,11 +226,11 @@ def _build_registry() -> list[ModelDescriptor]:
         return [*_SPACY_MODELS, *_HF_MODELS]
 
     available_spacy = [m for m in _SPACY_MODELS if _spacy_installed(m.install_target)[0]]
-    # In de bundle tonen we alleen HF-modellen die Electron heeft voor-geseed
-    # (dus die al in de user-HF-cache staan). BERTje zonder NER-head is in de
-    # app niet los bruikbaar en wordt daarom bewust weggelaten.
+    # In de bundle tonen we de HF-modellen die Electron heeft voor-geseed
+    # (SoNaR) plus de modellen die je op verzoek downloadt. BERTje zonder
+    # NER-head is in de app niet los bruikbaar en wordt daarom weggelaten.
     bundled_hf_ids = {"hf:wietsedv/bert-base-dutch-cased-finetuned-sonar-ner"}
-    available_hf = [m for m in _HF_MODELS if m.id in bundled_hf_ids]
+    available_hf = [m for m in _HF_MODELS if m.id in bundled_hf_ids or m.on_demand]
     return [*available_spacy, *available_hf]
 
 
