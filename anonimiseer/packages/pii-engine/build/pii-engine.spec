@@ -68,6 +68,9 @@ hiddenimports += collect_submodules("tokenizers")
 hiddenimports += collect_submodules("safetensors")
 hiddenimports += collect_submodules("torch")
 hiddenimports += collect_submodules("huggingface_hub")
+# GLiNER2 voor de eigen begrippen van een organisatieprofiel. De code zit in
+# de bundel; het model zelf downloadt de gebruiker op verzoek.
+hiddenimports += collect_submodules("gliner2")
 
 # Verzamel data-files: yaml/json/html die Presidio en spaCy-modellen nodig hebben.
 datas: list[tuple[str, str]] = []
@@ -92,6 +95,8 @@ datas += copy_metadata("tokenizers")
 datas += copy_metadata("safetensors")
 datas += copy_metadata("torch")
 datas += copy_metadata("huggingface_hub")
+datas += copy_metadata("gliner2")
+datas += collect_data_files("gliner2")
 
 # Transformers heeft tientallen yaml/json/tokenizer-configs in zijn package die
 # dynamisch per modelklasse worden geladen.
