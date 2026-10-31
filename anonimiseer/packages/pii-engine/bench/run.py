@@ -82,14 +82,37 @@ OURS = {
     "PHONE_NUMBER": "PHONE",
     "EMAIL_ADDRESS": "EMAIL",
     "NL_BSN": "BSN",
+    "PERSON_IDENTIFIER": "BSN",
     "IBAN_CODE": "IBAN",
 }
 
 
-def run_anonimiseer(docs: dict[str, str]) -> None:
-    """Our engine over HTTP, at the app's default sensitivity (0.50)."""
+def pii_model_state() -> str:
     import httpx
 
+    for _ in range(120):
+        r = httpx.get(f"{ENGINE_URL}/engine/active", timeout=30)
+        r.raise_for_status()
+        state = str(r.json().get("pii_model_state", ""))
+        if state != "loading":
+            return state
+        time.sleep(1)
+    return "loading"
+
+
+def run_anonimiseer(docs: dict[str, str], system: str = "anonimiseer", pii: bool = False) -> None:
+    """Our engine over HTTP, at the app's default sensitivity (0.50).
+
+    The engine's own configuration decides whether the PII model runs; this only checks it
+    matches the system being measured, so results never end up under the wrong name.
+    """
+    import httpx
+
+    state = pii_model_state()
+    if (state == "loaded") != pii:
+        raise SystemExit(
+            f"{system}: the engine's PII model is {state!r}; switch it {'on' if pii else 'off'}"
+        )
     for doc, text in docs.items():
         t0 = time.perf_counter()
         r = httpx.post(
@@ -107,7 +130,7 @@ def run_anonimiseer(docs: dict[str, str]) -> None:
             for h in r.json()["items"]
             if h["entity_type"] in OURS
         ]
-        save("anonimiseer", doc, hits, time.perf_counter() - t0)
+        save(system, doc, hits, time.perf_counter() - t0)
 
 
 # --------------------------------------------------------- token-classification models
@@ -253,6 +276,7 @@ def run_gliner2(docs: dict[str, str], threshold: float = 0.3) -> None:
 
 SYSTEMS: dict[str, Callable[[dict[str, str]], None]] = {
     "anonimiseer": run_anonimiseer,
+    "anonimiseer-pii": lambda d: run_anonimiseer(d, "anonimiseer-pii", pii=True),
     "bardsai-v3": lambda d: run_bio(
         "bardsai-v3", "bardsai/eu-pii-anonimization-multilang-v3", BARDSAI, d
     ),

@@ -141,7 +141,7 @@ def main(markdown: bool) -> None:
         if ours:
             for s in systems:
                 other = load_hits(s, doc)
-                if s != "anonimiseer" and other:
+                if not s.startswith("anonimiseer") and other:
                     rows.append((f"anonimiseer + {s}", ours[0] + other[0], ours[1] + other[1]))
         n_traps = len({(s, e) for s, e, _, _ in g["traps"]})
         print(f"\n### {doc}: {len(g['pii'])} personal data items, {n_traps} traps\n")

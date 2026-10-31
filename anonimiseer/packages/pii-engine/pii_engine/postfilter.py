@@ -103,11 +103,15 @@ ENTITY_PRIORITY: dict[str, int] = {
 }
 
 
-def _priority(entity_type: str) -> int:
-    # An organisation's own terms rank with the identifiers: the profile says
-    # they matter, so they beat a date or a name read inside them.
+# An organisation's own terms rank just below the rule-based identifiers: a
+# validated pattern names a code more precisely than the profile's model does,
+# but a term still beats a phone number, link, date or name read inside it.
+_TERM_PRIORITY = 4.5
+
+
+def _priority(entity_type: str) -> float:
     if entity_type.startswith("TERM_"):
-        return 3
+        return _TERM_PRIORITY
     return ENTITY_PRIORITY.get(entity_type, 999)
 
 

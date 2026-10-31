@@ -32,5 +32,10 @@ python bench/run.py anonimiseer bardsai-v3 gliner2-pii   # openai-pf is optional
 python bench/score.py
 ```
 
+`anonimiseer-pii` measures our engine with its PII model layer switched on: start the
+engine with `PII_ENGINE_ENABLE_PII_MODEL=true` (and `PII_ENGINE_ENABLE_SONAR=true`, as the
+app does). Both `anonimiseer` systems refuse to run when the engine's configuration does not
+match.
+
 Models are downloaded from HuggingFace on first use (bardsai-v3 ~1.2 GB, gliner2-pii
 ~1.2 GB, openai-pf ~2.8 GB). Results of a run are recorded in `docs/benchmarks.md`.

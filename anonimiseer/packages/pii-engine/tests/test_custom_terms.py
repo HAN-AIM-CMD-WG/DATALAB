@@ -100,6 +100,27 @@ def test_a_term_beats_a_date_read_inside_it() -> None:
     assert [r.entity_type for r in filter_overlaps(results, text)] == ["TERM_DOSSIERNUMMER"]
 
 
+@pytest.mark.parametrize("rule_type", ["NL_STUDENT_ID", "EDU_COURSE_CODE", "INTERNAL_CASE_NUMBER"])
+def test_a_rule_based_identifier_keeps_its_label_over_a_term(rule_type: str) -> None:
+    text = "Studentnummer s7654321 staat in het dossier."
+    start = text.index("s7654321")
+    results = [
+        RecognizerResult("TERM_DOSSIERNUMMER", start, start + 8, 0.95),
+        RecognizerResult(rule_type, start, start + 8, 0.6),
+    ]
+    assert [r.entity_type for r in filter_overlaps(results, text)] == [rule_type]
+
+
+def test_a_term_beats_a_generic_phone_number() -> None:
+    text = "Klant 0612345678 belde."
+    start = text.index("0612345678")
+    results = [
+        RecognizerResult("TERM_KLANTNUMMER", start, start + 10, 0.9),
+        RecognizerResult("PHONE_NUMBER", start, start + 10, 0.4),
+    ]
+    assert [r.entity_type for r in filter_overlaps(results, text)] == ["TERM_KLANTNUMMER"]
+
+
 @pytest.mark.parametrize(
     ("terms", "message"),
     [
