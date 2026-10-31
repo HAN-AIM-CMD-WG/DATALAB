@@ -124,6 +124,65 @@ Baseline values in brackets.
 
 Crash test: all PASS.
 
+## After phase 3 — 31 October 2026
+
+**Setup.** As phase 1, with presidio-analyzer 2.2.366 and this branch's engine bundled.
+New are two optional model layers, both off until the user downloads and enables them:
+the PII model (`bardsai/eu-pii-anonimization-multilang-v3`, with our validation on top) and
+an organisation profile's own terms (`fastino/gliner2-privacy-filter-PII-multi`).
+"With PII model" is the engine with that layer on, not a plain union of two systems.
+
+Presidio 2.2.362 → 2.2.366 gave identical detections on both sets.
+
+### Independent test set — 36 personal data items, 10 traps
+
+| System | Recall | Precision | F1 | Traps hit | Time |
+|---|---|---|---|---|---|
+| Anonimiseer | 97.2% | 97.6% | 0.974 | 0/10 | 0.7 s |
+| Anonimiseer with PII model | 100.0% | 97.7% | 0.988 | 0/10 | 1.0 s |
+
+### Own gold set (`docs/examples`) — 134 items in scope, 53 traps
+
+| System | Recall | Traps hit | Time |
+|---|---|---|---|
+| Anonimiseer | 100.0% | 0/53 | 0.9 s |
+| Anonimiseer with PII model | 100.0% | 0/53 | 3.8 s |
+
+### What changed
+
+- The PII model adds the phone number with the area code in brackets, the last item the
+  engine missed on the independent set.
+- Validation keeps the model's errors out: the plain union with bardsai v3 hit one trap on
+  each set (nine digits read as an identifier, though they fail the Elfproef); with the PII
+  model layer that is zero, because nine digits must pass the Elfproef. Phone numbers need 10–15 digits, IBANs
+  must pass MOD-97, card numbers Luhn, and a model detection is widened to whole words.
+- The remaining false positive is still the place in the letter's dateline.
+
+### Own terms
+
+The invented example profile (`docs/examples/profiel-voorbeeld.json`: a dossier number and a
+project code) on both sets. Neither set contains such numbers, so every term detection would
+be a false alarm.
+
+- Independent set: none.
+- Own set: none. Before a fix, seven codes were labelled as dossier numbers or project codes:
+  a case and a patient number, two course codes, a CROHO code and two student numbers. Our
+  rules already masked all seven; on the same span their label now wins over a term.
+- Time with the PII model and own terms both on: 0.8–0.9 s on the independent set (1,677
+  characters), 6.7–7.1 s on the own set (9,273 characters).
+
+### Targets
+
+Recall at least 99% on the own set and 97% on the independent set, precision at least 92%,
+at most 10 s per document on a laptop CPU: met with and without the model layers. The times
+are from an Apple Silicon laptop; a slower CPU will need more for a long document with both
+layers on.
+
+### End-to-end, packaged app (macOS arm64)
+
+All 14 checks PASS, including restoring the run's Markdown and Word output; crash test all
+PASS.
+
 ### Measuring notes
 
 - Measure the engine as users get it. A dev engine started with `HF_HOME` pointing elsewhere
@@ -131,5 +190,8 @@ Crash test: all PASS.
   off unless `PII_ENGINE_ENABLE_SONAR=true` is set; the app sets it.
 - Make sure no older engine is still listening on port 8765 before a run; a new one cannot
   bind the port and the benchmark then measures the old code.
+- Start a measuring engine with `ANONIMISEER_RUNTIME_CONFIG` pointing at a temporary file.
+  Switching the PII model or a profile on for a run is then not saved into the app's own
+  settings.
 - A personal data item counts as found when at least 80% of its characters are covered;
   precision counts a detection as correct when it overlaps any personal data item.
