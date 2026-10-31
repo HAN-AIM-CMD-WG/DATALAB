@@ -9,7 +9,6 @@ import {
   Cpu,
   Download,
   ExternalLink,
-  GraduationCap,
   HardDrive,
   Info,
   Loader2,
@@ -34,6 +33,7 @@ import type {
   SystemInfo,
 } from '@shared/api';
 import { ollamaInstalled } from './ollamaCatalog';
+import { ProfilePanel } from './ProfilePanel';
 import { cn } from '../lib/utils';
 import { statusIcon, statusPanel } from '../lib/statusStyles';
 
@@ -540,18 +540,6 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
     [applyPipeline, piiSwitchedOn]
   );
 
-  const toggleHanEdu = useCallback(
-    (next: boolean) =>
-      applyPipeline(
-        { enableHanEdu: next },
-        'toggle:han-edu',
-        next
-          ? 'HAN-/onderwijsprofiel ingeschakeld: klas-, cursus-, CROHO-, medewerker- en mentor-/docent-herkenners zijn actief.'
-          : 'HAN-/onderwijsprofiel uitgeschakeld: alleen de algemene NL-detecties draaien.',
-      ),
-    [applyPipeline],
-  );
-
   const activateOllama = useCallback(
     (name: string) =>
       // Bewust géén auto-enable van Review: een 4B-model dat cold-start
@@ -666,10 +654,15 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
             onReset={() => void resetPipeline()}
             resetBusy={pipelineBusy === 'reset'}
             message={pipelineMessage}
-            onToggleHanEdu={(next) => void toggleHanEdu(next)}
-            hanEduBusy={pipelineBusy === 'toggle:han-edu'}
             onToggleOllamaReview={(next) => void toggleOllamaRole('review', next)}
             ollamaReviewBusy={pipelineBusy === 'ollama-role:review'}
+          />
+
+          <ProfilePanel
+            info={activeEngine}
+            customTermsModel={models?.find((m) => m.role === 'custom-terms')}
+            busy={pipelineBusy}
+            onApply={applyPipeline}
           />
 
           <section className="space-y-3">
@@ -748,6 +741,9 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                       disabled: !m.installed || pipelineBusy !== null,
                       onClick: () => void togglePiiModel(m),
                     };
+                  } else if (m.role === 'custom-terms') {
+                    roleNote =
+                      'Wordt vanzelf gebruikt zodra het actieve profiel eigen begrippen heeft.';
                   } else if (isBaseModel) {
                     roleNote =
                       'Basis-model zonder NER-hoofd — niet zelfstandig bruikbaar. Het is het fundament waarop SoNaR-BERT is getraind.';
@@ -769,6 +765,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                 const spacyModels = models.filter((m) => m.role === 'nlp');
                 const sonarModels = models.filter((m) => m.role === 'ner');
                 const piiModels = models.filter((m) => m.role === 'pii');
+                const termModels = models.filter((m) => m.role === 'custom-terms');
                 const baseModels = models.filter((m) => m.role === 'base');
 
                 return (
@@ -801,6 +798,17 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                         description="Een algemeen PII-model dat meeleest. Vindt losse voornamen en waarden in tabellen die de regels missen; elk nummer gaat door dezelfde controles (Elfproef, IBAN). Kost ~1,1 GB schijfruimte en ~3 GB werkgeheugen."
                       >
                         {piiModels.map(renderRow)}
+                      </ModelGroup>
+                    )}
+
+                    {termModels.length > 0 && (
+                      <ModelGroup
+                        tone="optional"
+                        title="Eigen begrippen (profiel)"
+                        badge="Optioneel · download"
+                        description="Zoekt de eigen begrippen uit het profiel van je organisatie. Alleen nodig als je profiel eigen begrippen heeft. Kost ~1,1 GB schijfruimte en ~3 GB werkgeheugen."
+                      >
+                        {termModels.map(renderRow)}
                       </ModelGroup>
                     )}
 
@@ -881,8 +889,6 @@ function ActiveEnginePanel({
   onReset,
   resetBusy,
   message,
-  onToggleHanEdu,
-  hanEduBusy,
   onToggleOllamaReview,
   ollamaReviewBusy,
 }: {
@@ -892,8 +898,6 @@ function ActiveEnginePanel({
   onReset: () => void;
   resetBusy: boolean;
   message: { kind: 'ok' | 'error'; text: string } | null;
-  onToggleHanEdu: (next: boolean) => void;
-  hanEduBusy: boolean;
   onToggleOllamaReview: (next: boolean) => void;
   ollamaReviewBusy: boolean;
 }): JSX.Element {
@@ -1032,12 +1036,6 @@ function ActiveEnginePanel({
             )}
           </div>
 
-          <HanEduProfileBlock
-            enabled={info.hanEduEnabled}
-            onToggle={onToggleHanEdu}
-            busy={hanEduBusy}
-          />
-
           <OllamaStatusBlock
             ollama={info.ollama}
             onToggleReview={onToggleOllamaReview}
@@ -1129,33 +1127,6 @@ function SettingRow({
         {control}
       </div>
     </div>
-  );
-}
-
-function HanEduProfileBlock({
-  enabled,
-  onToggle,
-  busy,
-}: {
-  enabled: boolean;
-  onToggle: (next: boolean) => void;
-  busy: boolean;
-}): JSX.Element {
-  return (
-    <SettingRow
-      icon={<GraduationCap className="h-4 w-4" aria-hidden />}
-      title="HAN-/onderwijsprofiel"
-      description="Herkent ook studentnummers, personeelsnummers, klas- en cursuscodes en namen na mentor-/docent-labels. Zet uit buiten het hoger onderwijs."
-      state={enabled}
-      control={
-        <ToggleSwitch
-          checked={enabled}
-          onChange={onToggle}
-          busy={busy}
-          label="HAN-/onderwijsprofiel aan of uit"
-        />
-      }
-    />
   );
 }
 

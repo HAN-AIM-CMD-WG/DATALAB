@@ -194,6 +194,22 @@ function parseActiveBody(data: unknown): ActiveEngineResponse {
       sonarModel: typeof obj.sonar_model === 'string' ? obj.sonar_model : null,
       sonarState: modelState(obj.sonar_state),
       piiModelState: modelState(obj.pii_model_state),
+      profileName: typeof obj.profile_name === 'string' ? obj.profile_name : '',
+      customTerms: Array.isArray(obj.custom_terms)
+        ? obj.custom_terms.flatMap((raw) => {
+            const t = (raw ?? {}) as Record<string, unknown>;
+            return typeof t.label === 'string' && typeof t.entity_type === 'string'
+              ? [
+                  {
+                    label: t.label,
+                    description: typeof t.description === 'string' ? t.description : '',
+                    entityType: t.entity_type,
+                  },
+                ]
+              : [];
+          })
+        : [],
+      customTermsState: modelState(obj.custom_terms_state),
       limitations: stringList(obj.limitations),
       hanEduEnabled:
         typeof obj.han_edu_enabled === 'boolean' ? obj.han_edu_enabled : true,
@@ -343,6 +359,13 @@ export function registerEngineBridge(): void {
     if (typeof patch?.sonarModel === 'string') body.sonar_model = patch.sonarModel;
     if (typeof patch?.enableHanEdu === 'boolean') body.enable_han_edu = patch.enableHanEdu;
     if (typeof patch?.enablePiiModel === 'boolean') body.enable_pii_model = patch.enablePiiModel;
+    if (typeof patch?.profileName === 'string') body.profile_name = patch.profileName;
+    if (Array.isArray(patch?.customTerms)) {
+      body.custom_terms = patch.customTerms.map((t) => ({
+        label: String(t.label),
+        description: String(t.description ?? ''),
+      }));
+    }
     if (typeof patch?.ollamaModel === 'string') body.ollama_model = patch.ollamaModel;
     if (typeof patch?.ollamaReviewEnabled === 'boolean')
       body.ollama_review_enabled = patch.ollamaReviewEnabled;

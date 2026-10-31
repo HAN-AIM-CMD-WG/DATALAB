@@ -111,7 +111,18 @@ const ENTITY_TO_CATEGORY: Map<string, EntityCategory> = (() => {
   return m;
 })();
 
+const OWN_TERM: Omit<EntityStyle, 'categoryId' | 'label'> = {
+  highlight: 'bg-cyan-500/15 text-cyan-900 dark:text-cyan-200',
+  pill: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
+  strong: 'bg-cyan-500/30',
+};
+
 export function styleForEntity(entityType: string): EntityStyle {
+  if (entityType.startsWith('TERM_')) {
+    // An own term from the organisation profile: TERM_DOSSIERNUMMER.
+    const term = entityType.slice('TERM_'.length).toLowerCase().replace(/_/g, ' ');
+    return { categoryId: 'eigen-begrippen', label: `Eigen begrip: ${term}`, ...OWN_TERM };
+  }
   const cat = ENTITY_TO_CATEGORY.get(entityType);
   if (!cat) {
     return {

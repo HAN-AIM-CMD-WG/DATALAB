@@ -95,6 +95,10 @@ export interface ActiveEngineInfo {
   sonarState: 'off' | 'loading' | 'loaded' | 'failed';
   /** Same, for the extra PII model. */
   piiModelState: 'off' | 'loading' | 'loaded' | 'failed';
+  /** Active organisation profile as the engine knows it; empty when none was chosen. */
+  profileName: string;
+  customTerms: Array<ProfileTerm & { entityType: string }>;
+  customTermsState: 'off' | 'loading' | 'loaded' | 'failed';
   /** See ``EngineHealthOk.limitations``. */
   limitations: string[];
   /** HAN-/onderwijsprofiel actief? Zet klas-, cursus-, CROHO-, medewerker-
@@ -125,6 +129,10 @@ export interface EngineConfigPatch {
   enableHanEdu?: boolean;
   /** Schakel het extra PII-model in of uit (moet gedownload zijn). */
   enablePiiModel?: boolean;
+  /** Naam van het actieve organisatieprofiel. */
+  profileName?: string;
+  /** Eigen begrippen van dat profiel; een lege lijst zet ze uit. */
+  customTerms?: ProfileTerm[];
   /** Ollama-tag (bv. ``qwen3.5:4b``) voor alle LLM-rollen. */
   ollamaModel?: string;
   /** Schakel de LLM-review-laag aan/uit. */
@@ -552,6 +560,37 @@ export interface RestoreApi {
   run(req: { files: string[]; outputParent: string }): Promise<RestoreRunResponse>;
 }
 
+export interface ProfileTerm {
+  label: string;
+  description: string;
+}
+
+/**
+ * An organisation profile: the HAN education recognizers on or off, and the
+ * organisation's own terms. Two are built in; others are imported from a file
+ * the organisation provides and kept in the app's folder.
+ */
+export interface OrgProfile {
+  id: string;
+  name: string;
+  description: string;
+  builtIn: boolean;
+  hanEdu: boolean;
+  terms: ProfileTerm[];
+}
+
+export type ProfileImportResponse =
+  | { ok: true; profile: OrgProfile }
+  | { ok: false; error: string };
+
+export interface ProfilesApi {
+  list(): Promise<OrgProfile[]>;
+  /** Pick a profile file; ``null`` when the dialog was cancelled. */
+  import(): Promise<ProfileImportResponse | null>;
+  /** Remove an imported profile; built-in ones stay. */
+  remove(id: string): Promise<OrgProfile[]>;
+}
+
 export interface AnonimiseerApi {
   version: VersionInfo;
   engine: EngineApi;
@@ -564,6 +603,7 @@ export interface AnonimiseerApi {
   system: SystemApi;
   catalog: CatalogApi;
   restore: RestoreApi;
+  profiles: ProfilesApi;
 }
 
 declare global {

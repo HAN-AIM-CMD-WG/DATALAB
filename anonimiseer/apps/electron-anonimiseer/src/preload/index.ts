@@ -21,6 +21,8 @@ import type {
   ModelTaskResponse,
   OllamaCatalogResponse,
   OllamaPresence,
+  OrgProfile,
+  ProfileImportResponse,
   ReadTextResponse,
   RestoreMappingResponse,
   RestoreRunResponse,
@@ -140,6 +142,13 @@ const api: AnonimiseerApi = {
       refresh: (): Promise<OllamaCatalogResponse> =>
         ipcRenderer.invoke('catalog:ollama:refresh') as Promise<OllamaCatalogResponse>,
     },
+  },
+  profiles: {
+    list: (): Promise<OrgProfile[]> => ipcRenderer.invoke('profiles:list') as Promise<OrgProfile[]>,
+    import: (): Promise<ProfileImportResponse | null> =>
+      ipcRenderer.invoke('profiles:import') as Promise<ProfileImportResponse | null>,
+    remove: (id: string): Promise<OrgProfile[]> =>
+      ipcRenderer.invoke('profiles:remove', id) as Promise<OrgProfile[]>,
   },
   restore: {
     openMapping: (): Promise<RestoreMappingResponse | null> =>

@@ -1,0 +1,16 @@
+{
+  "anonimiseerProfiel": 1,
+  "naam": "Voorbeeldorganisatie",
+  "omschrijving": "Verzonnen voorbeeld: twee eigen nummers van een fictieve organisatie.",
+  "onderwijsherkenners": false,
+  "begrippen": [
+    {
+      "label": "dossiernummer",
+      "omschrijving": "Nummer van een dossier: een D, een jaartal en vier cijfers, bijvoorbeeld D-2024-0012"
+    },
+    {
+      "label": "projectcode",
+      "omschrijving": "Code van een project: PRJ en drie cijfers, bijvoorbeeld PRJ-778"
+    }
+  ]
+}

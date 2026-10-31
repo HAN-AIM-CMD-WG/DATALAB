@@ -33,14 +33,19 @@ voetteksten, werkbladcellen, PDF-regels). Daarna:
 2. **Nederlandse NER**: spaCy `nl_core_news_lg` via Presidio, plus SoNaR-BERT
    (`wietsedv/bert-base-dutch-cased-finetuned-sonar-ner`, PyTorch) voor betere recall op
    namen, plaatsen en organisaties.
-3. **Postfilter**: treffers blijven binnen één blok, overlappende treffers worden
+3. **Modellaag** (optioneel, op verzoek gedownload): een algemeen PII-model
+   (`bardsai/eu-pii-anonimization-multilang-v3`) voor gewone persoonsgegevens, en GLiNER2
+   (`fastino/gliner2-privacy-filter-PII-multi`) voor de eigen begrippen uit het profiel van
+   een organisatie (zie [`profielen.md`](profielen.md)). Modeluitvoer gaat door dezelfde
+   controles als de eigen regels: Elfproef, IBAN mod-97, Luhn, hele woorden.
+4. **Postfilter**: treffers blijven binnen één blok, overlappende treffers worden
    samengevoegd of rond een sterkere treffer (postcode, e-mail) geknipt, veldlabels en ruis
    vallen weg.
-4. **Controle door de gebruiker** in stap 3, daarna vervangen. Na het opslaan telt de engine
+5. **Controle door de gebruiker** in stap 3, daarna vervangen. Na het opslaan telt de engine
    of elke geaccepteerde vervanging ook echt in het bestand is beland.
-5. **Controle achteraf door een lokaal taalmodel** (optioneel, standaard uit): een
+6. **Controle achteraf door een lokaal taalmodel** (optioneel, standaard uit): een
    Ollama-model leest het resultaat en wijst op wat mogelijk gemist is.
-6. **Pseudonimisering**: één consistente mapping voor alle bestanden van een run, opgeslagen
+7. **Pseudonimisering**: één consistente mapping voor alle bestanden van een run, opgeslagen
    als `mapping.bin`. Versleuteld met een sleutel van het besturingssysteem (Electron
    safeStorage: Keychain op macOS, DPAPI op Windows, Secret Service op Linux) en beveiligd
    met een HMAC-SHA256 tegen wijzigingen. Terugzetten ("Pseudoniemen terugzetten") kan alleen
@@ -55,6 +60,11 @@ met de reden.
 
 - **spaCy**: klein, medium of large; large zit in de installer.
 - **SoNaR-BERT**: zit in de installer, aan of uit te zetten.
+- **PII-model** (bardsai, ~1,1 GB): op verzoek te downloaden, aan of uit te zetten.
+- **GLiNER2-PII** (~1,1 GB): op verzoek te downloaden; wordt vanzelf gebruikt als het
+  actieve profiel eigen begrippen heeft.
+- **Profiel van je organisatie**: Algemeen, HAN-onderwijs, of een geïmporteerd profiel met
+  eigen begrippen ([`profielen.md`](profielen.md)).
 - **Ollama**: lokale taalmodellen uit een catalogus, voor de controle achteraf.
   Cloud-varianten worden geweigerd, ook als je zelf een naam invoert.
 
