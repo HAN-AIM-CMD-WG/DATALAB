@@ -21,7 +21,8 @@ export function useEngineHealth(): {
 
   const recheck = useCallback(() => {
     void window.anonimiseer.engine.health().then((result) => {
-      if (active.current) setHealth(result);
+      if (!active.current) return;
+      setHealth(result.status === 'down' && result.starting ? { status: 'checking' } : result);
     });
   }, []);
 

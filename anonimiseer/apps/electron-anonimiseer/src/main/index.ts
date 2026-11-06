@@ -135,10 +135,11 @@ app.whenReady().then(async () => {
   registerRestoreBridge();
   registerProfilesBridge();
 
-  // In productie: start de meegebundelde pii-engine sidecar voordat we het
-  // hoofdvenster tonen. Als het starten faalt tonen we een heldere dialog en
-  // laten we de app alsnog open gaan — dan ziet de gebruiker de engine-status
-  // "Niet bereikbaar" in de UI en kan hij contact opnemen met support.
+  // The window opens straight away: the first start copies the shipped model
+  // and starts the engine, which can take a minute, and the header shows that
+  // the engine is starting. If starting fails, a dialog says why; the app
+  // stays open with the engine shown as not reachable.
+  createWindow();
   const engineResult = await startEngine();
   if (!engineResult.started && app.isPackaged) {
     dialog.showErrorBox(
@@ -148,7 +149,7 @@ app.whenReady().then(async () => {
         '',
         engineResult.reason ?? 'Onbekende oorzaak.',
         '',
-        'De app opent toch, maar kan geen documenten verwerken totdat de',
+        'De app blijft open, maar kan geen documenten verwerken totdat de',
         'engine beschikbaar is. Start de app opnieuw of neem contact op met',
         'support als het probleem blijft.',
       ].join('\n'),
@@ -157,8 +158,6 @@ app.whenReady().then(async () => {
 
   // macOS: houd het icoon in het Dock actief, maar niet in de taskbar op
   // Windows tenzij er een venster is.
-  createWindow();
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();

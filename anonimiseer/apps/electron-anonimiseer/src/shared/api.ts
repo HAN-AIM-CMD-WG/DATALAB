@@ -38,6 +38,8 @@ export interface EngineHealthDown {
   status: 'down';
   reason: string;
   url: string;
+  /** The app is still starting the engine; not reachable is expected then. */
+  starting?: boolean;
 }
 
 export type EngineHealth = EngineHealthOk | EngineHealthDown;

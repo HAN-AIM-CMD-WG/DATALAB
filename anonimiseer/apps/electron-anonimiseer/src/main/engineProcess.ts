@@ -19,15 +19,8 @@
 import { app } from 'electron';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readlinkSync,
-  statSync,
-  symlinkSync,
-} from 'node:fs';
+import { existsSync } from 'node:fs';
+import { cp, mkdir, readdir, rename, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { clearEngineEndpoint, setEngineEndpoint } from './engineEndpoint';
@@ -68,80 +61,32 @@ function explainEarlyExit(stderr: string): string {
 }
 
 /**
- * Seed de HuggingFace-modelcache van de gebruiker vanuit de meegebundelde
- * seed-folder, zodat het PII-model out-of-the-box werkt zonder internet.
- *
- * Strategie:
- *   - Bron: `<resources>/hf-seed/hub/models--<repo>/` (meegebundeld, read-only).
- *   - Doel: `~/.anonimiseer/huggingface/hub/models--<repo>/` (schrijfbaar).
- *   - Alleen kopiëren als de doel-map nog niet bestaat, anders laten we de
- *     bestaande cache met rust (gebruiker kan er zelf modellen aan hebben
- *     toegevoegd via de Model Manager).
- *   - Symlinks behouden we zoals ze in de HF-cache horen te staan
- *     (snapshots/... → ../../blobs/<hash>). Node's `cpSync` kopieert met
- *     `verbatimSymlinks: true` zonder te dereferencen.
+ * Copy the models the installer ships (`<resources>/hf-seed/hub/models--<repo>/`)
+ * into the user's cache (`~/.anonimiseer/huggingface/hub/`), where the engine
+ * loads them from without internet. A model already in the cache is left
+ * alone. Asynchronous, so the window stays responsive while ~1 GB is copied,
+ * and via a temporary folder: an interrupted first start leaves no half model
+ * that the engine would take for a complete one.
  */
-function seedHuggingFaceCache(): void {
+async function seedHuggingFaceCache(): Promise<void> {
   const seedRoot = join(process.resourcesPath, 'hf-seed', 'hub');
   if (!existsSync(seedRoot)) {
     console.log('[engineProcess] geen hf-seed in resources, skip seeding');
     return;
   }
   const userHubCache = join(homedir(), '.anonimiseer', 'huggingface', 'hub');
-  mkdirSync(userHubCache, { recursive: true });
-
-  let seededCount = 0;
-  for (const repoFolder of readdirSync(seedRoot)) {
-    const srcRepo = join(seedRoot, repoFolder);
+  await mkdir(userHubCache, { recursive: true });
+  for (const repoFolder of await readdir(seedRoot)) {
     const dstRepo = join(userHubCache, repoFolder);
-    if (existsSync(dstRepo)) {
-      continue;
-    }
+    if (!repoFolder.startsWith('models--') || existsSync(dstRepo)) continue;
+    const partial = `${dstRepo}.partial`;
     try {
-      copyHfRepo(srcRepo, dstRepo);
-      seededCount += 1;
+      await rm(partial, { recursive: true, force: true });
+      await cp(join(seedRoot, repoFolder), partial, { recursive: true });
+      await rename(partial, dstRepo);
       console.log('[engineProcess] geseed:', repoFolder);
     } catch (err) {
       console.warn('[engineProcess] kon', repoFolder, 'niet seeden:', err);
-    }
-  }
-  if (seededCount > 0) {
-    console.log(
-      `[engineProcess] ${seededCount} HF-repo(s) geseed naar ${userHubCache}`,
-    );
-  }
-}
-
-/**
- * Recursieve kopie van een HF-cache-map met behoud van symlinks. We gebruiken
- * niet `fs.cpSync` met `verbatimSymlinks: true` omdat dat in oudere Electron-
- * builds inconsistent is; handmatig is robuuster.
- */
-function copyHfRepo(src: string, dst: string): void {
-  mkdirSync(dst, { recursive: true });
-  for (const entry of readdirSync(src, { withFileTypes: true })) {
-    const srcPath = join(src, entry.name);
-    const dstPath = join(dst, entry.name);
-    if (entry.isSymbolicLink()) {
-      const target = readlinkSync(srcPath);
-      try {
-        symlinkSync(target, dstPath);
-      } catch (err) {
-        // Op Windows mag je zonder admin-rechten geen symlinks maken; val
-        // dan terug op een kopie van het doel-bestand.
-        try {
-          const resolved = statSync(srcPath);
-          if (resolved.isFile()) {
-            cpSync(srcPath, dstPath);
-          }
-        } catch {
-          throw err;
-        }
-      }
-    } else if (entry.isDirectory()) {
-      copyHfRepo(srcPath, dstPath);
-    } else if (entry.isFile()) {
-      cpSync(srcPath, dstPath);
     }
   }
 }
@@ -224,6 +169,13 @@ function proofMatches(token: string, nonce: string, proof: unknown): boolean {
   );
 }
 
+let starting = false;
+
+/** True while the app is still starting its engine, so "not reachable" is expected. */
+export function isEngineStarting(): boolean {
+  return starting;
+}
+
 /**
  * Start de engine in productie. In dev doet deze functie niets.
  * Gooi een error als starten mislukt zodat de UI een heldere boodschap kan
@@ -233,6 +185,15 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
   if (!app.isPackaged) {
     return { started: false, reason: 'dev-mode: verwacht uvicorn al te draaien' };
   }
+  starting = true;
+  try {
+    return await launchEngine();
+  } finally {
+    starting = false;
+  }
+}
+
+async function launchEngine(): Promise<{ started: boolean; reason?: string }> {
   const binary = resolveEngineBinary();
   if (binary === null) {
     return {
@@ -243,7 +204,7 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
   }
 
   // Seed eerst de HF-cache zodat het PII-model direct beschikbaar is.
-  seedHuggingFaceCache();
+  await seedHuggingFaceCache();
 
   // Geheim dat alleen deze app en het kindproces kennen. Zie waitForHealth.
   const token = randomBytes(32).toString('hex');

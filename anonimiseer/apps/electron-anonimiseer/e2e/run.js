@@ -100,21 +100,22 @@ async function driveApp(inputs) {
   );
   // The main process logs the engine's output too; keep it for when a check fails.
   const appLog = fs.createWriteStream(path.join(TMP, 'app.log'));
-  app.process().stdout?.pipe(appLog);
-  app.process().stderr?.pipe(appLog);
+  const appProcess = app.process();
+  appProcess.stdout?.pipe(appLog);
+  appProcess.stderr?.pipe(appLog);
   const consoleErrors = [];
-  const page = await app.firstWindow();
-  const shownVersion = await page.evaluate(() => window.anonimiseer.version.app);
-  page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
-  page.on('pageerror', (e) => consoleErrors.push(e.message));
-
   const dialogs = [];
-  page.on('dialog', (d) => {
-    dialogs.push(d.message());
-    void d.accept();
-  });
 
   try {
+    const page = await app.firstWindow({ timeout: 60_000 });
+    const shownVersion = await page.evaluate(() => window.anonimiseer.version.app);
+    page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
+    page.on('pageerror', (e) => consoleErrors.push(e.message));
+    page.on('dialog', (d) => {
+      dialogs.push(d.message());
+      void d.accept();
+    });
+
     await app.evaluate(
       ({ dialog }, { files, outdir, profile }) => {
         dialog.showOpenDialog = async (...args) => {
@@ -135,8 +136,9 @@ async function driveApp(inputs) {
 
     await page.getByRole('button', { name: /Kies bestanden/ }).click();
     await page.getByText('intake.docx').first().waitFor({ timeout: 10_000 });
+    // Shown once the engine answers; the first start copies the shipped model first.
     const pdfNotice = page.getByText(/PDF-ondersteuning is nog niet geïnstalleerd/);
-    await pdfNotice.waitFor({ timeout: 30_000 });
+    await pdfNotice.waitFor({ timeout: 180_000 });
     await shot(page, 'step1-files');
 
     // Install PDF support from the notice, the way a user would.
@@ -201,7 +203,8 @@ async function driveApp(inputs) {
 
     return { runDir, restoreDir, consoleErrors, shownVersion, dialogs, profileListed };
   } finally {
-    await app.close();
+    await Promise.race([app.close(), new Promise((r) => setTimeout(r, 15_000))]);
+    appProcess.kill();
   }
 }
 
@@ -350,7 +353,11 @@ function checks(runDir) {
   }
   console.log(`\nscreenshots: ${SHOTS}`);
   process.exitCode = results.every((r) => r.ok) ? 0 : 1;
-})().catch((err) => {
-  console.error(`E2E aborted: ${err.message}`);
-  process.exitCode = 2;
-});
+})()
+  .catch((err) => {
+    console.error(`E2E aborted: ${err.message}`);
+    if (process.env.E2E_DEBUG) console.error(err.stack);
+    process.exitCode = 2;
+  })
+  // An app that did not close must not keep this process, or a CI job, waiting.
+  .finally(() => process.exit());
