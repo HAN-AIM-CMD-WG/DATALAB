@@ -104,16 +104,22 @@ jobs:
         run: |
           ./pii-engine &
           PID=$!
+          # On Windows, bash's kill does not stop the native process; a running
+          # engine would lock its files for the installer and hold the port.
+          stop() {
+            kill $PID 2>/dev/null || true
+            if [ "$RUNNER_OS" = Windows ]; then taskkill //F //T //IM pii-engine.exe || true; fi
+          }
           for i in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8765/health >/dev/null 2>&1; then
               echo "Bundle OK after ${i}s"
-              kill $PID || true
+              stop
               exit 0
             fi
             sleep 1
           done
           echo "Bundle failed health-check" >&2
-          kill $PID || true
+          stop
           exit 1
 
       # --- 2) Shipped models ---------------------------------------------------
@@ -153,7 +159,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run ${{ matrix.dist }}
+        # electron-builder treats an empty CSC_LINK as a certificate path.
+        run: |
+          [ -n "$CSC_LINK" ] || unset CSC_LINK CSC_KEY_PASSWORD
+          [ -n "$APPLE_ID" ] || unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+          npm run ${{ matrix.dist }}
 
       # --- 4) End-to-end on the built app --------------------------------------
       - name: End-to-end test
