@@ -36,7 +36,36 @@ def _exit_when_stdin_closes() -> None:
         logger.info("stdin gesloten: de app is weg, engine stopt.")
         os._exit(0)
 
-    threading.Thread(target=watch, name="parent-lifeline", daemon=True).start()
+    threading.Thread(
+        target=_watch_pipe_windows if sys.platform == "win32" else watch,
+        name="parent-lifeline",
+        daemon=True,
+    ).start()
+
+
+def _watch_pipe_windows() -> None:
+    """Poll the pipe instead of reading it.
+
+    On Windows a blocking read on a synchronous pipe holds up other work in the
+    process; with it the engine never got as far as opening its port.
+    """
+    if sys.platform != "win32":
+        return
+    import ctypes
+    import msvcrt
+    import time
+    from ctypes import wintypes
+
+    kernel32 = ctypes.windll.kernel32
+    handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+    file_type_pipe = 3
+    if kernel32.GetFileType(handle) != file_type_pipe:
+        return
+    available = wintypes.DWORD()
+    while kernel32.PeekNamedPipe(handle, None, 0, None, ctypes.byref(available), None):
+        time.sleep(1)
+    logger.info("stdin gesloten: de app is weg, engine stopt.")
+    os._exit(0)
 
 
 def main() -> None:

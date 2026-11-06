@@ -95,14 +95,16 @@ jobs:
             exit 1
           fi
 
+      # Started the way the app starts it: with a pipe on stdin as its lifeline.
       - name: Smoke-test the bundle
         working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
         env:
           PII_ENGINE_SPACY_MODEL: nl_core_news_lg
           PII_ENGINE_ENABLE_SONAR: "false"
           PII_ENGINE_ENABLE_PII_MODEL: "false"
+          PII_ENGINE_EXIT_WITH_PARENT: "true"
         run: |
-          ./pii-engine &
+          sleep 600 | ./pii-engine &
           PID=$!
           # On Windows, bash's kill does not stop the native process; a running
           # engine would lock its files for the installer and hold the port.
