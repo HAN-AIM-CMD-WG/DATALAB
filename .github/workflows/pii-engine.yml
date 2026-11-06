@@ -6,6 +6,7 @@ on:
     paths:
       - "anonimiseer/packages/pii-engine/**"
       - ".github/workflows/pii-engine.yml"
+  workflow_dispatch:
   pull_request:
     paths:
       - "anonimiseer/packages/pii-engine/**"

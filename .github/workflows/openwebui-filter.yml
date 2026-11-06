@@ -6,6 +6,7 @@ on:
     paths:
       - "anonimiseer/apps/openwebui-filter/**"
       - ".github/workflows/openwebui-filter.yml"
+  workflow_dispatch:
   pull_request:
     paths:
       - "anonimiseer/apps/openwebui-filter/**"

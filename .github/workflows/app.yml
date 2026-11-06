@@ -9,6 +9,7 @@ on:
     paths:
       - "anonimiseer/apps/electron-anonimiseer/**"
       - ".github/workflows/app.yml"
+  workflow_dispatch:
   pull_request:
     paths:
       - "anonimiseer/apps/electron-anonimiseer/**"

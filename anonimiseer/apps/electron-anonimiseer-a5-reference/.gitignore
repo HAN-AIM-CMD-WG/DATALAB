@@ -66,3 +66,6 @@ oldExampleStyles.css
 *.bak
 *.tmp
 
+
+# Downloaded models; a cloned model repo would be committed as an orphan submodule
+/models/protectai/
