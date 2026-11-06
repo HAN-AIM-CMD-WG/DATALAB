@@ -183,6 +183,30 @@ layers on.
 All 14 checks PASS, including restoring the run's Markdown and Word output; crash test all
 PASS.
 
+## Phase 5 — which model ships, 6 November 2026
+
+SoNaR-BERT has no licence and may not ship, so the question was what the engine does
+without it. Measured on the development engine, PII model and SoNaR switched as in the rows.
+
+| Configuration | Recall (independent) | Precision | Traps hit | Recall (own set) | Time (own set) |
+|---|---|---|---|---|---|
+| spaCy only | 91.7% | 97.4% | 0/10 | 100.0% | 0.6 s |
+| spaCy + SoNaR (phase 3 default) | 97.2% | 97.6% | 0/10 | 100.0% | 0.9 s |
+| spaCy + PII model, no SoNaR | 100.0% | 97.6% | 0/10 | 100.0% | 2.0 s |
+
+The PII model (Apache-2.0) now ships and is on by default; SoNaR is an optional download.
+
+### End-to-end, packaged app (macOS arm64)
+
+17 checks. New: a PDF letter goes through the wizard, after PDF support was installed from
+the notice in step 1 (downloaded from PyPI, licence confirmed first), with no personal data
+left; an organisation profile is imported and removed. All PASS; crash test all PASS.
+
+Running three files at once exposed two engine faults, both fixed: the first requests built
+the pipeline several times over, loading the PII model up to five times, and a tokenizer
+shared between threads failed with "Already borrowed". A tqdm lock also made the bundled
+engine start a second copy of itself, which then failed to bind the port.
+
 ### Measuring notes
 
 - Measure the engine as users get it. A dev engine started with `HF_HOME` pointing elsewhere

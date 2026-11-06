@@ -19,11 +19,10 @@ Status: **pilot v0.1.1** — beschikbaar als pre-release voor interne HAN-test (
 
 | Jouw computer | Bestand op de Releases-pagina | Grootte |
 | --- | --- | --- |
-| **Mac met Apple Silicon** (M1/M2/M3/M4) | `Anonimiseer-x.y.z-arm64.dmg` | ~840 MB |
-| **Mac met Intel-CPU** (~2015–2020) | `Anonimiseer-x.y.z.dmg` | ~840 MB |
-| **Windows 10/11** (64-bit) | `Anonimiseer Setup x.y.z.exe` | ~700 MB |
+| **Mac met Apple Silicon** (M1/M2/M3/M4) | `Anonimiseer-x.y.z-arm64.dmg` | ~2 GB |
+| **Windows 10/11** (64-bit) | `Anonimiseer Setup x.y.z.exe` | ~1,8 GB |
 
-> **Welke Mac heb ik?** Apple-menu → *"Over deze Mac"*. Staat er "Apple M1/M2/M3/M4 …"? Dan **arm64**. Staat er "Intel Core …"? Dan de DMG zonder suffix.
+> **Welke Mac heb ik?** Apple-menu → *"Over deze Mac"*. Staat er "Apple M1/M2/M3/M4 …"? Dan kun je Anonimiseer gebruiken. Macs met een Intel-processor worden niet ondersteund: de bibliotheek voor de taalmodellen (PyTorch) bestaat daar niet meer voor.
 
 ### Stap 2 — installeren
 
@@ -43,7 +42,7 @@ Dat is verwacht gedrag bij ongesigneerde apps; de app zelf is veilig en draait v
 
 ### Verificatie (optioneel)
 
-Bestand controleren tegen de SHA-256 op de Releases-pagina:
+Bestand controleren tegen `SHA256SUMS.txt` op de Releases-pagina:
 
 - macOS: `shasum -a 256 ~/Downloads/Anonimiseer-*.dmg`
 - Windows (PowerShell): `Get-FileHash Anonimiseer*.exe -Algorithm SHA256`

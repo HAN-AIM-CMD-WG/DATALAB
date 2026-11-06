@@ -7,13 +7,14 @@ Geen account, geen cloud, geen Python/Node nodig — alles zit in de download.
 
 | OS | Bestand | Wat doe je ermee? |
 |---|---|---|
-| **macOS** (Apple Silicon + Intel) | `Anonimiseer-X.Y.Z.dmg` | Open de `.dmg`, sleep de app naar **Programma's**. |
-| **Windows 10/11** (64-bit) | `Anonimiseer-Setup-X.Y.Z.exe` | Dubbelklik de installer (admin niet nodig). |
-| Linux | `Anonimiseer-X.Y.Z.AppImage` | `chmod +x`, dubbelklik. |
+| **macOS** (Apple-chip: M1 of nieuwer) | `Anonimiseer-X.Y.Z-arm64.dmg` | Open de `.dmg`, sleep de app naar **Programma's**. |
+| **Windows 10/11** (64-bit) | `Anonimiseer Setup X.Y.Z.exe` | Dubbelklik de installer (admin niet nodig). |
+
+Macs met een Intel-processor worden niet ondersteund.
 
 ### Eerste keer openen
 
-Omdat de app niet code-signed is, krijg je éénmalig een waarschuwing:
+Zolang de app niet code-signed is, krijg je éénmalig een waarschuwing:
 
 - **macOS** → rechts-klik → Openen → "Open"
 - **Windows** → "Meer info" → "Toch uitvoeren"
@@ -32,32 +33,31 @@ Daarna start de app gewoon vanaf je Dock / Start-menu.
 
 ## ⚠️ Bekende beperkingen
 
-- App is nog niet code-signed (Gatekeeper / SmartScreen-warning bij eerste opening).
-- Engine-startup duurt ~5-10s bij eerste run (spaCy-model laden).
-- Beide installers ~700 MB-1 GB door embedded Python-runtime + NLP-modellen (offline-werking).
+- De eerste analyse duurt langer: de taalmodellen worden dan eenmalig geladen.
+- Het meegeleverde PII-model gebruikt ~3 GB werkgeheugen; uitzetten kan in Modellen beheren.
+- PDF-ondersteuning is een aparte download van ~24 MB (licentie AGPL-3.0), in Modellen beheren.
 
 ## 🔒 Privacy
 
 - Detectie en pseudonimisering vinden **volledig op je eigen apparaat** plaats.
-- De app luistert alleen op `127.0.0.1` (localhost) en doet geen externe calls.
+- De app luistert alleen op `127.0.0.1` (localhost). Internet alleen als je zelf iets
+  downloadt in Modellen beheren, en nooit met documentinhoud.
 - Geen telemetrie. Geen accounts. Geen logging van content.
 
 ## 🔢 SHA-256 checksums
 
-```
-<vul aan na build>
-```
+Staan in `SHA256SUMS.txt` bij deze release. Verifieer met:
 
-Verifieer met:
 ```bash
-shasum -a 256 Anonimiseer-X.Y.Z.dmg
-certutil -hashfile Anonimiseer-Setup-X.Y.Z.exe SHA256
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing          # macOS
+certutil -hashfile "Anonimiseer Setup X.Y.Z.exe" SHA256   # Windows
 ```
 
 ## 📚 Documentatie
 
 - README: <https://github.com/HAN-AIM-CMD-WG/DATALAB/tree/main/anonimiseer>
 - Architectuur: [`docs/architecture.md`](https://github.com/HAN-AIM-CMD-WG/DATALAB/blob/main/anonimiseer/docs/architecture.md)
+- Licenties van derden: [`THIRD-PARTY-NOTICES.md`](https://github.com/HAN-AIM-CMD-WG/DATALAB/blob/main/anonimiseer/THIRD-PARTY-NOTICES.md)
 - Disclaimer: [`docs/disclaimer-nl.md`](https://github.com/HAN-AIM-CMD-WG/DATALAB/blob/main/anonimiseer/docs/disclaimer-nl.md)
 
 ## 🙏 Verantwoordelijkheid

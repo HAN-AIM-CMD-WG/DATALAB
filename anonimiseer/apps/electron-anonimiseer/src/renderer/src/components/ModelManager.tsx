@@ -680,7 +680,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                   Detectie-modellen
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Kies welke spaCy-pipeline draait en of SoNaR-BERT meedoet.
+                  Kies welke spaCy-pipeline draait en welke extra lagen meedoen.
                   Download wat je nodig hebt — daarna werkt alles offline.
                 </p>
               </div>

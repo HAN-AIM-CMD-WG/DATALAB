@@ -20,6 +20,11 @@ const OUTDIR = path.join(TMP, 'output');
 const SHOTS = path.join(TMP, 'shots');
 const DEV_DOC = path.resolve(APP, '../../docs/examples/test-document.md');
 const DEV_GOLD = DEV_DOC.replace(/\.md$/, '.expected.jsonl');
+const PROFILE = path.resolve(APP, '../../docs/examples/profiel-voorbeeld.json');
+// The engine's settings and downloaded components live outside the user data
+// folder; keep this run's apart from the real ones.
+const RUNTIME_CONFIG = path.join(TMP, 'runtime_config.json');
+const COMPONENTS = path.join(TMP, 'components');
 const SCOPE = new Set([
   'PERSON', 'LOCATION', 'NL_POSTCODE', 'NL_PHONE_NUMBER', 'EMAIL_ADDRESS', 'NL_BSN', 'IBAN_CODE',
 ]);
@@ -27,6 +32,10 @@ const SCOPE = new Set([
 const BIRTH_DATES = [
   '14-03-1985', '02/11/1992', '30 juni 1978', '1990-08-22', '7 mei 1995', '1962-12-01', '11.04.1975', '07-05-1995',
 ];
+
+// Windows has no POSIX modes; access there follows the ACLs of the user profile.
+const POSIX = process.platform !== 'win32';
+const PYTHON = process.env.E2E_PYTHON || (POSIX ? 'python3' : 'python');
 
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -62,8 +71,10 @@ function prepareInputs() {
   fs.rmSync(SHOTS, { recursive: true, force: true });
   fs.mkdirSync(OUTDIR, { recursive: true });
   fs.mkdirSync(SHOTS, { recursive: true });
+  fs.rmSync(RUNTIME_CONFIG, { force: true });
+  fs.rmSync(COMPONENTS, { recursive: true, force: true });
   fs.copyFileSync(DEV_DOC, path.join(INPUT, 'test-document.md'));
-  return [path.join(INPUT, 'test-document.md'), docx];
+  return [path.join(INPUT, 'test-document.md'), docx, path.join(INPUT, 'brief.pdf')];
 }
 
 async function driveApp(inputs) {
@@ -71,7 +82,11 @@ async function driveApp(inputs) {
   const userData = path.join(TMP, packaged ? 'userdata-packaged' : 'userdata');
   fs.rmSync(userData, { recursive: true, force: true });
   // Started from Finder, the app has no npm_* variables; started from here it would.
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('npm_')));
+  const env = {
+    ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('npm_'))),
+    ANONIMISEER_RUNTIME_CONFIG: RUNTIME_CONFIG,
+    ANONIMISEER_COMPONENTS_DIR: COMPONENTS,
+  };
   const app = await _electron.launch(
     packaged
       ? { executablePath: packaged, args: [`--user-data-dir=${userData}`], env, timeout: 120_000 }
@@ -83,23 +98,33 @@ async function driveApp(inputs) {
           timeout: 60_000,
         },
   );
+  // The main process logs the engine's output too; keep it for when a check fails.
+  const appLog = fs.createWriteStream(path.join(TMP, 'app.log'));
+  app.process().stdout?.pipe(appLog);
+  app.process().stderr?.pipe(appLog);
   const consoleErrors = [];
   const page = await app.firstWindow();
   const shownVersion = await page.evaluate(() => window.anonimiseer.version.app);
   page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
   page.on('pageerror', (e) => consoleErrors.push(e.message));
 
+  const dialogs = [];
+  page.on('dialog', (d) => {
+    dialogs.push(d.message());
+    void d.accept();
+  });
+
   try {
     await app.evaluate(
-      ({ dialog }, { files, outdir }) => {
+      ({ dialog }, { files, outdir, profile }) => {
         dialog.showOpenDialog = async (...args) => {
           const opts = args.find((a) => a && Array.isArray(a.properties)) || { properties: [] };
-          return opts.properties.includes('openDirectory')
-            ? { canceled: false, filePaths: [outdir] }
-            : { canceled: false, filePaths: files };
+          if (opts.properties.includes('openDirectory')) return { canceled: false, filePaths: [outdir] };
+          const exts = (opts.filters || []).flatMap((f) => f.extensions);
+          return { canceled: false, filePaths: exts.includes('json') ? [profile] : files };
         };
       },
-      { files: inputs, outdir: OUTDIR },
+      { files: inputs, outdir: OUTDIR, profile: PROFILE },
     );
 
     await page.getByText('Welkom bij Anonimiseer').waitFor({ timeout: 30_000 });
@@ -110,7 +135,26 @@ async function driveApp(inputs) {
 
     await page.getByRole('button', { name: /Kies bestanden/ }).click();
     await page.getByText('intake.docx').first().waitFor({ timeout: 10_000 });
+    const pdfNotice = page.getByText(/PDF-ondersteuning is nog niet geïnstalleerd/);
+    await pdfNotice.waitFor({ timeout: 30_000 });
     await shot(page, 'step1-files');
+
+    // Install PDF support from the notice, the way a user would.
+    await page.getByRole('button', { name: 'Installeer het in Modellen beheren' }).click();
+    const pdfRow = page.locator('li', { hasText: 'PDF-ondersteuning (PyMuPDF)' });
+    await pdfRow.getByRole('button', { name: /Downloaden/ }).click();
+    await pdfRow.getByRole('button', { name: /Opnieuw/ }).waitFor({ timeout: 180_000 });
+
+    // Import an organisation profile, then remove it again.
+    await page.getByRole('button', { name: /Profiel importeren/ }).click();
+    const profileRow = page.locator('li', { hasText: 'Voorbeeldorganisatie' });
+    await profileRow.waitFor({ timeout: 10_000 });
+    const profileListed = (await profileRow.textContent()) ?? '';
+    await shot(page, 'models-pdf-and-profile');
+    await profileRow.getByRole('button', { name: /Verwijderen/ }).click();
+    await profileRow.waitFor({ state: 'detached', timeout: 10_000 });
+    await page.getByRole('button', { name: 'Sluiten', exact: true }).click();
+    await pdfNotice.waitFor({ state: 'detached', timeout: 15_000 });
     await clickNext(page);
     await shot(page, 'step2-settings');
     await clickNext(page);
@@ -155,7 +199,7 @@ async function driveApp(inputs) {
     await panel.getByText(/teruggezet/).first().waitFor();
     await shot(page, 'restore-result');
 
-    return { runDir, restoreDir, consoleErrors, shownVersion };
+    return { runDir, restoreDir, consoleErrors, shownVersion, dialogs, profileListed };
   } finally {
     await app.close();
   }
@@ -181,19 +225,35 @@ function containsWord(text, fragment) {
 }
 
 function docxPart(file, part) {
-  const xml = execFileSync('unzip', ['-p', file, part], { encoding: 'utf8' });
+  const read = 'import sys, zipfile; sys.stdout.buffer.write(zipfile.ZipFile(sys.argv[1]).read(sys.argv[2]))';
+  const xml = execFileSync(PYTHON, ['-c', read, file, part]).toString('utf8');
   return xml.replace(/<[^>]+>/g, ' ');
+}
+
+/** Reads the PDF with the PyMuPDF the app downloaded during this run. */
+function pdfTextOf(file) {
+  const [installed] = fs.readdirSync(COMPONENTS).filter((d) => d.startsWith('pymupdf-'));
+  const read =
+    'import sys; sys.path.insert(0, sys.argv[1]); import fitz; ' +
+    'sys.stdout.buffer.write("".join(p.get_text() for p in fitz.open(sys.argv[2])).encode())';
+  return execFileSync(PYTHON, ['-c', read, path.join(COMPONENTS, installed), file]).toString('utf8');
+}
+
+const mode = (p) => (fs.statSync(p).mode & 0o777).toString(8);
+
+function posixCheck(name, problems) {
+  return POSIX ? { name, ok: problems().length === 0, problems: problems() } : { name, ok: true, skipped: true, problems: [] };
 }
 
 function checks(runDir) {
   const results = [];
   const add = (name, problems) => results.push({ name, ok: problems.length === 0, problems });
 
-  const mode = (p) => (fs.statSync(p).mode & 0o777).toString(8);
-  add('run directory only readable by the user', mode(runDir) === '700' ? [] : [`mode ${mode(runDir)}`]);
-  add(
-    'every output file only readable by the user',
-    fs.readdirSync(runDir).filter((f) => mode(path.join(runDir, f)) !== '600').map((f) => `${f}: ${mode(path.join(runDir, f))}`),
+  results.push(
+    posixCheck('run directory only readable by the user', () => (mode(runDir) === '700' ? [] : [`mode ${mode(runDir)}`])),
+    posixCheck('every output file only readable by the user', () =>
+      fs.readdirSync(runDir).filter((f) => mode(path.join(runDir, f)) !== '600').map((f) => `${f}: ${mode(path.join(runDir, f))}`),
+    ),
   );
 
   const md = fs.readFileSync(path.join(runDir, 'test-document.anon.md'), 'utf8');
@@ -214,11 +274,14 @@ function checks(runDir) {
   const props = docxPart(docx, 'docProps/core.xml');
   add('Word: no personal data left in the document properties', originals.properties.filter((o) => props.includes(o)));
 
+  const pdfText = pdfTextOf(path.join(runDir, 'brief.anon.pdf'));
+  add('PDF: no personal data left', originals.pdf.filter((o) => pdfText.includes(o)));
+
   const disclaimer = fs.readFileSync(path.join(runDir, 'DISCLAIMER.txt'), 'utf8');
   add(
     'DISCLAIMER names the models really used, without limitations',
     [
-      ...(/Modellen: .*SoNaR/.test(disclaimer) ? [] : ['no SoNaR in the "Modellen:" line']),
+      ...(/Modellen: .*PII-model/.test(disclaimer) ? [] : ['no PII model in the "Modellen:" line']),
       ...disclaimer.split('\n').filter((l) => l.startsWith('Beperking:')),
     ],
   );
@@ -239,16 +302,27 @@ function checks(runDir) {
 (async () => {
   const inputs = prepareInputs();
   log(process.env.E2E_EXECUTABLE ? `packaged app: ${process.env.E2E_EXECUTABLE}` : 'dev build (out/)');
-  const { runDir, restoreDir, consoleErrors, shownVersion } = await driveApp(inputs);
+  const { runDir, restoreDir, consoleErrors, shownVersion, dialogs, profileListed } = await driveApp(inputs);
   log(`run directory: ${runDir}`);
 
   const results = checks(runDir);
-  const mode = (p) => (fs.statSync(p).mode & 0o777).toString(8);
   results.push({
-    name: 'restore: folder 0700 and every file 0600',
-    ok: mode(restoreDir) === '700' && fs.readdirSync(restoreDir).every((f) => mode(path.join(restoreDir, f)) === '600'),
-    problems: [restoreDir, ...fs.readdirSync(restoreDir)].map((f) => `${path.basename(f)}: ${mode(path.resolve(restoreDir, f))}`),
+    name: 'PDF support: notice in step 1, licence confirmed before the download',
+    ok: dialogs.some((m) => m.includes('AGPL-3.0')),
+    problems: [`dialogs: ${JSON.stringify(dialogs)}`],
   });
+  results.push({
+    name: 'profile import: listed with its terms, then removed',
+    ok: profileListed.includes('2 eigen begrippen'),
+    problems: [`listed as: ${profileListed}`],
+  });
+  results.push(
+    posixCheck('restore: folder 0700 and every file 0600', () =>
+      [restoreDir, ...fs.readdirSync(restoreDir).map((f) => path.join(restoreDir, f))]
+        .filter((p) => mode(p) !== (p === restoreDir ? '700' : '600'))
+        .map((p) => `${path.basename(p)}: ${mode(p)}`),
+    ),
+  );
   const restoredMd = fs.readFileSync(path.join(restoreDir, 'test-document.teruggezet.md'), 'utf8');
   results.push({
     name: 'restore: Markdown is identical to the original',
@@ -271,7 +345,8 @@ function checks(runDir) {
   });
   console.log('');
   for (const r of results) {
-    console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : `: ${r.problems.join(', ')}`}`);
+    const status = r.skipped ? 'SKIP' : r.ok ? 'PASS' : 'FAIL';
+    console.log(`${status}  ${r.name}${r.ok ? '' : `: ${r.problems.join(', ')}`}`);
   }
   console.log(`\nscreenshots: ${SHOTS}`);
   process.exitCode = results.every((r) => r.ok) ? 0 : 1;

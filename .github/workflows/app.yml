@@ -1,0 +1,43 @@
+name: app
+
+# Typecheck and unit tests of the Electron app on every change; the installers
+# are built by electron-installer.yml, on main and for releases only.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "anonimiseer/apps/electron-anonimiseer/**"
+      - ".github/workflows/app.yml"
+  pull_request:
+    paths:
+      - "anonimiseer/apps/electron-anonimiseer/**"
+      - ".github/workflows/app.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: anonimiseer/apps/electron-anonimiseer
+
+jobs:
+  check:
+    name: Typecheck & test
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: anonimiseer/apps/electron-anonimiseer/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

@@ -13,11 +13,10 @@ local cache only, and a download by commit does not record that ref.
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 from pathlib import Path
-
-from huggingface_hub import snapshot_download
 
 SEED_DIR = Path(__file__).resolve().parent / "hf-seed" / "hub"
 
@@ -32,6 +31,11 @@ MODELS_TO_SEED = [
 
 
 def main() -> int:
+    # The xet transfer keeps its own cache in ~/.cache/huggingface, which is not
+    # writable on every machine; a plain HTTPS download needs no cache.
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+    from huggingface_hub import snapshot_download
+
     if SEED_DIR.exists():
         shutil.rmtree(SEED_DIR)
     SEED_DIR.mkdir(parents=True)
@@ -44,7 +48,7 @@ def main() -> int:
     for leftover in (".locks", "datasets--"):
         for path in SEED_DIR.glob(f"{leftover}*"):
             shutil.rmtree(path, ignore_errors=True)
-    total = sum(f.stat().st_size for f in SEED_DIR.rglob("*") if f.is_file())
+    total = sum(f.stat().st_size for f in SEED_DIR.rglob("*") if f.is_file() and not f.is_symlink())
     print(f"[seed] {total / 1024 / 1024:.0f} MB in {SEED_DIR}")
     return 0
 

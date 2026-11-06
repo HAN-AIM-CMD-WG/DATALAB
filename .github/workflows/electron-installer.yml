@@ -1,121 +1,110 @@
 name: electron-installer
 
-# Bouwt cross-platform installers voor de Anonimiseer Electron-app.
+# Builds the installers, runs the end-to-end test on the built app and, for a
+# release, attaches the installers with their SHA-256 sums to it.
+#
 # Per OS:
-#   1) PyInstaller one-folder bundle van pii-engine (inclusief spaCy
-#      nl_core_news_lg + SoNaR-BERT, zie pyproject extras [bundle,sonar]).
-#   2) electron-builder: dmg (mac) of NSIS (win) installer met bundle als extraResource
+#   1) PyInstaller bundle of the pii-engine, without PyMuPDF (AGPL-3.0, a
+#      download in the app);
+#   2) the models the installer ships (hf-seed, pinned in prepare-hf-seed.py);
+#   3) the third-party overview, then electron-builder: dmg (Apple silicon) or
+#      NSIS (Windows x64). Intel Macs are not built: PyTorch has had no macOS
+#      x86_64 wheels since 2.3.
 #
-# Triggert op:
-#   - push naar feat/** of main wanneer app- of engine-code wijzigt
-#   - manueel via workflow_dispatch
-#   - bij een release-tag (v*.*.*) → artifacts worden ook aan de Release gekoppeld
-#
-# Geen code-signing voor de pilot: dmg en nsis worden uitgeleverd als
-# "unsigned". Install-docs beschrijven hoe gebruikers de SmartScreen-/
-# Gatekeeper-waarschuwing wegklikken.
+# Signing: the mac build signs and notarizes once these repository secrets
+# exist, and stays unsigned without them: MAC_CSC_LINK (base64 .p12 with a
+# Developer ID Application certificate), MAC_CSC_KEY_PASSWORD, APPLE_ID,
+# APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. See RELEASE.md.
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main]
     paths:
       - "anonimiseer/apps/electron-anonimiseer/**"
       - "anonimiseer/packages/pii-engine/**"
-      - ".github/workflows/electron-installer.yml"
-  pull_request:
-    paths:
-      - "anonimiseer/apps/electron-anonimiseer/**"
-      - "anonimiseer/packages/pii-engine/**"
+      - "anonimiseer/scripts/**"
       - ".github/workflows/electron-installer.yml"
   workflow_dispatch:
   release:
-    types: [created]
+    types: [published]
+
+permissions:
+  contents: read
 
 concurrency:
   group: electron-installer-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
-    name: Build installer (${{ matrix.os }})
+    name: Build and test (${{ matrix.target }})
+    # Other projects in this repository publish releases too.
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'anonimiseer-')
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14            # Apple Silicon runner
+          - os: macos-15
             target: mac
-            artifact_glob: "anonimiseer/apps/electron-anonimiseer/release/*.dmg"
+            dist: dist:mac
+            app: release/mac-arm64/Anonimiseer.app/Contents/MacOS/Anonimiseer
+            artifact_glob: anonimiseer/apps/electron-anonimiseer/release/*.dmg
           - os: windows-latest
             target: win
-            artifact_glob: "anonimiseer/apps/electron-anonimiseer/release/*.exe"
+            dist: dist:win
+            app: release/win-unpacked/Anonimiseer.exe
+            artifact_glob: anonimiseer/apps/electron-anonimiseer/release/*.exe
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: anonimiseer/apps/electron-anonimiseer/package-lock.json
 
-      # --- 1) PyInstaller bundle ---------------------------------------------
-      - name: Install pii-engine + PyInstaller (Unix)
-        if: runner.os != 'Windows'
+      # --- 1) Engine bundle ----------------------------------------------------
+      - name: Install pii-engine + PyInstaller
         working-directory: anonimiseer/packages/pii-engine
-        run: |
-          python -m pip install --upgrade pip wheel setuptools
-          # [sonar] voegt torch + transformers toe zodat SoNaR-BERT NER in de
-          # gebundelde app werkt. Maakt de installer ~400 MB groter maar is de
-          # moeite waard voor Nederlandse namen-recall.
-          pip install -e ".[bundle,sonar]"
-
-      - name: Install pii-engine + PyInstaller (Windows)
-        if: runner.os == 'Windows'
-        working-directory: anonimiseer/packages/pii-engine
-        shell: pwsh
         run: |
           python -m pip install --upgrade pip wheel setuptools
           pip install -e ".[bundle,sonar]"
 
-      - name: Run PyInstaller (Unix)
-        if: runner.os != 'Windows'
-        working-directory: anonimiseer/packages/pii-engine
-        run: |
-          cd build
-          pyinstaller pii-engine.spec --noconfirm --clean
+      - name: Run PyInstaller
+        working-directory: anonimiseer/packages/pii-engine/build
+        run: pyinstaller pii-engine.spec --noconfirm --clean
 
-      - name: Run PyInstaller (Windows)
-        if: runner.os == 'Windows'
-        working-directory: anonimiseer/packages/pii-engine
-        shell: pwsh
+      - name: Check that PyMuPDF is not in the bundle
+        working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
         run: |
-          cd build
-          pyinstaller pii-engine.spec --noconfirm --clean
+          if find . -iname '*mupdf*' -o -name fitz | grep -q .; then
+            echo "PyMuPDF (AGPL-3.0) is in the bundle" >&2
+            exit 1
+          fi
 
-      # Smoke-test: het gebundelde spaCy-model is nl_core_news_lg (zie
-      # pyproject [bundle] en pii-engine.spec). De engine moet zonder
-      # internet kunnen starten — geen pip download_spacy_model fallback.
-      - name: Smoke-test pii-engine bundle (Unix)
-        if: runner.os != 'Windows'
+      - name: Smoke-test the bundle
         working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
         env:
           PII_ENGINE_SPACY_MODEL: nl_core_news_lg
-          # Schakel SoNaR uit tijdens de smoke-test: cold-load van de BERT-
-          # weights duurt 30-60s op een CI-runner zonder pre-cache, plus we
-          # toetsen alleen of de basis-pipeline up komt.
           PII_ENGINE_ENABLE_SONAR: "false"
+          PII_ENGINE_ENABLE_PII_MODEL: "false"
         run: |
           ./pii-engine &
           PID=$!
-          for i in $(seq 1 60); do
+          for i in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8765/health >/dev/null 2>&1; then
               echo "Bundle OK after ${i}s"
               kill $PID || true
@@ -123,77 +112,100 @@ jobs:
             fi
             sleep 1
           done
-          echo "Bundle failed health-check"
+          echo "Bundle failed health-check" >&2
           kill $PID || true
           exit 1
 
-      - name: Smoke-test pii-engine bundle (Windows)
-        if: runner.os == 'Windows'
-        working-directory: anonimiseer/packages/pii-engine/build/dist/pii-engine
-        shell: pwsh
-        env:
-          PII_ENGINE_SPACY_MODEL: nl_core_news_lg
-          PII_ENGINE_ENABLE_SONAR: "false"
-        run: |
-          $proc = Start-Process -FilePath ".\pii-engine.exe" -PassThru -NoNewWindow
-          $ok = $false
-          for ($i = 0; $i -lt 60; $i++) {
-            try {
-              $r = Invoke-WebRequest -Uri "http://127.0.0.1:8765/health" -UseBasicParsing -TimeoutSec 2
-              if ($r.StatusCode -eq 200) { $ok = $true; break }
-            } catch { Start-Sleep -Seconds 1 }
-          }
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          if (-not $ok) { throw "Bundle failed health-check" }
+      # --- 2) Shipped models ---------------------------------------------------
+      - name: Cache shipped models
+        id: seed-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: anonimiseer/packages/pii-engine/build/hf-seed
+          key: hf-seed-${{ runner.os }}-${{ hashFiles('anonimiseer/packages/pii-engine/build/prepare-hf-seed.py') }}
 
-      # --- 2) Electron-builder installer -------------------------------------
-      - name: Install Electron-app dependencies
+      - name: Download shipped models
+        if: steps.seed-cache.outputs.cache-hit != 'true'
+        working-directory: anonimiseer/packages/pii-engine/build
+        run: python prepare-hf-seed.py
+
+      # --- 3) App and installer ------------------------------------------------
+      - name: Install app dependencies
         working-directory: anonimiseer/apps/electron-anonimiseer
         run: npm ci
 
-      - name: Typecheck
-        working-directory: anonimiseer/apps/electron-anonimiseer
-        run: npm run typecheck
+      - name: Third-party overview
+        working-directory: anonimiseer
+        run: python scripts/third_party_notices.py
 
-      - name: Test (app-logica)
+      - name: Typecheck and unit tests
         working-directory: anonimiseer/apps/electron-anonimiseer
-        run: npm test
+        run: |
+          npm run typecheck
+          npm test
 
-      - name: Build installer (mac)
-        if: matrix.target == 'mac'
+      - name: Build installer
         working-directory: anonimiseer/apps/electron-anonimiseer
         env:
-          # Expliciet geen signing in de pilot-fase; vermijd `electron/notarize`
-          # errors zonder Apple-credentials.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npm run dist:mac
+          CSC_LINK: ${{ matrix.target == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run ${{ matrix.dist }}
 
-      - name: Build installer (win)
-        if: matrix.target == 'win'
+      # --- 4) End-to-end on the built app --------------------------------------
+      - name: End-to-end test
         working-directory: anonimiseer/apps/electron-anonimiseer
-        run: npm run dist:win
+        env:
+          E2E_EXECUTABLE: ${{ matrix.app }}
+          E2E_PYTHON: python
+        run: |
+          python e2e/make_fixture.py
+          npm run e2e
 
-      # --- 3) Artifacts -------------------------------------------------------
-      - name: List build output
-        if: always()
-        working-directory: anonimiseer/apps/electron-anonimiseer/release
-        shell: bash
-        run: ls -la || true
+      - name: Crash test
+        if: matrix.target == 'mac'
+        working-directory: anonimiseer/apps/electron-anonimiseer
+        run: bash e2e/crashtest.sh "${{ matrix.app }}"
 
-      - name: Upload installer artifact
-        if: success()
-        uses: actions/upload-artifact@v4
+      - name: Upload end-to-end screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-${{ matrix.target }}
+          path: |
+            anonimiseer/apps/electron-anonimiseer/e2e/.tmp/shots
+            anonimiseer/apps/electron-anonimiseer/e2e/.tmp/app.log
+          retention-days: 7
+
+      - name: Upload installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Anonimiseer-${{ matrix.target }}
           path: ${{ matrix.artifact_glob }}
           if-no-files-found: error
           retention-days: 14
 
-      # Bij een release-tag: hang artifacts direct aan de Release.
-      - name: Attach to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+  release:
+    name: Attach to release
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          files: ${{ matrix.artifact_glob }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          pattern: Anonimiseer-*
+          merge-multiple: true
+          path: dist
+
+      - name: SHA-256 sums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          files: dist/*
