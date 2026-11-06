@@ -27,8 +27,9 @@ import { clearEngineEndpoint, setEngineEndpoint } from './engineEndpoint';
 
 const HEALTH_POLL_INTERVAL_MS = 500;
 // Torch/transformers + spaCy-lg hebben op eerste koude start ~30-40 s nodig
-// voor model-decompressie en Presidio-registratie. We geven ruim tot 90 s.
-const HEALTH_POLL_TIMEOUT_MS = 90_000;
+// voor model-decompressie en Presidio-registratie. On a first start on
+// Windows, a virus scanner checks every library of the engine first.
+const HEALTH_POLL_TIMEOUT_MS = 180_000;
 const HEALTH_PORT = Number.parseInt(
   process.env.ANONIMISEER_ENGINE_PORT ?? '8765',
   10,

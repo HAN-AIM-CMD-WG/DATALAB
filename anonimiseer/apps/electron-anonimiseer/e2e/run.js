@@ -137,8 +137,18 @@ async function driveApp(inputs) {
     await page.getByRole('button', { name: /Kies bestanden/ }).click();
     await page.getByText('intake.docx').first().waitFor({ timeout: 10_000 });
     // Shown once the engine answers; the first start copies the shipped model first.
+    // Log the engine status meanwhile: on Windows the main process's output is not captured.
     const pdfNotice = page.getByText(/PDF-ondersteuning is nog niet geïnstalleerd/);
-    await pdfNotice.waitFor({ timeout: 180_000 });
+    const deadline = Date.now() + 300_000;
+    while (!(await pdfNotice.isVisible())) {
+      if (Date.now() > deadline) throw new Error('PDF notice did not appear within 300 s');
+      const health = await Promise.race([
+        page.evaluate(() => window.anonimiseer.engine.health()),
+        new Promise((r) => setTimeout(() => r('no answer from the main process'), 5_000)),
+      ]);
+      log('engine:', JSON.stringify(health));
+      await page.waitForTimeout(10_000);
+    }
     await shot(page, 'step1-files');
 
     // Install PDF support from the notice, the way a user would.
