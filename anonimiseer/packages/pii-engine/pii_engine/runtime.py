@@ -366,7 +366,7 @@ def _invalidate_analyzer_cache() -> None:
     # Lazy import om circulaire imports te vermijden.
     from pii_engine import analyzer as analyzer_module
 
-    analyzer_module.get_default_analyzer.cache_clear()
+    analyzer_module.reset_default_analyzer()
     logger.info("analyzer-cache geleegd na runtime-config wijziging.")
 
 

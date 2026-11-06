@@ -5,6 +5,7 @@ import {
   hitId,
   isManualHitId,
   manualHitId,
+  reviewComplete,
   type FileReview,
 } from './reviewTypes';
 
@@ -55,5 +56,24 @@ describe('hit-ids', () => {
   it('markeert handmatig toegevoegde hits herkenbaar', () => {
     expect(isManualHitId(manualHitId(hit()))).toBe(true);
     expect(isManualHitId(hitId(hit()))).toBe(false);
+  });
+});
+
+describe('reviewComplete', () => {
+  const withStatus = (status: FileReview['status']): FileReview => ({ ...file(), status });
+
+  it('wacht tot elk bestand klaar is, zodat er geen bestand wordt overgeslagen', () => {
+    expect(reviewComplete([withStatus('done'), withStatus('analyzing')])).toBe(false);
+    expect(reviewComplete([withStatus('done'), withStatus('loading')])).toBe(false);
+    expect(reviewComplete([withStatus('done'), withStatus('pending')])).toBe(false);
+  });
+
+  it('laat een bestand met een fout de rest niet blokkeren', () => {
+    expect(reviewComplete([withStatus('done'), withStatus('error'), withStatus('unsupported')])).toBe(true);
+  });
+
+  it('vraagt minstens één geanalyseerd bestand', () => {
+    expect(reviewComplete([])).toBe(false);
+    expect(reviewComplete([withStatus('error')])).toBe(false);
   });
 });

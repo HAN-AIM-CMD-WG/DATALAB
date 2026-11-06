@@ -106,20 +106,27 @@ class CustomTermsRecognizer(EntityRecognizer):
         if not text.strip() or not labels:
             return []
         try:
-            model = self._model.get()
+            self._model.get()
         except Exception:
             # Reported through the pipeline status; the app shows "Beperkt".
             return []
+        with self._model.use() as model:
+            windows = [
+                (
+                    offset,
+                    model.extract_entities(
+                        chunk,
+                        labels,
+                        threshold=self._threshold,
+                        include_spans=True,
+                        include_confidence=True,
+                    ),
+                )
+                for offset, chunk in text_windows(text, size=1200, overlap=150)
+            ]
 
         best: dict[tuple[int, int, str], RecognizerResult] = {}
-        for offset, chunk in text_windows(text, size=1200, overlap=150):
-            found = model.extract_entities(
-                chunk,
-                labels,
-                threshold=self._threshold,
-                include_spans=True,
-                include_confidence=True,
-            )
+        for offset, found in windows:
             for label, values in (found.get("entities") or {}).items():
                 entity = self._types.get(label)
                 if entity is None:

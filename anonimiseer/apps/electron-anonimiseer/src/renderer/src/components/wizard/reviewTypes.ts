@@ -46,6 +46,16 @@ export interface ReviewState {
   whitelist: string[];
 }
 
+const FINISHED: ReadonlySet<FileReview['status']> = new Set(['done', 'error', 'unsupported']);
+
+/**
+ * Step 3 is through once no file is still being read or analysed, and at least
+ * one could be analysed. A file still running at "Opslaan" would be skipped.
+ */
+export function reviewComplete(files: FileReview[]): boolean {
+  return files.some((f) => f.status === 'done') && files.every((f) => FINISHED.has(f.status));
+}
+
 export function hitId(hit: AnalyzeHit): string {
   return `${hit.entity_type}:${hit.start}:${hit.end}`;
 }

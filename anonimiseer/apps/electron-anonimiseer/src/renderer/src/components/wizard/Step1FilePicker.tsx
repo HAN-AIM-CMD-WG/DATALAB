@@ -45,11 +45,19 @@ export function Step1FilePicker({
       return;
     }
     let cancelled = false;
-    void window.anonimiseer.engine.active().then((res) => {
-      if (!cancelled) setPdfMissing(res.ok && !res.info.pdfSupport);
-    });
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    // Right after start the engine may not answer yet; keep asking until it does.
+    const check = (): void => {
+      void window.anonimiseer.engine.active().then((res) => {
+        if (cancelled) return;
+        if (res.ok) setPdfMissing(!res.info.pdfSupport);
+        else retry = setTimeout(check, 2000);
+      });
+    };
+    check();
     return () => {
       cancelled = true;
+      if (retry) clearTimeout(retry);
     };
   }, [hasPdf, modelsClosed]);
 

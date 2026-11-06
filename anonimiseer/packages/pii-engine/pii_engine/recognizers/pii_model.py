@@ -166,14 +166,18 @@ class PiiModelRecognizer(EntityRecognizer):
         if not text.strip() or not wanted.intersection(PII_MODEL_ENTITIES):
             return []
         try:
-            pipe = self._model.get()
+            self._model.get()
         except Exception:
             # Reported through the pipeline status; the app shows "Beperkt".
             return []
+        with self._model.use() as pipe:
+            windows: list[tuple[int, list[dict[str, Any]]]] = [
+                (offset, pipe(chunk))
+                for offset, chunk in text_windows(text, size=2000, overlap=200)
+            ]
 
         best: dict[tuple[int, int, str], RecognizerResult] = {}
-        for offset, chunk in text_windows(text, size=2000, overlap=200):
-            raw: list[dict[str, Any]] = pipe(chunk)
+        for offset, raw in windows:
             for ent in raw:
                 result = self._to_result(
                     text,

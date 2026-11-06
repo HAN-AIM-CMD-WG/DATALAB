@@ -7,6 +7,7 @@ ontwikkelwerk kun je ook direct ``uvicorn pii_engine.api:app --reload`` runnen.
 from __future__ import annotations
 
 import logging
+import multiprocessing
 import os
 import sys
 import threading
@@ -39,6 +40,10 @@ def _exit_when_stdin_closes() -> None:
 
 
 def main() -> None:
+    # In the bundled engine, helper processes of multiprocessing (such as the
+    # resource tracker behind tqdm's lock) run this same binary; without this
+    # they would each start a second engine.
+    multiprocessing.freeze_support()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",

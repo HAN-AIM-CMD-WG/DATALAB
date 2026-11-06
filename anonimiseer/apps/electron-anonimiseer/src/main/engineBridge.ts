@@ -81,11 +81,21 @@ async function fetchHealth(): Promise<EngineHealth> {
   }
 }
 
+/** Analysing changes nothing in the engine, so a dropped connection is worth one retry. */
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error;
+    return fetch(url, init);
+  }
+}
+
 async function postAnalyze(req: AnalyzeRequest): Promise<AnalyzeResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
   try {
-    const response = await fetch(`${engineUrl()}/analyze`, {
+    const response = await fetchWithRetry(`${engineUrl()}/analyze`, {
       method: 'POST',
       headers: engineHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify({

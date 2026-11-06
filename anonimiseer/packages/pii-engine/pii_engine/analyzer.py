@@ -9,7 +9,7 @@ binnen de FastAPI-app.
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
+import threading
 
 from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngine, NlpEngineProvider
@@ -237,8 +237,25 @@ def build_analyzer(settings: Settings | None = None) -> AnalyzerEngine:
     return analyzer
 
 
-@lru_cache(maxsize=1)
-def get_default_analyzer() -> AnalyzerEngine:
-    """Cached singleton voor de FastAPI-app."""
+_default: AnalyzerEngine | None = None
+_default_lock = threading.Lock()
 
-    return build_analyzer()
+
+def get_default_analyzer() -> AnalyzerEngine:
+    """Shared instance for the FastAPI app.
+
+    Built once, also when the first requests arrive together: each build loads
+    every model again, the PII model alone taking ~3 GB.
+    """
+    global _default
+    with _default_lock:
+        if _default is None:
+            _default = build_analyzer()
+        return _default
+
+
+def reset_default_analyzer() -> None:
+    """The next request builds a new instance, with the current settings."""
+    global _default
+    with _default_lock:
+        _default = None

@@ -43,6 +43,7 @@ class LazyModel(Generic[T]):
         self._value: T | None = None
         self._error: str | None = None
         self._lock = threading.Lock()
+        self._in_use = threading.Lock()
 
     @property
     def state(self) -> LoadState:
@@ -78,6 +79,17 @@ class LazyModel(Generic[T]):
                 raise
             logger.info("Model geladen: %s", self._name)
             return self._value
+
+    @contextlib.contextmanager
+    def use(self) -> Iterator[T]:
+        """The model, for one request at a time.
+
+        The engine analyses several files at once, and a HuggingFace tokenizer
+        shared between threads fails with "Already borrowed".
+        """
+        model = self.get()
+        with self._in_use:
+            yield model
 
 
 def text_windows(text: str, size: int, overlap: int) -> Iterator[tuple[int, str]]:

@@ -11,7 +11,7 @@ import {
   type WizardStepId,
 } from './wizardTypes';
 import { defaultWizardSettings, type WizardSettings } from './settingsTypes';
-import type { ReviewState } from './reviewTypes';
+import { reviewComplete, type ReviewState } from './reviewTypes';
 
 /**
  * Wizard-container: stepper + inhoud + navigatieknoppen.
@@ -54,15 +54,10 @@ export function Wizard({
 
   const canAdvanceFromFiles = validFileCount > 0;
   const canAdvanceFromSettings = enabledCategoryCount > 0;
-  // Review is doorlopen zodra er minstens één bestand 'done' is (of
-  // expliciet gemarkeerd als niet te doen). Zo voorkomen we dat de
-  // gebruiker per ongeluk op 'Volgende' klikt terwijl de analyse nog
-  // draait en daarmee in stap 4 lege outputs krijgt.
-  const canAdvanceFromReview = useMemo(() => {
-    const fs = Object.values(review.files);
-    if (fs.length === 0) return false;
-    return fs.some((f) => f.status === 'done');
-  }, [review.files]);
+  const canAdvanceFromReview = useMemo(
+    () => reviewComplete(Object.values(review.files)),
+    [review.files]
+  );
 
   const furthestReached: WizardStepId | null = !canAdvanceFromFiles
     ? null

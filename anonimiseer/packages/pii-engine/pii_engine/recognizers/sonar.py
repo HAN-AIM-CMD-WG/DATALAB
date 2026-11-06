@@ -170,12 +170,13 @@ class SonarRecognizer(EntityRecognizer):
             return []
 
         try:
-            pipe = self._model.get()
+            self._model.get()
         except Exception:
             # Reported through the pipeline status; the app shows "Beperkt".
             return []
         try:
-            raw_entities: list[dict[str, Any]] = pipe(text)
+            with self._model.use() as pipe:
+                raw_entities: list[dict[str, Any]] = pipe(text)
         except Exception as exc:  # pragma: no cover - model/runtime failures
             logger.warning("SoNaR-pipeline faalde: %s", exc)
             return []
