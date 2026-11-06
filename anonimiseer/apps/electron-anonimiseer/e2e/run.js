@@ -125,7 +125,8 @@ async function driveApp(inputs) {
       void d.accept();
     });
 
-    await app.evaluate(
+    await evaluateMain(
+      app,
       ({ dialog }, { files, outdir, profile }) => {
         dialog.showOpenDialog = async (...args) => {
           const opts = args.find((a) => a && Array.isArray(a.properties)) || { properties: [] };
@@ -200,7 +201,8 @@ async function driveApp(inputs) {
 
     // Put the pseudonyms back with this run's mapping.
     const pseudonymised = ['test-document.anon.md', 'intake.anon.docx'].map((f) => path.join(runDir, f));
-    await app.evaluate(
+    await evaluateMain(
+      app,
       ({ dialog }, { mapping, files, outdir }) => {
         dialog.showOpenDialog = async (...args) => {
           const opts = args.find((a) => a && Array.isArray(a.properties)) || { properties: [] };
@@ -242,6 +244,26 @@ async function waitForDir(page, prefix, marker) {
 
 // ------------------------------------------------------------------ checks
 
+/** A Windows checkout has CRLF line endings. */
+function jsonLines(text) {
+  return text.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l));
+}
+
+/**
+ * app.evaluate, retried when Playwright loses track of the result, which happens
+ * now and then while the main process is busy copying the shipped model.
+ */
+async function evaluateMain(app, fn, arg) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await app.evaluate(fn, arg);
+    } catch (err) {
+      if (attempt === 3 || !/garbage collected/.test(err.message)) throw err;
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
+  }
+}
+
 function containsWord(text, fragment) {
   const esc = fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pre = /^\w/.test(fragment) ? '(?<![\\p{L}\\p{N}_])' : '';
@@ -282,7 +304,7 @@ function checks(runDir) {
   );
 
   const md = fs.readFileSync(path.join(runDir, 'test-document.anon.md'), 'utf8');
-  const gold = fs.readFileSync(DEV_GOLD, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const gold = jsonLines(fs.readFileSync(DEV_GOLD, 'utf8'));
   add(
     'Markdown: no personal data left (categories on by default)',
     gold.filter((g) => g.should_match && SCOPE.has(g.type) && containsWord(md, g.text)).map((g) => `${g.text} (${g.type})`),
@@ -307,7 +329,7 @@ function checks(runDir) {
     'DISCLAIMER names the models really used, without limitations',
     [
       ...(/Modellen: .*PII-model/.test(disclaimer) ? [] : ['no PII model in the "Modellen:" line']),
-      ...disclaimer.split('\n').filter((l) => l.startsWith('Beperking:')),
+      ...disclaimer.split(/\r?\n/).filter((l) => l.startsWith('Beperking:')),
     ],
   );
 
@@ -316,7 +338,7 @@ function checks(runDir) {
     'audit log holds file names, not full paths',
     [INPUT, OUTDIR, os.homedir()].filter((p) => auditText.includes(p)),
   );
-  const audit = auditText.split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const audit = jsonLines(auditText);
   add(
     'every accepted replacement was applied',
     audit.filter((a) => a.type === 'file' && a.unreplaced > 0).map((a) => `${a.sourceName}: ${a.unreplaced}`),
