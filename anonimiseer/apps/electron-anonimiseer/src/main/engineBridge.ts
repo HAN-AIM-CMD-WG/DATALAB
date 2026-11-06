@@ -24,7 +24,7 @@ import type {
   ReviewResponse,
 } from '@shared/api';
 import { engineHeaders, engineUrl } from './engineEndpoint';
-import { isEngineStarting } from './engineProcess';
+import { engineStartFailure, engineStartPhase } from './engineProcess';
 
 const HEALTH_TIMEOUT_MS = 2500;
 const ANALYZE_TIMEOUT_MS = 30_000;
@@ -360,7 +360,11 @@ async function postEngineConfig(
 export function registerEngineBridge(): void {
   ipcMain.handle('engine:health', async (): Promise<EngineHealth> => {
     const health = await fetchHealth();
-    return health.status === 'down' && isEngineStarting() ? { ...health, starting: true } : health;
+    if (health.status === 'ok') return health;
+    const phase = engineStartPhase();
+    if (phase) return { ...health, starting: phase };
+    const failure = engineStartFailure();
+    return failure ? { ...health, reason: failure } : health;
   });
   ipcMain.handle('engine:url', () => engineUrl());
   ipcMain.handle('engine:analyze', async (_event, req: AnalyzeRequest) =>

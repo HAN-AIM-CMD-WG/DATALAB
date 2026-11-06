@@ -139,21 +139,22 @@ app.whenReady().then(async () => {
   // and starts the engine, which can take a minute, and the header shows that
   // the engine is starting. If starting fails, a dialog says why; the app
   // stays open with the engine shown as not reachable.
-  createWindow();
+  const window = createWindow();
   const engineResult = await startEngine();
   if (!engineResult.started && app.isPackaged) {
-    dialog.showErrorBox(
-      'PII-engine kon niet starten',
-      [
-        'Anonimiseer kon de lokale verwerkings-engine niet starten.',
-        '',
+    // Not showErrorBox: that blocks the main process, and with it the window.
+    void dialog.showMessageBox(window, {
+      type: 'error',
+      title: 'PII-engine kon niet starten',
+      message: 'Anonimiseer kon de lokale verwerkings-engine niet starten.',
+      detail: [
         engineResult.reason ?? 'Onbekende oorzaak.',
         '',
         'De app blijft open, maar kan geen documenten verwerken totdat de',
         'engine beschikbaar is. Start de app opnieuw of neem contact op met',
         'support als het probleem blijft.',
       ].join('\n'),
-    );
+    });
   }
 
   // macOS: houd het icoon in het Dock actief, maar niet in de taskbar op

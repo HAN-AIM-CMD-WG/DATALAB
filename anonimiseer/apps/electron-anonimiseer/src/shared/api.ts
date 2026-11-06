@@ -39,7 +39,7 @@ export interface EngineHealthDown {
   reason: string;
   url: string;
   /** The app is still starting the engine; not reachable is expected then. */
-  starting?: boolean;
+  starting?: 'copying-model' | 'starting-engine';
 }
 
 export type EngineHealth = EngineHealthOk | EngineHealthDown;

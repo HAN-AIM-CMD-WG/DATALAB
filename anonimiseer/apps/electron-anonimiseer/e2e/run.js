@@ -37,6 +37,14 @@ const BIRTH_DATES = [
 const POSIX = process.platform !== 'win32';
 const PYTHON = process.env.E2E_PYTHON || (POSIX ? 'python3' : 'python');
 
+// A main process stuck in a native dialog blocks every Playwright call too.
+let launched = null;
+setTimeout(() => {
+  console.error('E2E aborted: no result within 20 minutes');
+  launched?.kill();
+  process.exit(3);
+}, 20 * 60_000).unref();
+
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 let shotNr = 0;
@@ -101,6 +109,7 @@ async function driveApp(inputs) {
   // The main process logs the engine's output too; keep it for when a check fails.
   const appLog = fs.createWriteStream(path.join(TMP, 'app.log'));
   const appProcess = app.process();
+  launched = appProcess;
   appProcess.stdout?.pipe(appLog);
   appProcess.stderr?.pipe(appLog);
   const consoleErrors = [];
@@ -147,6 +156,9 @@ async function driveApp(inputs) {
         new Promise((r) => setTimeout(() => r('no answer from the main process'), 5_000)),
       ]);
       log('engine:', JSON.stringify(health));
+      if (health?.status === 'down' && !health.starting) {
+        throw new Error(`engine did not start: ${health.reason}`);
+      }
       await page.waitForTimeout(10_000);
     }
     await shot(page, 'step1-files');

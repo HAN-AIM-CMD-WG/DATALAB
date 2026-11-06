@@ -170,11 +170,12 @@ function proofMatches(token: string, nonce: string, proof: unknown): boolean {
   );
 }
 
-let starting = false;
+export type StartPhase = 'copying-model' | 'starting-engine';
+let phase: StartPhase | null = null;
 
-/** True while the app is still starting its engine, so "not reachable" is expected. */
-export function isEngineStarting(): boolean {
-  return starting;
+/** Set while the app is still starting its engine, so "not reachable" is expected. */
+export function engineStartPhase(): StartPhase | null {
+  return phase;
 }
 
 /**
@@ -186,12 +187,20 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
   if (!app.isPackaged) {
     return { started: false, reason: 'dev-mode: verwacht uvicorn al te draaien' };
   }
-  starting = true;
   try {
-    return await launchEngine();
+    const result = await launchEngine();
+    startFailure = result.started ? null : (result.reason ?? 'onbekende oorzaak');
+    return result;
   } finally {
-    starting = false;
+    phase = null;
   }
+}
+
+let startFailure: string | null = null;
+
+/** Why the last start failed, shown instead of a bare "not reachable". */
+export function engineStartFailure(): string | null {
+  return startFailure;
 }
 
 async function launchEngine(): Promise<{ started: boolean; reason?: string }> {
@@ -205,7 +214,9 @@ async function launchEngine(): Promise<{ started: boolean; reason?: string }> {
   }
 
   // Seed eerst de HF-cache zodat het PII-model direct beschikbaar is.
+  phase = 'copying-model';
   await seedHuggingFaceCache();
+  phase = 'starting-engine';
 
   // Geheim dat alleen deze app en het kindproces kennen. Zie waitForHealth.
   const token = randomBytes(32).toString('hex');
