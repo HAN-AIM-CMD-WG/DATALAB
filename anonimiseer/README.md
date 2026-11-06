@@ -20,7 +20,7 @@ Status: **pilot v0.1.1** — beschikbaar als pre-release voor interne HAN-test (
 | Jouw computer | Bestand op de Releases-pagina | Grootte |
 | --- | --- | --- |
 | **Mac met Apple Silicon** (M1/M2/M3/M4) | `Anonimiseer-x.y.z-arm64.dmg` | ~2 GB |
-| **Windows 10/11** (64-bit) | `Anonimiseer Setup x.y.z.exe` | ~1,8 GB |
+| **Windows 10/11** (64-bit) | `Anonimiseer Setup x.y.z.exe` | ~1,9 GB |
 
 > **Welke Mac heb ik?** Apple-menu → *"Over deze Mac"*. Staat er "Apple M1/M2/M3/M4 …"? Dan kun je Anonimiseer gebruiken. Macs met een Intel-processor worden niet ondersteund: de bibliotheek voor de taalmodellen (PyTorch) bestaat daar niet meer voor.
 

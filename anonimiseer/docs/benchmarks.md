@@ -202,6 +202,10 @@ The PII model (Apache-2.0) now ships and is on by default; SoNaR is an optional 
 the notice in step 1 (downloaded from PyPI, licence confirmed first), with no personal data
 left; an organisation profile is imported and removed. All PASS; crash test all PASS.
 
+In CI, on the built installers: macOS 17/17 and the crash test; Windows 14/14, the three
+checks of POSIX modes skipped. On Windows the engine, started by the app, first never opened
+its port: the lifeline thread read stdin blocking, which there holds up the process.
+
 Running three files at once exposed two engine faults, both fixed: the first requests built
 the pipeline several times over, loading the PII model up to five times, and a tokenizer
 shared between threads failed with "Already borrowed". A tqdm lock also made the bundled
