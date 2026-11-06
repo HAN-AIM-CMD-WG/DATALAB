@@ -25,10 +25,9 @@ Caveats:
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-import fitz  # PyMuPDF
-
+from ..components import PYMUPDF, require
 from ._common import group_replacements_per_block
 from .metadata import scrub_pdf_metadata
 
@@ -36,6 +35,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from . import AcceptedReplacement, Block, ExtractResult
 
 _BLOCK_SEPARATOR = "\n"
+
+
+def _fitz() -> Any:
+    """PyMuPDF is an optional component, so it is imported only when a PDF needs it."""
+    return require(PYMUPDF)
 
 
 def _line_id(page_idx: int, block_idx: int, line_idx: int) -> str:
@@ -57,7 +61,7 @@ def _parse_line_id(block_id: str) -> tuple[int, int, int] | None:
 def extract_pdf(file_bytes: bytes) -> ExtractResult:
     from . import Block, ExtractResult
 
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    doc = _fitz().open(stream=file_bytes, filetype="pdf")
     texts: list[str] = []
     blocks: list[Block] = []
     cursor = 0
@@ -104,6 +108,7 @@ def apply_pdf(
         page_idx = parsed[0]
         per_page.setdefault(page_idx, []).append((block.id, grouped.get(block.id, [])))
 
+    fitz = _fitz()
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     try:
         for page_idx, page_blocks in per_page.items():

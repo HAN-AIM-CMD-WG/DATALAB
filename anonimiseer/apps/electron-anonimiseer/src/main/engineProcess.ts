@@ -69,7 +69,7 @@ function explainEarlyExit(stderr: string): string {
 
 /**
  * Seed de HuggingFace-modelcache van de gebruiker vanuit de meegebundelde
- * seed-folder, zodat SoNaR-BERT out-of-the-box werkt zonder internet.
+ * seed-folder, zodat het PII-model out-of-the-box werkt zonder internet.
  *
  * Strategie:
  *   - Bron: `<resources>/hf-seed/hub/models--<repo>/` (meegebundeld, read-only).
@@ -242,7 +242,7 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
     };
   }
 
-  // Seed eerst de HF-cache zodat SoNaR-BERT direct beschikbaar is.
+  // Seed eerst de HF-cache zodat het PII-model direct beschikbaar is.
   seedHuggingFaceCache();
 
   // Geheim dat alleen deze app en het kindproces kennen. Zie waitForHealth.
@@ -266,11 +266,13 @@ export async function startEngine(): Promise<{ started: boolean; reason?: string
       // namen-recall. Blijft overschrijfbaar via env voor development.
       PII_ENGINE_SPACY_MODEL:
         process.env.PII_ENGINE_SPACY_MODEL ?? 'nl_core_news_lg',
-      // SoNaR-BERT standaard aan: het model zit in de bundle via hf-seed en
-      // torch is beschikbaar. Gebruikt ~600 MB extra RAM maar levert meetbaar
-      // betere recall op lange/ongebruikelijke namen.
+      // The PII model ships via hf-seed and is the default extra layer.
+      // SoNaR-BERT has no licence, so it is an optional download, off until
+      // the user switches it on.
+      PII_ENGINE_ENABLE_PII_MODEL:
+        process.env.PII_ENGINE_ENABLE_PII_MODEL ?? 'true',
       PII_ENGINE_ENABLE_SONAR:
-        process.env.PII_ENGINE_ENABLE_SONAR ?? 'true',
+        process.env.PII_ENGINE_ENABLE_SONAR ?? 'false',
     },
     // stdin is een pipe die we nooit beschrijven: het is een levenslijn. Bij
     // een crash of geforceerde stop van de app worden `before-quit` en

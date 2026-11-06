@@ -198,6 +198,12 @@ function WelcomeStep(): JSX.Element {
         />
       </ul>
 
+      <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+        <strong className="text-foreground">PDF&apos;s?</strong> PDF-ondersteuning zit vanwege
+        de licentie (AGPL-3.0) niet in de installer. Download het één keer (~24 MB) in{' '}
+        <em>Modellen beheren</em>; Word, Excel, Markdown en tekst werken meteen.
+      </p>
+
       <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
         Anonimiseer is <strong className="text-foreground">geen</strong> vervanging voor menselijke
         controle of juridisch advies. Automatische detectie kan fouten

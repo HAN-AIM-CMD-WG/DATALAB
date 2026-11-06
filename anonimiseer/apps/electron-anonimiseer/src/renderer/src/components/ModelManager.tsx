@@ -467,6 +467,14 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
 
   const install = useCallback(
     async (descriptor: ModelInfo) => {
+      if (
+        descriptor.notice &&
+        !window.confirm(
+          `${descriptor.label}\n\n${descriptor.notice}\n\nLicentie: ${descriptor.license}\n\nDownloaden?`
+        )
+      ) {
+        return;
+      }
       setRowState((prev) => ({
         ...prev,
         [descriptor.id]: { busy: true, error: undefined },
@@ -744,6 +752,8 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                   } else if (m.role === 'custom-terms') {
                     roleNote =
                       'Wordt vanzelf gebruikt zodra het actieve profiel eigen begrippen heeft.';
+                  } else if (m.role === 'component') {
+                    roleNote = 'Wordt vanzelf gebruikt zodra je een PDF opent.';
                   } else if (isBaseModel) {
                     roleNote =
                       'Basis-model zonder NER-hoofd — niet zelfstandig bruikbaar. Het is het fundament waarop SoNaR-BERT is getraind.';
@@ -766,6 +776,7 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                 const sonarModels = models.filter((m) => m.role === 'ner');
                 const piiModels = models.filter((m) => m.role === 'pii');
                 const termModels = models.filter((m) => m.role === 'custom-terms');
+                const componentModels = models.filter((m) => m.role === 'component');
                 const baseModels = models.filter((m) => m.role === 'base');
 
                 return (
@@ -779,12 +790,23 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                       {spacyModels.map(renderRow)}
                     </ModelGroup>
 
+                    {componentModels.length > 0 && (
+                      <ModelGroup
+                        tone="optional"
+                        title="Onderdelen"
+                        badge="Optioneel · download"
+                        description="Programma-onderdelen die niet in de installer zitten vanwege hun licentie. Je downloadt ze hier zelf; vooraf zie je de licentie."
+                      >
+                        {componentModels.map(renderRow)}
+                      </ModelGroup>
+                    )}
+
                     {sonarModels.length > 0 && (
                       <ModelGroup
                         tone="optional"
                         title="Extra laag (SoNaR-BERT)"
-                        badge="Optioneel · aanbevolen"
-                        description="Draait náást spaCy en vangt Nederlandse namen die spaCy mist. Laat 'm aan voor de beste recall; uitzetten kan om RAM te besparen."
+                        badge="Optioneel · download"
+                        description="Draait náást spaCy en vangt Nederlandse namen die spaCy mist. Naast het PII-model voegt het op onze testsets niets toe. Er staat geen licentie bij, dus je downloadt het zelf."
                       >
                         {sonarModels.map(renderRow)}
                       </ModelGroup>
@@ -794,8 +816,8 @@ export function ModelManager({ open, onClose }: ModelManagerProps): JSX.Element 
                       <ModelGroup
                         tone="optional"
                         title="Extra laag voor persoonsgegevens"
-                        badge="Optioneel · download"
-                        description="Een algemeen PII-model dat meeleest. Vindt losse voornamen en waarden in tabellen die de regels missen; elk nummer gaat door dezelfde controles (Elfproef, IBAN). Kost ~1,1 GB schijfruimte en ~3 GB werkgeheugen."
+                        badge="Standaard aan"
+                        description="Een algemeen PII-model dat meeleest; zit in de installer. Vindt losse voornamen en waarden in tabellen die de regels missen; elk nummer gaat door dezelfde controles (Elfproef, IBAN). Kost ~3 GB werkgeheugen; uitzetten kan op een krappe laptop, maar dan wordt de herkenning minder."
                       >
                         {piiModels.map(renderRow)}
                       </ModelGroup>

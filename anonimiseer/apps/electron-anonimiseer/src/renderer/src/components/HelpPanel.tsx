@@ -8,6 +8,7 @@ import {
   Layers,
   Lightbulb,
   Lock,
+  Scale,
   Search,
   ShieldCheck,
   Sparkles,
@@ -41,7 +42,8 @@ type SectionId =
   | 'pseudo-vs-anon'
   | 'ollama'
   | 'troubleshoot'
-  | 'glossary';
+  | 'glossary'
+  | 'licenses';
 
 interface Section {
   id: SectionId;
@@ -76,7 +78,7 @@ export function HelpPanel({ open, onClose }: HelpPanelProps): JSX.Element | null
     {
       id: 'pipeline',
       title: 'Hoe vindt de app PII?',
-      subtitle: 'Wat doet spaCy, wat doet SoNaR, en waarom is er altijd één basis.',
+      subtitle: 'Wat doet spaCy, wat doet het PII-model, en waarom is er altijd één basis.',
       icon: <Layers className="h-4 w-4" aria-hidden />,
       render: PipelineExplanation,
     },
@@ -114,6 +116,13 @@ export function HelpPanel({ open, onClose }: HelpPanelProps): JSX.Element | null
       subtitle: 'PII, NER, recognizer, tokenisatie, pseudoniem.',
       icon: <BookOpen className="h-4 w-4" aria-hidden />,
       render: Glossary,
+    },
+    {
+      id: 'licenses',
+      title: 'Licenties',
+      subtitle: 'Welke onderdelen van derden erin zitten, en onder welke licentie.',
+      icon: <Scale className="h-4 w-4" aria-hidden />,
+      render: Licenses,
     },
   ];
 
@@ -288,6 +297,7 @@ function QuickStart(): JSX.Element {
       <li>
         <span className="font-medium">Stap 1 — Bestanden kiezen.</span>{' '}
         Sleep DOCX, PDF, MD of TXT de app in, of kies ze via de knop. Meerdere tegelijk mag.
+        Voor PDF download je eerst eenmalig PDF-ondersteuning in Modellen beheren.
       </li>
       <li>
         <span className="font-medium">Stap 2 — Instellingen.</span>{' '}
@@ -346,22 +356,22 @@ function PipelineExplanation(): JSX.Element {
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-[10px] text-primary">
             2
           </span>
-          Aanvullende NER (SoNaR-BERT) — standaard aan
+          PII-model — standaard aan
         </p>
         <p className="mt-1">
-          Draait <em>naast</em> spaCy en voegt hits toe die spaCy heeft gemist
-          (vooral Nederlandse persoonsnamen in formele context). Overlappende hits worden
-          samengevoegd, dus geen dubbele markeringen. Zit in de installer meegeleverd en
-          staat direct aan. Nadeel: eerste analyse duurt 10–30 seconden extra omdat het
-          model eenmalig geladen wordt; kost ~600 MB RAM zolang de app open is.
+          Draait <em>naast</em> spaCy en voegt persoonsgegevens toe die spaCy en de regels
+          missen, zoals losse voornamen en waarden in tabellen. Elk nummer gaat door dezelfde
+          controles als de regels (Elfproef, IBAN), en overlappende hits worden samengevoegd.
+          Zit in de installer. Nadeel: de eerste analyse duurt langer omdat het model eenmalig
+          geladen wordt, en het kost ~3 GB werkgeheugen zolang de app open is.
         </p>
       </div>
 
       <p className="rounded-md border border-success/30 bg-success/5 p-2 text-success-foreground dark:text-success">
         <CheckCircle2 className="mr-1 inline h-3 w-3" aria-hidden />
         <span className="font-medium">Standaard na installatie:</span>{' '}
-        spaCy-large + SoNaR-BERT allebei actief — de sweet spot voor Nederlandse NER.
-        Alles zit in de installer; geen extra downloads of internet nodig.
+        spaCy-large + het PII-model, allebei actief. Dat vond alle persoonsgegevens op onze
+        testsets. Alleen PDF-ondersteuning download je nog apart.
       </p>
     </div>
   );
@@ -380,13 +390,26 @@ function ModelGuide(): JSX.Element {
         gebruiken — klik <em>Gebruik</em> om te wisselen.
       </p>
 
-      <p className="font-medium">SoNaR-BERT NER — standaard aan</p>
+      <p className="font-medium">PII-model (standaard aan)</p>
       <p>
-        Een BERT-model dat specifiek op Nederlandse NER is getraind. Vangt een paar
-        procent extra hits op die spaCy mist, vooral in formele teksten en met
-        ongebruikelijke namen. Zit in de installer en is meteen aan. Je kunt 'm
-        uitzetten via Model Manager → Opnieuw/Uitschakelen, bijvoorbeeld om RAM
-        te besparen (~600 MB) op een krappe laptop.
+        Een meertalig model voor gewone persoonsgegevens (Apache-2.0). Zit in de installer
+        en staat meteen aan. Op een krappe laptop kun je &apos;m uitzetten in Modellen beheren
+        om ~3 GB werkgeheugen te besparen; de herkenning wordt dan minder.
+      </p>
+
+      <p className="font-medium">SoNaR-BERT NER (optioneel)</p>
+      <p>
+        Een BERT-model dat specifiek op Nederlandse NER is getraind. Naast het PII-model
+        voegt het op onze testsets niets toe, maar het kan helpen als je het PII-model
+        uitzet. Er staat geen licentie bij, dus het zit niet in de installer: je downloadt
+        het zelf in Modellen beheren (~440 MB, ~600 MB werkgeheugen).
+      </p>
+
+      <p className="font-medium">PDF-ondersteuning (PyMuPDF)</p>
+      <p>
+        Nodig om PDF&apos;s te openen en te zwarten. Valt onder de licentie AGPL-3.0 en zit
+        daarom niet in de installer: je downloadt het één keer (~24 MB) bij Onderdelen in
+        Modellen beheren. Word, Excel, Markdown en tekst werken zonder.
       </p>
 
       <p className="font-medium">Ollama-modellen (Qwen, Gemma, Llama…)</p>
@@ -502,8 +525,8 @@ function Troubleshoot(): JSX.Element {
       <div className="rounded-md border border-border/60 bg-muted/30 p-3">
         <p className="text-xs font-semibold">Laptop wordt traag of luidruchtig</p>
         <p className="mt-1">
-          Waarschijnlijk draait er een zwaar model: SoNaR-BERT (~600 MB RAM, standaard
-          aan) of een Ollama LLM (enkele GB, alleen als je deze hebt geactiveerd).
+          Waarschijnlijk draait er een zwaar model: het PII-model (~3 GB RAM, standaard
+          aan), SoNaR-BERT (~600 MB, als je het gedownload hebt) of een Ollama LLM (enkele GB, alleen als je deze hebt geactiveerd).
           Schakel ze uit in Modellen beheren als je ze niet nodig hebt. Eén analyse
           kan de eerste keer 30–60 seconden duren — daarna sneller dankzij caching.
         </p>
@@ -522,9 +545,8 @@ function Troubleshoot(): JSX.Element {
           Selecteer in stap 3 de naam in het tekstvenster en klik op{' '}
           <em>Markeer handmatig</em> — hij wordt dan als persoonsnaam vervangen.
           Werkt dat structureel niet voor één type? Zet in stap 2 (Geavanceerd)
-          de <em>drempelwaarde</em> iets lager. Standaard zijn spaCy-large én
-          SoNaR-BERT al actief; controleer in Modellen beheren dat je ze niet
-          per ongeluk hebt uitgezet.
+          de <em>drempelwaarde</em> iets lager. Controleer ook in Modellen beheren
+          dat het PII-model aan staat.
         </p>
       </div>
     </div>
@@ -579,5 +601,25 @@ function Glossary(): JSX.Element {
         </div>
       ))}
     </dl>
+  );
+}
+
+function Licenses(): JSX.Element {
+  const [text, setText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void window.anonimiseer.system.licenses().then((res) => {
+      if (res.ok) setText(res.text);
+      else setError(res.error);
+    });
+  }, []);
+
+  if (error) return <p className="text-destructive">{error}</p>;
+  if (text === null) return <p className="text-muted-foreground">Laden…</p>;
+  return (
+    <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/30 p-3 font-mono text-[11px] leading-relaxed">
+      {text}
+    </pre>
   );
 }

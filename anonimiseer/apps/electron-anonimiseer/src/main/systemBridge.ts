@@ -9,11 +9,13 @@
  * zijn (system_profiler, nvidia-smi, wmic). Geen extra dependencies.
  */
 
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import { exec } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import os from 'node:os';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
-import type { SystemInfo } from '@shared/api';
+import type { LicensesResponse, SystemInfo } from '@shared/api';
 
 const execAsync = promisify(exec);
 
@@ -139,5 +141,18 @@ export function registerSystemBridge(): void {
     cached = await gatherInfo();
     cacheTime = now;
     return cached;
+  });
+  ipcMain.handle('system:licenses', async (): Promise<LicensesResponse> => {
+    const path = app.isPackaged
+      ? join(process.resourcesPath, 'third-party-licenses.txt')
+      : join(app.getAppPath(), 'resources', 'third-party-licenses.txt');
+    try {
+      return { ok: true, text: await readFile(path, 'utf8') };
+    } catch {
+      return {
+        ok: false,
+        error: 'Het licentieoverzicht ontbreekt in deze build (scripts/third_party_notices.py).',
+      };
+    }
   });
 }

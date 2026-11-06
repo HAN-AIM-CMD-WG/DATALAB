@@ -101,6 +101,8 @@ export interface ActiveEngineInfo {
   customTermsState: 'off' | 'loading' | 'loaded' | 'failed';
   /** See ``EngineHealthOk.limitations``. */
   limitations: string[];
+  /** PyMuPDF is installed, so PDFs can be opened. It is a separate download. */
+  pdfSupport: boolean;
   /** HAN-/onderwijsprofiel actief? Zet klas-, cursus-, CROHO-, medewerker-
    *  en mentor-/docent-recognizers aan. */
   hanEduEnabled: boolean;
@@ -261,7 +263,7 @@ export type DocumentApplyResponse =
 export interface ModelInfo {
   id: string;
   label: string;
-  kind: 'spacy' | 'hf';
+  kind: 'spacy' | 'hf' | 'component';
   description: string;
   sizeMb: number;
   installTarget: string;
@@ -276,12 +278,15 @@ export interface ModelInfo {
   /**
    * What the model does: the spaCy pipeline (``nlp``), an extra NER layer
    * (``ner``, SoNaR), an extra PII model (``pii``), the organisation's own
-   * terms (``custom-terms``), or a foundation without NER head (``base``).
+   * terms (``custom-terms``), a foundation without NER head (``base``), or a
+   * program part such as PDF support (``component``).
    */
   role: ModelRole;
+  /** Shown before the download, which starts only once the user confirms it. */
+  notice: string;
 }
 
-export type ModelRole = 'nlp' | 'ner' | 'pii' | 'custom-terms' | 'base';
+export type ModelRole = 'nlp' | 'ner' | 'pii' | 'custom-terms' | 'base' | 'component';
 
 export interface SystemInfo {
   platform: NodeJS.Platform;
@@ -304,8 +309,12 @@ export interface SystemInfo {
   } | null;
 }
 
+export type LicensesResponse = { ok: true; text: string } | { ok: false; error: string };
+
 export interface SystemApi {
   info(): Promise<SystemInfo>;
+  /** Third-party overview plus full licence texts, generated at build time. */
+  licenses(): Promise<LicensesResponse>;
 }
 
 export type ModelListResponse =

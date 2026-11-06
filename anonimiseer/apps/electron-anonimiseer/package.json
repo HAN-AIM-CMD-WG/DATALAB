@@ -70,6 +70,10 @@
         "to": "ollama-catalog.json"
       },
       {
+        "from": "resources/third-party-licenses.txt",
+        "to": "third-party-licenses.txt"
+      },
+      {
         "from": "../../packages/pii-engine/build/dist/pii-engine",
         "to": "pii-engine",
         "filter": [

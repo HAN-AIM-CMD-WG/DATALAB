@@ -51,6 +51,20 @@ function parseUnreplaced(header: string | null): number {
   return Number.isFinite(value) && value >= 0 ? value : 1;
 }
 
+/** HTTP 424 means a component is missing; its detail tells the user where to get it. */
+async function engineError(response: Response): Promise<string> {
+  const body = await response.text().catch(() => '');
+  let detail = body;
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    if (typeof parsed.detail === 'string') detail = parsed.detail;
+  } catch {
+    // Not JSON: keep the raw body.
+  }
+  if (response.status === 424 && detail) return detail;
+  return `engine HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ''}`;
+}
+
 async function documentExtract(path: unknown): Promise<DocumentExtractResponse> {
   if (typeof path !== 'string' || !path) {
     return { ok: false, error: 'geen pad opgegeven' };
@@ -88,11 +102,7 @@ async function documentExtract(path: unknown): Promise<DocumentExtractResponse> 
     });
     clearTimeout(timer);
     if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      return {
-        ok: false,
-        error: `engine HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ''}`,
-      };
+      return { ok: false, error: await engineError(response) };
     }
     const data = (await response.json()) as {
       flat_text?: unknown;
@@ -172,11 +182,7 @@ export async function documentApply(
     });
     clearTimeout(timer);
     if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      return {
-        ok: false,
-        error: `engine HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ''}`,
-      };
+      return { ok: false, error: await engineError(response) };
     }
     const arrayBuffer = await response.arrayBuffer();
     const outBuffer = Buffer.from(arrayBuffer);

@@ -52,6 +52,9 @@ python -m pip install --upgrade pip wheel setuptools
 # [sonar] brengt torch + transformers mee zodat SoNaR-BERT NER out-of-the-box
 # werkt in de gebundelde app.
 python -m pip install -e ".[bundle,sonar]"
+# PyMuPDF (AGPL-3.0) stays out of the installer; a build venv from before it
+# became a component may still have it.
+python -m pip uninstall -y pymupdf PyMuPDFb >/dev/null 2>&1 || true
 
 echo "[build] Verifieer dat de engine importeerbaar is"
 python -c "from pii_engine.api import app; print('[build] app OK:', app.title)"
@@ -59,6 +62,18 @@ python -c "from pii_engine.api import app; print('[build] app OK:', app.title)"
 echo "[build] Run PyInstaller (spec: ${SPEC_FILE})"
 cd "${BUILD_DIR}"
 pyinstaller "${SPEC_FILE}" --noconfirm --clean
+
+echo "[build] Modellen voor de installer ophalen (hf-seed)"
+python "${BUILD_DIR}/prepare-hf-seed.py"
+
+echo "[build] Controleer dat PyMuPDF (AGPL-3.0) niet in de bundel zit"
+if find "${DIST_DIR}/pii-engine" -iname '*mupdf*' -o -name 'fitz' | grep -q .; then
+    echo "[build] FOUT: PyMuPDF staat in de bundel" >&2
+    exit 1
+fi
+
+echo "[build] Licentieoverzicht van derden (vereist npm ci in de app)"
+python "${ENGINE_ROOT}/../../scripts/third_party_notices.py"
 
 echo "[build] Smoke-test de gebundelde binary"
 BIN="${DIST_DIR}/pii-engine/pii-engine"

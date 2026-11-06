@@ -57,7 +57,7 @@ Bestand controleren tegen de SHA-256 op de Releases-pagina:
 
 **De inhoud van je documenten verlaat je laptop nooit.** Geen account nodig, geen telemetrie, geen automatische updates.
 
-Internet heb je alleen nodig als je zelf een extra taalmodel downloadt in *Modellen beheren*. Dat gebeurt nooit vanzelf en nooit met documentinhoud. De standaardmodellen (spaCy en SoNaR-BERT) zitten in de installer.
+Internet heb je alleen nodig als je zelf een extra taalmodel downloadt in *Modellen beheren*. Dat gebeurt nooit vanzelf en nooit met documentinhoud. De standaardmodellen (spaCy en het PII-model) zitten in de installer. PDF-ondersteuning en het optionele model SoNaR-BERT zitten er vanwege hun licentie niet in: die download je zelf in *Modellen beheren*, na een melding over de licentie.
 
 > **Belangrijk:** Anonimiseer is een **hulpmiddel**, geen garantie. Geen enkele automatische PII-detectie is 100% nauwkeurig. Loop de highlights altijd na vóór je een document deelt. Onder de AVG blijft de gebruiker zelf verwerkingsverantwoordelijke. Zie [`docs/disclaimer-nl.md`](docs/disclaimer-nl.md).
 
@@ -127,7 +127,7 @@ Zie [`apps/electron-anonimiseer/RELEASE.md`](apps/electron-anonimiseer/RELEASE.m
 
 De **broncode in deze repo** staat onder [MIT](../LICENSE). De Electron-app is opgezet vanaf nul, geïnspireerd op [AgenticA5/A5-PII-Anonymizer](https://github.com/AgenticA5/A5-PII-Anonymizer) (ook MIT). Zie [`apps/electron-anonimiseer-a5-reference/NOTICE.md`](apps/electron-anonimiseer-a5-reference/NOTICE.md) voor de attributie van dat werk.
 
-> **Let op — de gedistribueerde installer is niet volledig MIT.** De PDF-ondersteuning gebruikt [PyMuPDF](https://github.com/pymupdf/PyMuPDF), dat onder AGPL-3.0 valt (of onder een commerciële Artifex-licentie). De `.dmg` en `.exe` bevatten die code en zijn daarmee AGPL-3.0-verplicht: de volledige broncode van het geheel is beschikbaar in deze repo. We onderzoeken of PyMuPDF vervangen kan worden zodat de hele distributie MIT kan zijn. Zonder PDF-ondersteuning is de tool wél volledig MIT — DOCX, XLSX, Markdown en tekst gebruiken uitsluitend MIT-componenten.
+> **PDF-ondersteuning is een aparte download.** Die gebruikt [PyMuPDF](https://github.com/pymupdf/PyMuPDF), dat onder AGPL-3.0 valt. De installer bevat PyMuPDF niet: de app downloadt het op verzoek van PyPI, na een melding over de licentie, en controleert het bestand met een vast SHA-256-controlegetal. Hetzelfde geldt voor het model SoNaR-BERT, waarbij geen licentie staat. Een overzicht van alle onderdelen van derden staat in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) en in de app onder *Hulp → Licenties*.
 
 ## Vragen of issues?
 

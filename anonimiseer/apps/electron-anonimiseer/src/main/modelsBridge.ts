@@ -20,7 +20,14 @@ import type {
 } from '@shared/api';
 
 const execAsync = promisify(exec);
-const MODEL_ROLES = new Set<ModelRole>(['nlp', 'ner', 'pii', 'custom-terms', 'base']);
+const MODEL_ROLES = new Set<ModelRole>([
+  'nlp',
+  'ner',
+  'pii',
+  'custom-terms',
+  'base',
+  'component',
+]);
 
 /**
  * Bekende install-paden per platform — handig om de CLI te vinden
@@ -80,7 +87,7 @@ async function listModels(): Promise<ModelListResponse> {
       models: Array<{
         id: string;
         label: string;
-        kind: 'spacy' | 'hf';
+        kind: 'spacy' | 'hf' | 'component';
         description: string;
         size_mb: number;
         install_target: string;
@@ -91,6 +98,7 @@ async function listModels(): Promise<ModelListResponse> {
         license?: string;
         license_url?: string;
         role?: string;
+        notice?: string;
       }>;
     };
     const models: ModelInfo[] = json.models.map((m) => ({
@@ -107,6 +115,7 @@ async function listModels(): Promise<ModelListResponse> {
       license: m.license ?? 'Onbekend',
       licenseUrl: m.license_url ?? '',
       role: MODEL_ROLES.has(m.role as ModelRole) ? (m.role as ModelRole) : 'base',
+      notice: typeof m.notice === 'string' ? m.notice : '',
     }));
     return { ok: true, models };
   } catch (err) {

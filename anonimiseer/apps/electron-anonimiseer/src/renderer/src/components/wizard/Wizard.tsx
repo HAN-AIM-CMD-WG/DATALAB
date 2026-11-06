@@ -20,7 +20,13 @@ import type { ReviewState } from './reviewTypes';
  * alleen de relevante slice + een setter. Later kunnen we dit naar een
  * context/reducer promoten; voor nu is het klein genoeg.
  */
-export function Wizard(): JSX.Element {
+export function Wizard({
+  onOpenModels,
+  modelsClosed,
+}: {
+  onOpenModels: () => void;
+  modelsClosed: number;
+}): JSX.Element {
   const [step, setStep] = useState<WizardStepId>('files');
   const [files, setFiles] = useState<WizardFileEntry[]>([]);
   const [settings, setSettings] = useState<WizardSettings>(defaultWizardSettings());
@@ -108,7 +114,14 @@ export function Wizard(): JSX.Element {
       <Stepper current={step} furthestReached={furthestReached} onSelect={goTo} />
 
       <div className="rounded-2xl border border-border/70 bg-card p-8 shadow-sm">
-        {step === 'files' && <Step1FilePicker files={files} onChange={setFiles} />}
+        {step === 'files' && (
+          <Step1FilePicker
+            files={files}
+            onChange={setFiles}
+            onOpenModels={onOpenModels}
+            modelsClosed={modelsClosed}
+          />
+        )}
         {step === 'settings' && (
           <Step2Settings settings={settings} onChange={setSettings} />
         )}

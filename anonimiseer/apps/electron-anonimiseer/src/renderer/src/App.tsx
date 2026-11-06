@@ -14,6 +14,7 @@ export function App(): JSX.Element {
   const { health, recheck } = useEngineHealth();
   const { settings, update, reload } = useSettings();
   const [showModels, setShowModels] = useState(false);
+  const [modelsClosed, setModelsClosed] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const [showRestore, setShowRestore] = useState(false);
 
@@ -50,10 +51,16 @@ export function App(): JSX.Element {
       />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
         {health.status === 'down' && <EngineOfflinePanel health={health} onRetry={recheck} />}
-        <Wizard />
+        <Wizard onOpenModels={() => setShowModels(true)} modelsClosed={modelsClosed} />
       </main>
       <Footer />
-      <ModelManager open={showModels} onClose={() => setShowModels(false)} />
+      <ModelManager
+        open={showModels}
+        onClose={() => {
+          setShowModels(false);
+          setModelsClosed((n) => n + 1);
+        }}
+      />
       <HelpPanel open={showHelp} onClose={() => setShowHelp(false)} />
       <RestorePanel open={showRestore} onClose={() => setShowRestore(false)} />
     </div>

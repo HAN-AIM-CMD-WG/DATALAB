@@ -28,6 +28,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from pii_engine import (
     __version__,
+    components,
     documents,
     ollama_client,
     ollama_review,
@@ -247,6 +248,8 @@ def create_app() -> FastAPI:
             result = documents.extract(data, file.filename)
         except documents.UnsupportedFormat as exc:
             raise HTTPException(status_code=415, detail=str(exc)) from exc
+        except components.ComponentMissing as exc:
+            raise HTTPException(status_code=424, detail=str(exc)) from exc
         except Exception as exc:  # pragma: no cover
             logger.exception("Extractie mislukt")
             raise HTTPException(status_code=500, detail=f"extractie mislukt: {exc}") from exc
@@ -289,6 +292,8 @@ def create_app() -> FastAPI:
             unreplaced = documents.count_unreplaced(data, result_bytes, file.filename, replacements)
         except documents.UnsupportedFormat as exc:
             raise HTTPException(status_code=415, detail=str(exc)) from exc
+        except components.ComponentMissing as exc:
+            raise HTTPException(status_code=424, detail=str(exc)) from exc
         except Exception as exc:  # pragma: no cover
             logger.exception("Toepassing mislukt")
             raise HTTPException(status_code=500, detail=f"toepassing mislukt: {exc}") from exc
@@ -431,6 +436,7 @@ def create_app() -> FastAPI:
             ],
             custom_terms_state=status.custom_terms_state,
             limitations=status.limitations,
+            pdf_support=components.available(components.PYMUPDF),
             han_edu_enabled=active_settings.enable_han_edu,
             score_threshold=active_settings.default_score_threshold,
             recognizers=recognizer_names,
@@ -550,6 +556,7 @@ def create_app() -> FastAPI:
                     min_ram_mb=descriptor.min_ram_mb,
                     gpu_recommended=descriptor.gpu_recommended,
                     role=descriptor.role,
+                    notice=descriptor.notice,
                 )
             )
         return ModelListResponse(models=items)

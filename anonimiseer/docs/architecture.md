@@ -30,14 +30,13 @@ voetteksten, werkbladcellen, PDF-regels). Daarna:
    (Elfproef), IBAN (mod-97), telefoon, postcode (met adrescontext), adressen, kentekens,
    KvK/BIG/AGB/BTW, geboortedatums, links naar een persoon, plus Presidio's herkenners voor
    e-mail, IP, URL en creditcard.
-2. **Nederlandse NER**: spaCy `nl_core_news_lg` via Presidio, plus SoNaR-BERT
-   (`wietsedv/bert-base-dutch-cased-finetuned-sonar-ner`, PyTorch) voor betere recall op
-   namen, plaatsen en organisaties.
-3. **Modellaag** (optioneel, op verzoek gedownload): een algemeen PII-model
-   (`bardsai/eu-pii-anonimization-multilang-v3`) voor gewone persoonsgegevens, en GLiNER2
-   (`fastino/gliner2-privacy-filter-PII-multi`) voor de eigen begrippen uit het profiel van
-   een organisatie (zie [`profielen.md`](profielen.md)). Modeluitvoer gaat door dezelfde
-   controles als de eigen regels: Elfproef, IBAN mod-97, Luhn, hele woorden.
+2. **Nederlandse NER**: spaCy `nl_core_news_lg` via Presidio; optioneel SoNaR-BERT
+   (`wietsedv/bert-base-dutch-cased-finetuned-sonar-ner`, PyTorch), een download.
+3. **Modellaag**: een algemeen PII-model (`bardsai/eu-pii-anonimization-multilang-v3`,
+   meegeleverd en standaard aan) voor gewone persoonsgegevens, en GLiNER2
+   (`fastino/gliner2-privacy-filter-PII-multi`, een download) voor de eigen begrippen uit
+   het profiel van een organisatie (zie [`profielen.md`](profielen.md)). Modeluitvoer gaat
+   door dezelfde controles als de eigen regels: Elfproef, IBAN mod-97, Luhn, hele woorden.
 4. **Postfilter**: treffers blijven binnen één blok, overlappende treffers worden
    samengevoegd of rond een sterkere treffer (postcode, e-mail) geknipt, veldlabels en ruis
    vallen weg.
@@ -59,8 +58,12 @@ wat er echt geladen is. Ontbreekt er iets, dan staat de engine in de kopbalk op 
 met de reden.
 
 - **spaCy**: klein, medium of large; large zit in de installer.
-- **SoNaR-BERT**: zit in de installer, aan of uit te zetten.
-- **PII-model** (bardsai, ~1,1 GB): op verzoek te downloaden, aan of uit te zetten.
+- **SoNaR-BERT** (~440 MB): optioneel, op verzoek te downloaden (er staat geen licentie
+  bij), daarna aan of uit te zetten. Naast het PII-model voegt het op de testsets niets toe.
+- **PDF-ondersteuning** (PyMuPDF, AGPL-3.0, ~24 MB): een onderdeel dat de engine op verzoek
+  van PyPI haalt en alleen installeert als het SHA-256-controlegetal klopt.
+- **PII-model** (bardsai, Apache-2.0, ~1,1 GB): zit in de installer, staat standaard aan,
+  uit te zetten.
 - **GLiNER2-PII** (~1,1 GB): op verzoek te downloaden; wordt vanzelf gebruikt als het
   actieve profiel eigen begrippen heeft.
 - **Profiel van je organisatie**: Algemeen, HAN-onderwijs, of een geïmporteerd profiel met

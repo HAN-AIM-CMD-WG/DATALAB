@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   UploadCloud,
   FolderOpen,
@@ -25,12 +25,33 @@ import { SUPPORTED_EXTENSIONS, type WizardFileEntry } from './wizardTypes';
 export function Step1FilePicker({
   files,
   onChange,
+  onOpenModels,
+  modelsClosed,
 }: {
   files: WizardFileEntry[];
   onChange: (files: WizardFileEntry[]) => void;
+  onOpenModels: () => void;
+  /** Goes up each time the Model Manager closes, so a fresh install is noticed. */
+  modelsClosed: number;
 }): JSX.Element {
   const [isDragging, setDragging] = useState(false);
   const dragCounter = useRef(0);
+  const [pdfMissing, setPdfMissing] = useState(false);
+  const hasPdf = files.some((f) => !f.error && f.info.extension === '.pdf');
+
+  useEffect(() => {
+    if (!hasPdf) {
+      setPdfMissing(false);
+      return;
+    }
+    let cancelled = false;
+    void window.anonimiseer.engine.active().then((res) => {
+      if (!cancelled) setPdfMissing(res.ok && !res.info.pdfSupport);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasPdf, modelsClosed]);
 
   const addInfos = useCallback(
     (infos: DialogFileInfo[]): void => {
@@ -190,6 +211,27 @@ export function Step1FilePicker({
               <FileRow key={f.id} entry={f} onRemove={removeAt} />
             ))}
           </ul>
+        </div>
+      )}
+
+      {pdfMissing && (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground"
+        >
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none text-warning" aria-hidden />
+          <p>
+            PDF-ondersteuning is nog niet geïnstalleerd, dus PDF&apos;s kunnen nog niet worden
+            geopend.{' '}
+            <button
+              type="button"
+              onClick={onOpenModels}
+              className="font-medium underline underline-offset-2 hover:text-primary"
+            >
+              Installeer het in Modellen beheren
+            </button>
+            .
+          </p>
         </div>
       )}
     </div>

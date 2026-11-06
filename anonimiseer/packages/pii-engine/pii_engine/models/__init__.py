@@ -33,10 +33,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from pii_engine import components
+
 logger = logging.getLogger(__name__)
 
-ModelKind = Literal["spacy", "hf"]
-ModelRole = Literal["nlp", "ner", "pii", "custom-terms", "base"]
+ModelKind = Literal["spacy", "hf", "component"]
+ModelRole = Literal["nlp", "ner", "pii", "custom-terms", "base", "component"]
 TaskState = Literal["pending", "running", "done", "error"]
 
 
@@ -68,11 +70,14 @@ class ModelDescriptor:
     role: ModelRole = "base"
     """What the model does: ``nlp`` (the spaCy pipeline, always exactly one),
     ``ner`` (SoNaR, an extra NER layer), ``pii`` (an extra PII model),
-    ``custom-terms`` (the organisation's own terms) or ``base`` (a foundation
-    model without NER head, not usable on its own). The Model Manager groups
-    models by role."""
+    ``custom-terms`` (the organisation's own terms), ``base`` (a foundation
+    model without NER head, not usable on its own) or ``component`` (a Python
+    package such as PyMuPDF). The Model Manager groups models by role."""
     on_demand: bool = False
     """Downloadable in the installed app, rather than shipped with it."""
+    notice: str = ""
+    """Shown before the download, which starts only once the user confirms it.
+    For anything the installer may not ship because of its licence."""
 
 
 @dataclass
@@ -166,8 +171,8 @@ _HF_MODELS: list[ModelDescriptor] = [
         label="SoNaR-BERT NER",
         kind="hf",
         description=(
-            "Op het SoNaR-corpus fijnafgestelde BERT voor Nederlandse NER."
-            " Geeft betere recall op personen, locaties en organisaties."
+            "Op het SoNaR-corpus fijnafgestelde BERT voor Nederlandse NER. Optioneel:"
+            " het meegeleverde PII-model vindt al alles op onze testsets. ~440 MB."
         ),
         size_mb=440,
         install_target="wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
@@ -175,6 +180,11 @@ _HF_MODELS: list[ModelDescriptor] = [
         license_url="https://huggingface.co/wietsedv/bert-base-dutch-cased-finetuned-sonar-ner",
         min_ram_mb=2048,
         role="ner",
+        on_demand=True,
+        notice=(
+            "Bij dit model staat geen licentie. Anonimiseer levert het daarom niet mee: je"
+            " downloadt het zelf van HuggingFace en gebruikt het op eigen verantwoordelijkheid."
+        ),
     ),
     ModelDescriptor(
         id="hf:bardsai/eu-pii-anonimization-multilang-v3",
@@ -184,7 +194,7 @@ _HF_MODELS: list[ModelDescriptor] = [
             "Extra laag voor gewone persoonsgegevens: namen, adressen, telefoon, IBAN en"
             " identificatienummers. Vindt losse voornamen en waarden in tabellen die de"
             " regels missen. Treffers gaan door dezelfde controles als de eigen regels"
-            " (Elfproef, IBAN). ~1,1 GB."
+            " (Elfproef, IBAN). Zit in de installer en staat standaard aan. ~1,1 GB."
         ),
         size_mb=1150,
         install_target="bardsai/eu-pii-anonimization-multilang-v3",
@@ -192,7 +202,6 @@ _HF_MODELS: list[ModelDescriptor] = [
         license="Apache-2.0",
         license_url="https://huggingface.co/bardsai/eu-pii-anonimization-multilang-v3",
         role="pii",
-        on_demand=True,
     ),
     ModelDescriptor(
         id="hf:fastino/gliner2-privacy-filter-PII-multi",
@@ -210,6 +219,30 @@ _HF_MODELS: list[ModelDescriptor] = [
         license_url="https://huggingface.co/fastino/gliner2-privacy-filter-PII-multi",
         role="custom-terms",
         on_demand=True,
+    ),
+]
+
+
+_COMPONENTS: list[ModelDescriptor] = [
+    ModelDescriptor(
+        id="component:pymupdf",
+        label="PDF-ondersteuning (PyMuPDF)",
+        kind="component",
+        description=(
+            "Nodig om PDF's te openen en te zwarten. Zit niet in de installer vanwege"
+            " de licentie. ~24 MB."
+        ),
+        size_mb=24,
+        install_target=components.PYMUPDF.name,
+        license="AGPL-3.0 (of een commerciële licentie van de maker)",
+        license_url="https://github.com/pymupdf/PyMuPDF/blob/main/COPYING",
+        role="component",
+        on_demand=True,
+        notice=(
+            "PyMuPDF valt onder de licentie AGPL-3.0. Anonimiseer levert het daarom niet"
+            " mee: je downloadt het zelf van PyPI, en met downloaden ga je akkoord met die"
+            " licentie."
+        ),
     ),
 ]
 
@@ -233,22 +266,19 @@ def _build_registry() -> list[ModelDescriptor]:
     werken, dus de volledige lijst is relevant.
 
     Bundle-modus: alleen de gebundelde spaCy-modellen die daadwerkelijk als
-    Python-module aanwezig zijn, plus de HF-modellen die door Electron via
-    ``hf-seed`` voor-geseed zijn (SoNaR-BERT is standaard aanwezig). BERTje
-    op zichzelf heeft in de app geen onafhankelijke functie (geen NER-head),
-    dus die wordt in de bundle verborgen.
+    Python-module aanwezig zijn, het PII-model dat Electron via ``hf-seed``
+    meelevert, plus wat de gebruiker op verzoek downloadt. BERTje op zichzelf
+    heeft in de app geen onafhankelijke functie (geen NER-head), dus die wordt
+    in de bundle verborgen.
     """
 
     if not _is_bundled_build():
-        return [*_SPACY_MODELS, *_HF_MODELS]
+        return [*_SPACY_MODELS, *_HF_MODELS, *_COMPONENTS]
 
     available_spacy = [m for m in _SPACY_MODELS if _spacy_installed(m.install_target)[0]]
-    # In de bundle tonen we de HF-modellen die Electron heeft voor-geseed
-    # (SoNaR) plus de modellen die je op verzoek downloadt. BERTje zonder
-    # NER-head is in de app niet los bruikbaar en wordt daarom weggelaten.
-    bundled_hf_ids = {"hf:wietsedv/bert-base-dutch-cased-finetuned-sonar-ner"}
-    available_hf = [m for m in _HF_MODELS if m.id in bundled_hf_ids or m.on_demand]
-    return [*available_spacy, *available_hf]
+    shipped_hf_ids = {"hf:bardsai/eu-pii-anonimization-multilang-v3"}
+    available_hf = [m for m in _HF_MODELS if m.id in shipped_hf_ids or m.on_demand]
+    return [*available_spacy, *available_hf, *_COMPONENTS]
 
 
 REGISTRY: list[ModelDescriptor] = _build_registry()
@@ -336,6 +366,12 @@ def status_for(descriptor: ModelDescriptor) -> tuple[bool, str | None]:
         return _spacy_installed(descriptor.install_target)
     if descriptor.kind == "hf":
         return _hf_installed(descriptor.install_target)
+    if descriptor.kind == "component":
+        component = components.COMPONENTS[descriptor.install_target]
+        if not components.available(component):
+            return False, None
+        folder = components.install_dir(component)
+        return True, str(folder) if components.installed(component) else None
     return False, None
 
 
@@ -468,6 +504,11 @@ def _install_hf(descriptor: ModelDescriptor, task_id: str) -> None:
             message=f"Geïnstalleerd in {local}",
             finished_at=time.time(),
         )
+        # A model that was missing at start-up stays failed until the
+        # pipeline is rebuilt.
+        from pii_engine import runtime
+
+        runtime.refresh_pipeline()
     except PermissionError as exc:
         logger.exception("HF-download geweigerd door OS")
         _update_task(
@@ -490,9 +531,36 @@ def _install_hf(descriptor: ModelDescriptor, task_id: str) -> None:
         )
 
 
+def _install_component(descriptor: ModelDescriptor, task_id: str) -> None:
+    component = components.COMPONENTS[descriptor.install_target]
+    _update_task(task_id, state="running", progress=0.02, message="Voorbereiden…")
+    try:
+        folder = components.install(
+            component,
+            lambda progress, message: _update_task(task_id, progress=progress, message=message),
+        )
+    except components.ComponentError as exc:
+        _update_task(task_id, state="error", message=str(exc), finished_at=time.time())
+        return
+    except Exception as exc:
+        logger.exception("Installing %s failed", component.name)
+        _update_task(
+            task_id, state="error", message=f"Downloaden mislukt: {exc}", finished_at=time.time()
+        )
+        return
+    _update_task(
+        task_id,
+        state="done",
+        progress=1.0,
+        message=f"Geïnstalleerd in {folder}",
+        finished_at=time.time(),
+    )
+
+
 _INSTALLERS: dict[ModelKind, Callable[[ModelDescriptor, str], None]] = {
     "spacy": _install_spacy,
     "hf": _install_hf,
+    "component": _install_component,
 }
 
 

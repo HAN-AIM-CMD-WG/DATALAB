@@ -17,6 +17,7 @@ import type {
   DocumentExtractResponse,
   EngineConfigPatch,
   EngineHealth,
+  LicensesResponse,
   ModelListResponse,
   ModelTaskResponse,
   OllamaCatalogResponse,
@@ -134,6 +135,8 @@ const api: AnonimiseerApi = {
   system: {
     info: (): Promise<SystemInfo> =>
       ipcRenderer.invoke('system:info') as Promise<SystemInfo>,
+    licenses: (): Promise<LicensesResponse> =>
+      ipcRenderer.invoke('system:licenses') as Promise<LicensesResponse>,
   },
   catalog: {
     ollama: {

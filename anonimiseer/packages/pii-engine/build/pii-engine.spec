@@ -54,9 +54,6 @@ hiddenimports += collect_submodules("catalogue")
 hiddenimports += collect_submodules("wasabi")
 hiddenimports += collect_submodules("nl_core_news_lg")
 
-# PyMuPDF levert de `fitz`-module via shim.
-hiddenimports += ["fitz"]
-
 # Pydantic-settings laadt sources via entry-point, anders valt `.env` om.
 hiddenimports += collect_submodules("pydantic_settings")
 
@@ -132,6 +129,10 @@ a = Analysis(
                 "jax",
                 "jaxlib",
                 "flax",
+                # PyMuPDF is AGPL-3.0: the user downloads it as a component, the
+                # installer never contains it.
+                "fitz",
+                "pymupdf",
             ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

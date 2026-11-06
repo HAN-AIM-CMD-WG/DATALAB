@@ -370,11 +370,17 @@ def _invalidate_analyzer_cache() -> None:
     logger.info("analyzer-cache geleegd na runtime-config wijziging.")
 
 
+def refresh_pipeline() -> None:
+    """Rebuild the pipeline on next use, e.g. once a model it was missing is installed."""
+    _invalidate_analyzer_cache()
+
+
 __all__ = [
     "RuntimeConfig",
     "RuntimeConfigError",
     "apply",
     "effective_settings",
     "get_runtime",
+    "refresh_pipeline",
     "reset",
 ]

@@ -143,6 +143,10 @@ class ActiveEngineResponse(BaseModel):
         default_factory=list,
         description="Zie ``HealthResponse.limitations``.",
     )
+    pdf_support: bool = Field(
+        default=False,
+        description="PyMuPDF is installed, so PDFs can be opened and redacted.",
+    )
     han_edu_enabled: bool = Field(
         default=True,
         description=(
@@ -271,7 +275,7 @@ class DocumentReplacement(BaseModel):
 class ModelInfo(BaseModel):
     id: str
     label: str
-    kind: Literal["spacy", "hf"]
+    kind: Literal["spacy", "hf", "component"]
     description: str
     size_mb: int
     install_target: str
@@ -281,7 +285,9 @@ class ModelInfo(BaseModel):
     gpu_recommended: bool = False
     license: str = "Onbekend"
     license_url: str = ""
-    role: Literal["nlp", "ner", "pii", "custom-terms", "base"] = "base"
+    role: Literal["nlp", "ner", "pii", "custom-terms", "base", "component"] = "base"
+    notice: str = ""
+    """Shown to the user before the download starts, who must confirm it."""
 
 
 class ModelListResponse(BaseModel):

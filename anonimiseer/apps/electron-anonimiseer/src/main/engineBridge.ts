@@ -211,6 +211,7 @@ function parseActiveBody(data: unknown): ActiveEngineResponse {
         : [],
       customTermsState: modelState(obj.custom_terms_state),
       limitations: stringList(obj.limitations),
+      pdfSupport: obj.pdf_support === true,
       hanEduEnabled:
         typeof obj.han_edu_enabled === 'boolean' ? obj.han_edu_enabled : true,
       scoreThreshold:
